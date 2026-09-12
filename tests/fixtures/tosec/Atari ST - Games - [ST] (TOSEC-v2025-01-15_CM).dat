@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datafile>
+	<header>
+		<name>Atari ST - Games - [ST]</name>
+		<version>2025-01-15</version>
+	</header>
+	<game name="Chaos Engine, The (1993)(Renegade)(Disk 1 of 2)[cr Cynix]">
+		<rom name="Chaos Engine, The (1993)(Renegade)(Disk 1 of 2)[cr Cynix].st" size="819200" crc="5c9060a9" md5="cf0a806452bd4c4be19b7c140ee1bd81" sha1="e2f3973aac689535e3559ac492e4b2ce370fabf6"/>
+	</game>
+	<game name="Chaos Engine, The (1993)(Renegade)(Disk 1 of 2)[cr Cynix][a2]">
+		<rom name="Chaos Engine, The (1993)(Renegade)(Disk 1 of 2)[cr Cynix][a2].st" size="819200" crc="eba0022a" md5="28f43e68a0a6c1ca429ae21f132c9828" sha1="f4e59c1743aaa3ce8bf68c290dfd380fc9c04ce1"/>
+	</game>
+	<game name="Chaos Engine, The (1993)(Renegade)(Disk 1 of 2)[cr Cynix][a3]">
+		<rom name="Chaos Engine, The (1993)(Renegade)(Disk 1 of 2)[cr Cynix][a3].st" size="839680" crc="dcfc85dc" md5="0fdf4f9ac9302625057644a790080e5a" sha1="72e44cc59746f804530a3e3735b4f2c38f50e79f"/>
+	</game>
+	<game name="Chaos Engine, The (1993)(Renegade)(Disk 1 of 2)[cr Cynix][a]">
+		<rom name="Chaos Engine, The (1993)(Renegade)(Disk 1 of 2)[cr Cynix][a].st" size="819200" crc="ce38f0c6" md5="dd1106219c78063d052c3f5516a19d77" sha1="ccae3b1544fd94fd8cf286d154ada6672af8c15e"/>
+	</game>
+	<game name="Chaos Engine, The (1993)(Renegade)(Disk 1 of 2)[cr Cynix][t]">
+		<rom name="Chaos Engine, The (1993)(Renegade)(Disk 1 of 2)[cr Cynix][t].st" size="819200" crc="7441a484" md5="b05764aba51ee2ea94bccb90961b7a93" sha1="6c5f05a5d158eb5d0a11df55ca39e1deeebed68a"/>
+	</game>
+	<game name="Chaos Engine, The (1993)(Renegade)(Disk 1 of 2)[cr Cynix][t][a]">
+		<rom name="Chaos Engine, The (1993)(Renegade)(Disk 1 of 2)[cr Cynix][t][a].st" size="737280" crc="d49f9fbb" md5="504f56fa37a7fa3f20ce40a266ca28cf" sha1="6b6927c652cededdbbe4c653d68d054aac806d80"/>
+	</game>
+	<game name="Xenon (1988)(Melbourne House)">
+		<rom name="Xenon (1988)(Melbourne House).st" size="409600" crc="99dc8cd9" md5="f3509d04d5e89d7ac46d95456046e00f" sha1="2595a29023c5648c8c68c22233439430d1403f95"/>
+	</game>
+	<game name="Xenon (1988)(Melbourne House)[cr D-Bug]">
+		<rom name="Xenon (1988)(Melbourne House)[cr D-Bug].st" size="368640" crc="263df55a" md5="0a43be706034687f2bf4b6f8520dd7c9" sha1="abcdb86aa42ee13462844f49c50def39713bd28e"/>
+	</game>
+	<game name="Xenon (1988)(Melbourne House)[cr Hernoice][t]">
+		<rom name="Xenon (1988)(Melbourne House)[cr Hernoice][t].st" size="409600" crc="1220add8" md5="62407f6fe36dab16b23ca7425f363ab8" sha1="81f0b3209259126c1f5842f0d47833e60f98ee81"/>
+	</game>
+	<game name="Xenon (1988)(Melbourne House)[cr Outlaw][t]">
+		<rom name="Xenon (1988)(Melbourne House)[cr Outlaw][t].st" size="419840" crc="0919a7f1" md5="212ae60789b565666ee9331e1fda6b3b" sha1="089e7f591cc818a96ba618f871192c44181fed24"/>
+	</game>
+	<game name="Xenon (1988)(Melbourne House)[cr Self][t]">
+		<rom name="Xenon (1988)(Melbourne House)[cr Self][t].st" size="419840" crc="27ab2063" md5="d76481bcf2e06bd2c409713de3d92d4e" sha1="06c707024088427e3d83183c683b737c53b08a8b"/>
+	</game>
+	<game name="Xenon (1988)(Melbourne House)[cr Self][t][a]">
+		<rom name="Xenon (1988)(Melbourne House)[cr Self][t][a].st" size="419840" crc="af3cfdaf" md5="a4d35dbd6dfd93be3e3c437d090d04de" sha1="8e0068b145998eb7c392b5aacf1d4c800eac3ce4"/>
+	</game>
+	<game name="Xenon (1988)(Melbourne House)[cr][t +2 Avengers]">
+		<rom name="Xenon (1988)(Melbourne House)[cr][t +2 Avengers].st" size="409600" crc="f89163a0" md5="5f390ea3e23a8ce962a23cdfc7e58634" sha1="95f5f5aecd37cc43cbcd892119ec9d91db0b5503"/>
+	</game>
+	<game name="Xenon (1988)(Melbourne House)[m EMT][t]">
+		<rom name="Xenon (1988)(Melbourne House)[m EMT][t].st" size="746496" crc="81f141d1" md5="7d711a977c49d39c94fe0b3b5849d7ae" sha1="1840636a7b87be4f0c3c2f2e436133d35c644dd6"/>
+	</game>
+	<game name="Xenon (1988)(Melbourne House)[t]">
+		<rom name="Xenon (1988)(Melbourne House)[t].st" size="737280" crc="2086e32f" md5="53385ce4a7c92eb65fd970f860e1a3c8" sha1="0db52e14a1c7cadafe3c74eb5804f5e1efeada09"/>
+	</game>
+</datafile>

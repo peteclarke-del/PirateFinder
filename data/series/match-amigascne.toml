@@ -1,0 +1,108 @@
+# How the amigascne.org importers recognise series in the archive's file names.
+#
+# Patterns are matched, case-insensitively, against "<group folder>/<file
+# name>" without the extension and without dump flags such as "[b]", for
+# example "Skid_Row/SKID_ROW-Compact130" or "Effect/Effect-PrevailPack147".
+# The menu texts under Scrollers/ are matched the same way, with the
+# "-menu.txt" ending removed ("Skid_Row/Skid_Row-Compact031"). The patterns
+# key on the file name, which carries the group prefix, so they work for
+# both folder layouts. Names no pattern claims are also tried against the
+# declared series names, so a series whose file names read like its name
+# ("PrevailPack147" for "Prevail Pack") needs no rule here.
+
+[[match]]
+series = "skid-row-compact"
+source = "amigascne"
+patterns = ['(?:^|/)Skid_Row-Compact0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "prevail-pack"
+source = "amigascne"
+patterns = ['(?:^|/)Effect-PrevailPack0*(?P<number>\d+)$']
+
+[[match]]
+series = "alpha-flight-zylon"
+source = "amigascne"
+patterns = ['(?:^|/)Zylon-Compact(?:ed ?Disk)?0*(?P<number>\d+)$']
+
+[[match]]
+series = "bsa-compact"
+source = "amigascne"
+patterns = ['(?:^|/)BSA-CompactDisc0*(?P<number>\d+)$']
+
+[[match]]
+series = "switch-game-pack"
+source = "amigascne"
+patterns = ['(?:^|/)Switch-GamePack0*(?P<number>\d+)$']
+
+[[match]]
+series = "rebels-candyland"
+source = "amigascne"
+patterns = ['(?:^|/)Rebels-Candyland0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "crusaders-selector-pack"
+source = "amigascne"
+patterns = ['(?:^|/)Crusaders-SelectorPack0*(?P<number>\d+)$']
+
+[[match]]
+series = "paradox-blandet-guf"
+source = "amigascne"
+patterns = ['(?:^|/)Paradox-Guf0*(?P<number>\d+)$']
+
+[[match]]
+series = "elicma-united-compacts"
+source = "amigascne"
+patterns = ['(?:^|/)Elicma-UnitedCompacts0*(?P<number>\d+)$']
+
+[[match]]
+series = "savage-crystal-pack"
+source = "amigascne"
+patterns = ['(?:^|/)(?:Savage|Intuition)-CrystalPack0*(?P<number>\d+)$']
+
+[[match]]
+series = "nightfall-xads-pack"
+source = "amigascne"
+patterns = ['(?:^|/)Nightfall-XADs?Pack0*(?P<number>\d+)$']
+
+[[match]]
+series = "tek-mind-funk"
+source = "amigascne"
+patterns = ['(?:^|/)TEK-MindFunk0*(?P<number>\d+)$']
+
+[[match]]
+series = "scoopex-ranger"
+source = "amigascne"
+patterns = ['(?:^|/)(?:Scoopex|SCX)-RangerPack0*(?P<number>\d+)$']
+
+# Tuff Stuff was numbered in one run by Rebels (1 to 8), TRSI and TEK.
+# D-Tect's own Tuff Stuff disks are a different series and are not matched.
+[[match]]
+series = "trsi-tuff-stuff"
+source = "amigascne"
+patterns = ['(?:^|/)(?:TRSI|Rebels|TEK)-TuffStuff0*(?P<number>\d+)$']
+
+[[match]]
+series = "devious-bits-n-pieces"
+source = "amigascne"
+patterns = ['(?:^|/)DD-BitsNPieces0*(?P<number>\d+)$']
+
+[[match]]
+series = "intryx-neutralized"
+source = "amigascne"
+patterns = ['(?:^|/)Intryx-Neutralized0*(?P<number>\d+)$']
+
+[[match]]
+series = "depth-under-the-surface"
+source = "amigascne"
+patterns = ['(?:^|/)Depth-UnderTheSurface0*(?P<number>\d+)$']
+
+[[match]]
+series = "flashlight-flash-demodisk"
+source = "amigascne"
+patterns = ['(?:^|/)FLD-Demodisk0*(?P<number>\d+)$']
+
+[[match]]
+series = "17-bit-intros-disk"
+source = "amigascne"
+patterns = ['(?:^|/)!?17Bit-IntrosDisk0*(?P<number>\d+)$']

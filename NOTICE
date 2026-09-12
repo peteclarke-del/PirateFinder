@@ -1,0 +1,21 @@
+PirateFinder
+Copyright (c) 2026 Pete Clarke
+
+The PirateFinder source is licensed under the GNU General Public License,
+version 3 or any later version, in LICENSE.
+
+The catalogue database built by catalogue_builder and published as
+catalogue.sqlite.gz is licensed under the Creative Commons
+Attribution-NonCommercial-ShareAlike 4.0 International licence, because it
+includes data from Atari Legend under that licence. docs/DATA_SOURCES.md lists
+every source and its terms.
+
+The Debian package bundles the Greaseweazle host tools and their Python
+dependencies, and src/piratefinder/images/vendor contains code copied from
+sibling projects under the MIT licence. Those components keep their own
+copyright and licence terms. See THIRD_PARTY_NOTICES.md.
+
+PirateFinder contains no disk images. Disk images found in the user's folders
+or downloaded at the user's request from third-party archives are not covered
+by the PirateFinder licence and keep the rights of their authors and
+publishers.

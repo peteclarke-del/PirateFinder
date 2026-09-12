@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "piratefinder"
+dynamic = ["version"]
+description = "Find Amiga and Atari ST menu disks and write them to floppy with Greaseweazle"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "GPL-3.0-or-later"
+# PyGObject with GTK 4 and libadwaita comes from the distribution. The
+# Greaseweazle host tools are bundled by the Debian package.
+dependencies = []
+
+[project.gui-scripts]
+piratefinder = "piratefinder.__main__:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+piratefinder = ["data/icons/hicolor/*/apps/*", "data/help/*"]
+
+[tool.setuptools.dynamic]
+version = { attr = "piratefinder.__version__" }
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["src/piratefinder/images/vendor"]
+
+[tool.ruff.lint]
+select = ["F", "I", "UP", "B", "SIM", "C4", "PIE", "PERF"]

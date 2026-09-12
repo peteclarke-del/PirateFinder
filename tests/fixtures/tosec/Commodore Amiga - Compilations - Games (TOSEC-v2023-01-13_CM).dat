@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datafile>
+	<header>
+		<name>Commodore Amiga - Compilations - Games</name>
+		<version>2023-01-13</version>
+	</header>
+	<game name="Compact #124 (1993)(Apollo)">
+		<rom name="Compact #124 (1993)(Apollo).adf" size="901120" crc="a5ff47c6" md5="b73ea5de03507d72c6429b6382594cef" sha1="1fec31ab719cbbbee81fa3d7c69a89006d7fdbc2"/>
+	</game>
+	<game name="TMF Compact - Quadralien &amp; Carrier Command &amp; Championship Cricket (1988)(The Magnum Force)">
+		<rom name="TMF Compact - Quadralien &amp; Carrier Command &amp; Championship Cricket (1988)(The Magnum Force).adf" size="901120" crc="5b88b9e8" md5="c54ca0b61055443dc8701539ed8f8394" sha1="124815f51848b487357824fa7b694eb470735605"/>
+	</game>
+	<game name="TMF Compact - Quadralien &amp; Carrier Command &amp; Championship Cricket (1988)(The Magnum Force)[m bamcopy]">
+		<rom name="TMF Compact - Quadralien &amp; Carrier Command &amp; Championship Cricket (1988)(The Magnum Force)[m bamcopy].adf" size="901120" crc="fb45b522" md5="e8834c9b6dacffd13d8d0ca19ae331fb" sha1="1468976abc2cb2697be3a1a4ea0eb5c69f3af880"/>
+	</game>
+</datafile>

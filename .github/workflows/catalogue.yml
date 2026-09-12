@@ -1,0 +1,99 @@
+name: Catalogue
+
+# Rebuilds the catalogue from its public sources once a week and publishes it
+# as a release asset. The application checks the repository releases for the
+# newest one carrying catalogue.sqlite.gz, and application releases bundle the
+# newest catalogue, so these releases are never marked as the latest release
+# (that stays with the newest application release).
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catalogue
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and publish the catalogue
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    permissions:
+      contents: write
+    env:
+      BUILDER_CACHE: build/catalogue-cache
+      # The builder uses the application's catalogue schema from src.
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # Every download the builder makes is cached, and only stale entries are
+      # fetched again, so small hobby sites see a handful of requests a week
+      # rather than a full crawl. Each run saves a new cache entry and restores
+      # the newest earlier one.
+      - name: Restore the builder download cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.BUILDER_CACHE }}
+          key: catalogue-cache-${{ github.run_id }}
+          restore-keys: catalogue-cache-
+
+      # Writes build/catalogue.sqlite, build/catalogue.sqlite.gz and
+      # build/catalogue.sqlite.gz.sha256. A source that fails is logged and
+      # recorded in the catalogue's meta table rather than stopping the build.
+      - name: Build the catalogue
+        run: python3 -m catalogue_builder --cache "${BUILDER_CACHE}" --output build/catalogue.sqlite --with demozoo
+
+      - name: Check the catalogue opens
+        run: |
+          python3 -c "
+          from pathlib import Path
+          from piratefinder.catalogue.store import Catalogue
+          catalogue = Catalogue.open(Path('build/catalogue.sqlite'))
+          stats = catalogue.stats()
+          print(stats)
+          if not stats.get('disks'):
+              raise SystemExit('The catalogue contains no disks.')
+          "
+
+      - name: Check the compressed catalogue and its checksum
+        run: |
+          mkdir -p build/publish
+          cp build/catalogue.sqlite.gz build/catalogue.sqlite.gz.sha256 build/publish/
+          (cd build/publish && sha256sum --check catalogue.sqlite.gz.sha256)
+          gunzip --stdout build/publish/catalogue.sqlite.gz | cmp - build/catalogue.sqlite
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: catalogue-${{ github.run_id }}
+          path: build/publish/
+          if-no-files-found: error
+
+      # A second build on the same day replaces the assets of that day's
+      # release instead of failing on an existing tag.
+      - name: Publish the catalogue release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="catalogue-$(date --utc +%F)"
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            gh release upload "${tag}" build/publish/catalogue.sqlite.gz \
+              build/publish/catalogue.sqlite.gz.sha256 --clobber
+          else
+            gh release create "${tag}" build/publish/catalogue.sqlite.gz \
+              build/publish/catalogue.sqlite.gz.sha256 \
+              --target "${GITHUB_SHA}" \
+              --latest=false \
+              --title "Catalogue $(date --utc +%F)" \
+              --notes "Catalogue snapshot built from public sources on $(date --utc +%F) at commit ${GITHUB_SHA}. The catalogue data is licensed under CC BY-NC-SA 4.0; see docs/DATA_SOURCES.md for the sources and their terms. PirateFinder downloads this file when you check for catalogue updates, and application releases bundle the newest one."
+          fi

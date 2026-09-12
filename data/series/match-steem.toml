@@ -1,0 +1,11 @@
+# How the Steem importer recognises Automation disks in the Steem catalogue.
+#
+# Patterns are matched, case-insensitively, against the image file name the
+# catalogue lists without its extension: "A_100", "A_069_1" (disk 1 of the
+# five disks of menu 69), "A_148_A", "A_500_LA" and "A_500_E2" (a second
+# version of part E).
+
+[[match]]
+series = "automation"
+source = "steem"
+patterns = ['^A_(?P<number>\d+)(?:_(?P<part>\d+|[A-Z]+)(?P<version>\d+)?)?$']

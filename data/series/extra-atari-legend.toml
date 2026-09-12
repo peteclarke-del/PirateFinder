@@ -1,0 +1,179 @@
+# Series found in Atari Legend that series.toml does not declare.
+#
+# Each one is a menu set on Atari Legend that TOSEC also lists as numbered
+# disks, with the same numbering (checked against the TOSEC DATs before it was
+# added). The name is the Atari Legend set name, so the Atari Legend importer
+# finds the series by name, and the aliases include the TOSEC name without
+# the number. Sets that TOSEC does not list are left to the importer, which
+# registers them from their set name.
+#
+# data/series/match-tosec.toml tells the TOSEC importer how TOSEC names these
+# disks, so both sources file them under the same series.
+
+[[series]]
+id = "serenade"
+name = "Serenade"
+platform = "atari-st"
+kind = "pack"
+group = "Serenade"
+aliases = ["serenade pd disk", "serenade pd"]
+
+[[series]]
+id = "neon-lights"
+name = "Neon Lights"
+platform = "atari-st"
+kind = "menu"
+group = "Neon Lights"
+aliases = ["neon lights menu disk", "neon lights menu"]
+
+[[series]]
+id = "special-fx-kids"
+name = "Special FX Kids Disk"
+platform = "atari-st"
+kind = "menu"
+group = "Special FX"
+aliases = ["special fx kids disk", "special fx kids", "sfx kids"]
+
+[[series]]
+id = "adrenalin-uk-pd"
+name = "Adrenalin UK Public Domain"
+platform = "atari-st"
+kind = "pack"
+group = "Adrenalin UK"
+aliases = ["adrenalin pd", "adrenalin uk pd"]
+
+[[series]]
+id = "orion"
+name = "Orion"
+platform = "atari-st"
+kind = "menu"
+group = "Orion"
+aliases = ["orion menu"]
+
+[[series]]
+id = "crime"
+name = "Crime"
+platform = "atari-st"
+kind = "menu"
+group = "Crime"
+aliases = ["crime menu"]
+
+[[series]]
+id = "eagles"
+name = "Eagles"
+platform = "atari-st"
+kind = "pack"
+group = "Eagles"
+aliases = ["eagles demo menu disk", "eagles demo menu"]
+
+[[series]]
+id = "construct-crew"
+name = "The Construct Crew"
+platform = "atari-st"
+kind = "menu"
+group = "The Construct Crew"
+aliases = ["construct crew menu", "construct crew"]
+
+[[series]]
+id = "crack-connexion"
+name = "The Crack Connexion"
+platform = "atari-st"
+kind = "menu"
+group = "The Crack Connexion"
+aliases = ["crack connexion menu disk", "crack connexion"]
+
+[[series]]
+id = "regression-therapy"
+name = "Regression Therapy"
+platform = "atari-st"
+kind = "pack"
+group = "MUG UK"
+aliases = ["regression therapy menu disk"]
+
+[[series]]
+id = "sigma"
+name = "Sigma"
+platform = "atari-st"
+kind = "menu"
+group = "Sigma"
+aliases = ["sigma compil"]
+
+[[series]]
+id = "deadly-fx"
+name = "Deadly FX"
+platform = "atari-st"
+kind = "menu"
+group = "Deadly FX"
+aliases = ["deadly fx compacted disk", "dfx"]
+
+[[series]]
+id = "safari"
+name = "Safari"
+platform = "atari-st"
+kind = "menu"
+group = "Safari"
+aliases = ["safari menu"]
+
+[[series]]
+id = "analog-bubble-bath"
+name = "Analog Bubble Bath"
+platform = "atari-st"
+kind = "menu"
+group = "Analog Bubble Bath"
+aliases = ["analog bubble bath menu"]
+
+[[series]]
+id = "northside"
+name = "Northside"
+platform = "atari-st"
+kind = "menu"
+group = "Northside"
+aliases = ["northside cd"]
+
+[[series]]
+id = "tommi-of-finland"
+name = "Tommi Of Finland"
+platform = "atari-st"
+kind = "menu"
+group = "Tommi of Finland"
+aliases = ["tommi of finland menu"]
+
+[[series]]
+id = "justice-department"
+name = "Justice Department"
+platform = "atari-st"
+kind = "menu"
+group = "Justice Department"
+aliases = ["justice department menu disk"]
+
+[[series]]
+id = "evil-force"
+name = "Evil Force"
+platform = "atari-st"
+kind = "menu"
+group = "Evil Force"
+aliases = ["evil force menu disk", "evil force menu"]
+
+[[series]]
+id = "scottish-cracking-crew"
+name = "Scottish Cracking Crew"
+platform = "atari-st"
+kind = "menu"
+group = "Scottish Cracking Crew"
+aliases = ["scottish cracking crew disk", "scc"]
+
+[[series]]
+id = "shaolin-temple"
+name = "Shaolin Temple"
+platform = "atari-st"
+kind = "menu"
+group = "Shaolin Temple"
+aliases = ["shaolin temple menu disk"]
+
+[[series]]
+id = "timewarp"
+name = "Timewarp"
+platform = "atari-st"
+kind = "menu"
+group = "Timewarp"
+aliases = ["timewarp menu"]
