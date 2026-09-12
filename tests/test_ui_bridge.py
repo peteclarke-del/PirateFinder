@@ -6,7 +6,11 @@ import threading
 import time
 import unittest
 
-import gi
+from tests.gtk_support import require_pygobject  # noqa: E402
+
+require_pygobject()
+
+import gi  # noqa: E402
 
 gi.require_version("GLib", "2.0")
 from gi.repository import GLib  # noqa: E402
