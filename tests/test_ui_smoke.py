@@ -21,6 +21,10 @@ _HOME = Path(tempfile.mkdtemp(prefix="piratefinder-ui-test-"))
 for _variable in ("XDG_CONFIG_HOME", "XDG_DATA_HOME"):
     os.environ[_variable] = str(_HOME / _variable.lower())
 
+from tests.gtk_support import require_pygobject  # noqa: E402
+
+require_pygobject()
+
 import gi  # noqa: E402
 
 from piratefinder.ui.application import PirateFinderApplication  # noqa: E402

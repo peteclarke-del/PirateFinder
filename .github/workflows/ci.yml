@@ -16,29 +16,30 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install metadata validators
+      # The interface tests need PyGObject, GTK 4 and libadwaita, which come
+      # from the distribution rather than pip, so this job uses Ubuntu's own
+      # Python 3.12 and the same libadwaita 1.5 the package targets.
+      - name: Install GTK, the display server and metadata validators
         run: |
           sudo apt-get update
-          sudo apt-get install -y appstream desktop-file-utils
-
-      - name: Install project
-        run: python -m pip install --no-deps --editable . ruff==0.16.4
+          sudo apt-get install -y python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 \
+            xvfb dbus-daemon appstream desktop-file-utils
 
       - name: Check Python style
         run: |
-          ruff check src catalogue_builder tests
-          ruff format --check src catalogue_builder tests
+          pipx run ruff==0.16.4 check src catalogue_builder tests
+          pipx run ruff==0.16.4 format --check src catalogue_builder tests
 
       - name: Run tests
-        run: PYTHONPATH=src:. python -m unittest discover -s tests -v
+        env:
+          PYTHONPATH: src:.
+          # Fail rather than skip the window tests if GTK cannot be imported.
+          PIRATEFINDER_REQUIRE_GTK: "1"
+          GSK_RENDERER: cairo
+        run: dbus-run-session -- xvfb-run --auto-servernum /usr/bin/python3 -m unittest discover -s tests -v
 
       - name: Compile Python sources
-        run: python -m compileall -q src catalogue_builder tests
+        run: /usr/bin/python3 -m compileall -q src catalogue_builder tests
 
       - name: Check launcher syntax
         run: |
