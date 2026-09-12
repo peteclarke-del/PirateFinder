@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.github.pclarke.PirateFinder</id>
+  <name>PirateFinder</name>
+  <summary>Find Amiga and Atari ST menu disks and write them to floppy</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <developer id="github.com.peteclarke-del">
+    <name>Pete Clarke</name>
+  </developer>
+  <url type="homepage">https://github.com/peteclarke-del/PirateFinder</url>
+  <url type="bugtracker">https://github.com/peteclarke-del/PirateFinder/issues</url>
+  <description>
+    <p>
+      PirateFinder keeps a searchable catalogue of what is on the numbered menu
+      disks, compacts and packs released by Amiga and Atari ST crews such as
+      Automation, Pompey Pirates, Medway Boys and D-Bug, together with
+      single-game cracks. Search for a game, a crew or a disk number and the
+      results show which disks carry it.
+    </p>
+    <p>
+      Chosen disks are found in local or network folders, or downloaded on
+      request from public online archives and checked against the catalogue
+      hash. PirateFinder prepares each image and writes it to a real floppy
+      with a Greaseweazle, reporting progress for every disk and a summary at
+      the end. The Greaseweazle host tools are included.
+    </p>
+  </description>
+  <launchable type="desktop-id">com.github.pclarke.PirateFinder.desktop</launchable>
+  <provides>
+    <binary>piratefinder</binary>
+  </provides>
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+  <recommends>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </recommends>
+  <categories>
+    <category>Utility</category>
+  </categories>
+  <keywords>
+    <keyword>floppy</keyword>
+    <keyword>Amiga</keyword>
+    <keyword>Atari ST</keyword>
+    <keyword>Greaseweazle</keyword>
+    <keyword>menu disk</keyword>
+    <keyword>compact</keyword>
+  </keywords>
+  <releases>
+    <release version="0.1.0" date="2026-09-12">
+      <description>
+        <p>First release.</p>
+      </description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1" />
+</component>

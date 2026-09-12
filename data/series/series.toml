@@ -1,0 +1,858 @@
+# Numbered series known to PirateFinder.
+#
+# Each [[series]] table declares one series. The fields are:
+#
+#   id           stable identifier used by every importer and in the catalogue
+#   name         display name, also searchable
+#   platform     "atari-st" or "amiga"
+#   kind         "menu" (crew menu disks and game compacts), "pack" (demo,
+#                music, utility, doc and trainer packs) or "compilation"
+#   group        the crew or publisher behind the series
+#   label        label format; {name}, {number}, {number3}, {part},
+#                {part_suffix}, {version} and {version_suffix} are replaced
+#   aliases      what people type for the series; the query parser
+#                recognises them in front of a disk number ("pp 51", "a250")
+#
+# Series that are not declared here are still found: the TOSEC importer
+# registers numbered compilations it recognises by their name pattern. The
+# rules that recognise a series in each source live in match-<source>.toml.
+
+# ----------------------------------------------------------------------------
+# Atari ST menu disks and compacts
+# ----------------------------------------------------------------------------
+
+[[series]]
+id = "automation"
+name = "Automation"
+platform = "atari-st"
+kind = "menu"
+group = "Automation"
+label = "Automation {number}{part_suffix}{version_suffix}"
+aliases = ["auto", "a", "au", "automation cd", "automation menu", "automation menu disk", "automation compact disk"]
+description = "Compact disks 000 to 512."
+
+[[series]]
+id = "d-bug"
+name = "D-Bug"
+platform = "atari-st"
+kind = "menu"
+group = "D-Bug"
+label = "D-Bug {number}{part_suffix}{version_suffix}"
+aliases = ["dbug", "d bug", "db", "d-bug menu", "d-bug menu disk", "dbug cd", "d-bug cd"]
+description = "Menu disks 1 to 200, many split into lettered parts."
+
+[[series]]
+id = "pompey-pirates"
+name = "Pompey Pirates"
+platform = "atari-st"
+kind = "menu"
+group = "Pompey Pirates"
+aliases = ["pp", "pompey", "pompey pirates cd", "pompey cd", "pompey pirates menu", "pompey pirates menu disk", "ppcd"]
+description = "Menu disks 1 to 114."
+
+[[series]]
+id = "pompey-pirates-krappy-kompact"
+name = "Pompey Pirates Krappy Kompact"
+platform = "atari-st"
+kind = "menu"
+group = "Pompey Pirates"
+aliases = ["krappy kompact", "krappy kompacts", "pp krappy kompact", "ppkk", "kk"]
+description = "The Pompey Pirates Krappy Kompact disks."
+
+[[series]]
+id = "medway-boys"
+name = "Medway Boys"
+platform = "atari-st"
+kind = "menu"
+group = "Medway Boys"
+aliases = ["mb", "medway", "the medway boys", "medway boys cd", "medway boys menu", "medway boys menu disk", "mbcd"]
+description = "Menu disks 1 to 112."
+
+[[series]]
+id = "flame-of-finland"
+name = "Flame of Finland"
+platform = "atari-st"
+kind = "menu"
+group = "Flame of Finland"
+aliases = ["fof", "flame", "flame of finland menu", "fof menu"]
+description = "Menu disks 1 to 54."
+
+[[series]]
+id = "superior"
+name = "Superior"
+platform = "atari-st"
+kind = "menu"
+group = "Superior"
+aliases = ["sup", "superior cd", "superior menu", "superior menu disk"]
+description = "Menu disks up to 166."
+
+[[series]]
+id = "fuzion"
+name = "Fuzion"
+platform = "atari-st"
+kind = "menu"
+group = "Fuzion"
+aliases = ["fuz", "fuzion cd", "fuzion menu"]
+description = "Compact disks 1 to about 208."
+
+[[series]]
+id = "zuul"
+name = "Zuul"
+platform = "atari-st"
+kind = "menu"
+group = "Zuul"
+aliases = ["zuul cd", "zuul menu"]
+description = "French menu disks up to about 238."
+
+[[series]]
+id = "vectronix"
+name = "Vectronix"
+platform = "atari-st"
+kind = "menu"
+group = "Vectronix"
+aliases = ["vec", "ve", "vectronix cd", "vectronix compilation", "vectronix menu"]
+description = "German compilations up to 996."
+
+[[series]]
+id = "supergau"
+name = "SuperGAU"
+platform = "atari-st"
+kind = "menu"
+group = "SuperGAU"
+aliases = ["super gau", "sgau", "gau", "supergau compilation", "supergau cd"]
+description = "German compilations up to about 959."
+
+[[series]]
+id = "enigma"
+name = "Enigma"
+platform = "atari-st"
+kind = "menu"
+group = "Enigma"
+aliases = ["enigma menu", "enigma menu disk", "enigma cd"]
+
+[[series]]
+id = "bad-brew-crew"
+name = "Bad Brew Crew"
+platform = "atari-st"
+kind = "menu"
+group = "Bad Brew Crew"
+aliases = ["bbc", "bad brew", "bad brew crew menu"]
+
+[[series]]
+id = "adrenalin-uk"
+name = "Adrenalin UK"
+platform = "atari-st"
+kind = "menu"
+group = "Adrenalin UK"
+aliases = ["adrenalin", "adrenaline", "adrenalin cd", "adrenalin uk cd", "adr"]
+
+[[series]]
+id = "replicants"
+name = "Replicants"
+platform = "atari-st"
+kind = "menu"
+group = "Replicants"
+aliases = ["the replicants", "replicants menu", "replicants cd", "rep"]
+
+[[series]]
+id = "hotline"
+name = "Hotline"
+platform = "atari-st"
+kind = "menu"
+group = "Hotline"
+aliases = ["hotline menu", "hotline cd", "htl"]
+
+[[series]]
+id = "cynix"
+name = "Cynix"
+platform = "atari-st"
+kind = "menu"
+group = "Cynix"
+aliases = ["cynix menu", "cynix cd"]
+
+[[series]]
+id = "elite"
+name = "Elite"
+platform = "atari-st"
+kind = "menu"
+group = "Elite"
+aliases = ["elite menu", "elite menu disk", "elite cd"]
+
+[[series]]
+id = "ics"
+name = "ICS"
+platform = "atari-st"
+kind = "menu"
+group = "ICS"
+aliases = ["ics menu", "ics menu disk", "ics cd"]
+
+[[series]]
+id = "special-fx"
+name = "Special FX"
+platform = "atari-st"
+kind = "menu"
+group = "Special FX"
+aliases = ["sfx", "special fx disk saver", "special fx menu", "special effects"]
+
+[[series]]
+id = "delight"
+name = "Delight Adventure Disk"
+platform = "atari-st"
+kind = "menu"
+group = "Delight"
+aliases = ["delight", "delight adventures", "delight adventures disk"]
+
+[[series]]
+id = "the-source"
+name = "The Source"
+platform = "atari-st"
+kind = "menu"
+group = "The Source"
+aliases = ["source", "source menu", "the source menu"]
+
+[[series]]
+id = "awesome"
+name = "Awesome"
+platform = "atari-st"
+kind = "menu"
+group = "Awesome"
+aliases = ["awesome menu", "awesome menu disk"]
+
+[[series]]
+id = "delicious"
+name = "Delicious Disk"
+platform = "atari-st"
+kind = "menu"
+group = "The Syndicate"
+aliases = ["delicious", "syndicate delicious", "delicious disks"]
+
+[[series]]
+id = "syndicate"
+name = "Syndicate"
+platform = "atari-st"
+kind = "menu"
+group = "The Syndicate"
+aliases = ["the syndicate", "syndicate menu", "syndicate menu disk"]
+
+[[series]]
+id = "lemmings"
+name = "Lemmings"
+platform = "atari-st"
+kind = "menu"
+group = "The Lemmings"
+aliases = ["the lemmings", "lemmings menu"]
+
+[[series]]
+id = "blue-software"
+name = "Blue Software"
+platform = "atari-st"
+kind = "menu"
+group = "Blue Software"
+aliases = ["blue soft", "blue software menu"]
+
+[[series]]
+id = "blue-software-demo"
+name = "Blue Software Demo CD"
+platform = "atari-st"
+kind = "pack"
+group = "Blue Software"
+aliases = ["blue software demo", "blue software demo cd"]
+
+[[series]]
+id = "pulsion"
+name = "Pulsion"
+platform = "atari-st"
+kind = "menu"
+group = "Pulsion"
+aliases = ["pulsion cd", "pulsion menu"]
+
+[[series]]
+id = "dodgysoft"
+name = "Dodgysoft"
+platform = "atari-st"
+kind = "menu"
+group = "Dodgysoft"
+aliases = ["dodgy soft", "dodgysoft menu"]
+
+[[series]]
+id = "pure-energy"
+name = "Pure Energy"
+platform = "atari-st"
+kind = "menu"
+group = "Pure Energy"
+aliases = ["pure energy menu"]
+
+[[series]]
+id = "klapauzius"
+name = "Klapauzius"
+platform = "atari-st"
+kind = "menu"
+group = "Klapauzius"
+aliases = ["klapauzius menu"]
+
+[[series]]
+id = "federation-of-free-traders"
+name = "Federation of Free Traders"
+platform = "atari-st"
+kind = "menu"
+group = "Federation of Free Traders"
+aliases = ["foft", "free traders", "federation of free traders menu"]
+
+[[series]]
+id = "reanimators"
+name = "Reanimators"
+platform = "atari-st"
+kind = "menu"
+group = "Reanimators"
+aliases = ["reanimators cd"]
+
+[[series]]
+id = "supremacy"
+name = "Supremacy"
+platform = "atari-st"
+kind = "menu"
+group = "Supremacy"
+aliases = ["supremacy menu", "supremacy cd"]
+
+[[series]]
+id = "crazy-boy"
+name = "Crazy Boy"
+platform = "atari-st"
+kind = "menu"
+group = "Crazy Boy"
+
+[[series]]
+id = "atariforce-inform"
+name = "Atariforce Inform Disk"
+platform = "atari-st"
+kind = "menu"
+group = "Atariforce"
+aliases = ["atariforce inform", "atariforce"]
+
+[[series]]
+id = "atariforce-cd"
+name = "Atariforce CD"
+platform = "atari-st"
+kind = "menu"
+group = "Atariforce"
+aliases = ["atariforce"]
+
+[[series]]
+id = "tumult"
+name = "Tumult Compact"
+platform = "atari-st"
+kind = "menu"
+group = "Tumult"
+aliases = ["tumult", "tumult compact menu"]
+
+[[series]]
+id = "section-one"
+name = "Section One"
+platform = "atari-st"
+kind = "menu"
+group = "Section One"
+aliases = ["section one menu"]
+
+[[series]]
+id = "new-order"
+name = "New Order"
+platform = "atari-st"
+kind = "menu"
+group = "New Order"
+aliases = ["new order menu"]
+
+[[series]]
+id = "impact"
+name = "Impact"
+platform = "atari-st"
+kind = "menu"
+group = "Impact"
+aliases = ["impact menu"]
+
+[[series]]
+id = "timelords"
+name = "Timelords of London"
+platform = "atari-st"
+kind = "menu"
+group = "Timelords"
+aliases = ["timelords", "the timelords", "ttc timelords"]
+
+[[series]]
+id = "alliance"
+name = "Alliance CD"
+platform = "atari-st"
+kind = "menu"
+group = "The Alliance"
+aliases = ["alliance", "the alliance"]
+
+[[series]]
+id = "conceptors"
+name = "The Conceptors"
+platform = "atari-st"
+kind = "menu"
+group = "The Conceptors"
+aliases = ["conceptors", "conceptors menu"]
+
+[[series]]
+id = "cheshire-cats"
+name = "The Cheshire Cats"
+platform = "atari-st"
+kind = "menu"
+group = "The Cheshire Cats"
+aliases = ["tcc", "cheshire cats", "tcc menu"]
+
+[[series]]
+id = "dream-weavers"
+name = "Dream Weavers"
+platform = "atari-st"
+kind = "menu"
+group = "Dream Weavers"
+aliases = ["dream weavers menu"]
+
+[[series]]
+id = "gravatics"
+name = "Gravatics"
+platform = "atari-st"
+kind = "menu"
+group = "Gravatics"
+
+[[series]]
+id = "revolution"
+name = "Revolution"
+platform = "atari-st"
+kind = "menu"
+group = "Revolution"
+aliases = ["revolution menu"]
+
+[[series]]
+id = "shaolin-masters"
+name = "Shaolin Masters"
+platform = "atari-st"
+kind = "menu"
+group = "Shaolin Masters"
+aliases = ["shaolin masters menu"]
+
+[[series]]
+id = "x-static"
+name = "X-Static"
+platform = "atari-st"
+kind = "menu"
+group = "X-Static"
+aliases = ["xstatic", "x static menu"]
+
+[[series]]
+id = "g-force"
+name = "G-Force"
+platform = "atari-st"
+kind = "menu"
+group = "G-Force"
+aliases = ["gforce", "g force menu", "mersey pirates"]
+
+[[series]]
+id = "nothing-personal"
+name = "Nothing Personal"
+platform = "atari-st"
+kind = "menu"
+group = "Nothing Personal"
+
+[[series]]
+id = "euroswap"
+name = "Euroswap"
+platform = "atari-st"
+kind = "menu"
+group = "Euroswap"
+aliases = ["euroswap menu"]
+
+[[series]]
+id = "guardians-of-logik"
+name = "The Guardians of Logik"
+platform = "atari-st"
+kind = "menu"
+group = "The Bald Eagle"
+aliases = ["guardians of logik", "gol"]
+
+[[series]]
+id = "ancient-celts"
+name = "Ancient Celts"
+platform = "atari-st"
+kind = "menu"
+group = "Ancient Celts"
+
+[[series]]
+id = "quartet"
+name = "Quartet"
+platform = "atari-st"
+kind = "menu"
+group = "Quartet"
+aliases = ["quartet cd"]
+
+[[series]]
+id = "wild"
+name = "Wild!"
+platform = "atari-st"
+kind = "menu"
+group = "Wild!"
+aliases = ["wild cd"]
+
+[[series]]
+id = "sewer-doc"
+name = "Sewer Doc Disc"
+platform = "atari-st"
+kind = "pack"
+group = "Sewer Software"
+aliases = ["sewer doc", "sewer docs", "sewer doc disk", "sewer software doc"]
+
+# ----------------------------------------------------------------------------
+# Atari ST demo, music and utility packs
+# ----------------------------------------------------------------------------
+
+[[series]]
+id = "persistence-of-vision"
+name = "Persistence of Vision"
+platform = "atari-st"
+kind = "pack"
+group = "Persistence of Vision"
+label = "POV {number}{part_suffix}{version_suffix}"
+aliases = ["pov", "persistance of vision", "pov demo", "pov compact"]
+description = "Demo compacts 1 to 165."
+
+[[series]]
+id = "stax"
+name = "Stax Compact Disk"
+platform = "atari-st"
+kind = "pack"
+group = "Stax"
+aliases = ["stax", "stax compact"]
+
+[[series]]
+id = "ripped-off"
+name = "Ripped-Off"
+platform = "atari-st"
+kind = "pack"
+group = "Ripped-Off"
+aliases = ["ripped off", "rippedoff"]
+
+[[series]]
+id = "great-stuff"
+name = "Great Stuff Compil"
+platform = "atari-st"
+kind = "pack"
+group = "Animal Mine"
+aliases = ["great stuff"]
+
+[[series]]
+id = "industrially-safe"
+name = "Industrially Safe Demo Disk"
+platform = "atari-st"
+kind = "pack"
+group = "Effect"
+aliases = ["industrially safe"]
+
+# ----------------------------------------------------------------------------
+# Amiga game compacts
+# ----------------------------------------------------------------------------
+
+[[series]]
+id = "skid-row-compact"
+name = "Skid Row Compact"
+platform = "amiga"
+kind = "menu"
+group = "Skid Row"
+aliases = ["sr compact", "skid row", "skidrow compact", "skidrow", "sr", "skid row compact disk"]
+description = "Compacts 1 to 130, with trainer packs."
+
+[[series]]
+id = "alpha-flight-fdt"
+name = "Alpha Flight FDT Compacted Disk"
+platform = "amiga"
+kind = "menu"
+group = "Alpha Flight"
+label = "Alpha Flight FDT {number}{part_suffix}{version_suffix}"
+aliases = ["fdt", "alpha flight fdt", "afl fdt", "fdt compacted disk", "alpha flight"]
+
+[[series]]
+id = "alpha-flight-kom"
+name = "Alpha Flight KoM Compacted Disk"
+platform = "amiga"
+kind = "menu"
+group = "Alpha Flight"
+label = "Alpha Flight KoM {number}{part_suffix}{version_suffix}"
+aliases = ["kom", "alpha flight kom", "afl kom", "kom compacted disk", "alpha flight"]
+
+[[series]]
+id = "alpha-flight-zylon"
+name = "Alpha Flight Zylon CD"
+platform = "amiga"
+kind = "menu"
+group = "Alpha Flight"
+label = "Zylon CD {number}{part_suffix}{version_suffix}"
+aliases = ["zylon", "zylon cd", "alpha flight zylon"]
+
+[[series]]
+id = "bsa-compact"
+name = "BSA Factories Amiga Compact Disc"
+platform = "amiga"
+kind = "menu"
+group = "BSA Factories"
+label = "BSA Compact Disc {number}{part_suffix}{version_suffix}"
+aliases = ["bsa", "bsa compact", "bsa factories", "bsa compact disc", "amiga compact disc"]
+
+[[series]]
+id = "defjam-ccs-compact"
+name = "Defjam CCS Compact Disk"
+platform = "amiga"
+kind = "menu"
+group = "Defjam - CCS"
+aliases = ["defjam", "defjam compact", "defjam ccs", "ccs compact", "defjam compact disk"]
+
+[[series]]
+id = "tmf-compact"
+name = "TMF Compact"
+platform = "amiga"
+kind = "menu"
+group = "The Magnum Force"
+aliases = ["tmf", "the magnum force compact", "magnum force compact"]
+
+[[series]]
+id = "tmf-gamespack"
+name = "TMF Gamespack"
+platform = "amiga"
+kind = "menu"
+group = "The Magnum Force"
+aliases = ["tmf gamespack", "magnum force gamespack", "tmf games pack"]
+
+[[series]]
+id = "jacknife-compact"
+name = "Jacknife Knife Compact"
+platform = "amiga"
+kind = "menu"
+group = "Jacknife"
+label = "Knife Compact {number}{part_suffix}{version_suffix}"
+aliases = ["knife compact", "jacknife", "jacknife compact", "knife"]
+
+[[series]]
+id = "switch-game-pack"
+name = "Switch Game-Pack"
+platform = "amiga"
+kind = "menu"
+group = "Switch"
+aliases = ["switch", "switch game pack", "switch gamepack", "switch pack"]
+
+[[series]]
+id = "ackerlight-compact"
+name = "Ackerlight Compact Disk"
+platform = "amiga"
+kind = "menu"
+group = "Ackerlight"
+aliases = ["ackerlight", "ackerlight compact"]
+
+[[series]]
+id = "effect-games-pack"
+name = "Effect Games Pack"
+platform = "amiga"
+kind = "menu"
+group = "Effect"
+aliases = ["effect games", "effect games pack", "effect pack"]
+
+[[series]]
+id = "bamiga-pack"
+name = "Bamiga Sector One Pack"
+platform = "amiga"
+kind = "menu"
+group = "Bamiga Sector One"
+label = "Bamiga Pack {number}{part_suffix}{version_suffix}"
+aliases = ["bamiga", "bamiga pack", "bs1", "bamiga sector one", "bs1 pack"]
+
+[[series]]
+id = "lsd-games"
+name = "LSD Games"
+platform = "amiga"
+kind = "menu"
+group = "LSD"
+aliases = ["lsd games", "lsd game", "lsd"]
+
+[[series]]
+id = "rebels-candyland"
+name = "Rebels Candyland"
+platform = "amiga"
+kind = "menu"
+group = "Rebels"
+label = "Candyland {number}{part_suffix}{version_suffix}"
+aliases = ["candyland", "rebels candyland", "candy land"]
+
+[[series]]
+id = "crusaders-selector-pack"
+name = "Crusaders Selector Pack"
+platform = "amiga"
+kind = "menu"
+group = "Crusaders"
+label = "Selector Pack {number}{part_suffix}{version_suffix}"
+aliases = ["selector pack", "crusaders selector", "selector", "crusaders"]
+
+[[series]]
+id = "paradox-blandet-guf"
+name = "Paradox Blandet Guf"
+platform = "amiga"
+kind = "menu"
+group = "Paradox"
+label = "Blandet Guf {number}{part_suffix}{version_suffix}"
+aliases = ["blandet guf", "pdx blandet guf", "paradox blandet"]
+
+[[series]]
+id = "elicma-united-compacts"
+name = "Elicma United Compacts"
+platform = "amiga"
+kind = "menu"
+group = "Elicma"
+aliases = ["elicma", "united compacts", "elicma compact", "elicma united"]
+
+[[series]]
+id = "games-galore"
+name = "Games Galore"
+platform = "amiga"
+kind = "compilation"
+group = "17-Bit Software"
+aliases = ["17 bit games galore", "17bit games galore"]
+
+[[series]]
+id = "savage-crystal-pack"
+name = "Crystal Pack"
+platform = "amiga"
+kind = "menu"
+group = "Savage"
+aliases = ["savage crystal pack", "intuition crystal pack"]
+
+[[series]]
+id = "nightfall-xads-pack"
+name = "Xad's Pack"
+platform = "amiga"
+kind = "menu"
+group = "Nightfall"
+aliases = ["xads pack", "xad pack", "nightfall xads pack"]
+
+[[series]]
+id = "mailman-docs-and-trainers"
+name = "Docs and Trainers"
+platform = "amiga"
+kind = "pack"
+group = "Mailman"
+aliases = ["mailman docs", "docs and trainers", "docs trainers"]
+
+[[series]]
+id = "koz-main-source-bbs-pack"
+name = "Main Source BBS Pack"
+platform = "amiga"
+kind = "menu"
+group = "Koz"
+aliases = ["main source", "main source bbs pack"]
+
+# ----------------------------------------------------------------------------
+# Amiga demo, music and utility packs
+# ----------------------------------------------------------------------------
+
+[[series]]
+id = "prevail-pack"
+name = "Prevail Pack"
+platform = "amiga"
+kind = "pack"
+group = "Effect"
+aliases = ["prevail", "effect prevail", "prevail packs"]
+
+[[series]]
+id = "lsd-legal-tools"
+name = "LSD Legal Tools"
+platform = "amiga"
+kind = "pack"
+group = "LSD"
+aliases = ["lsd tools", "lsd legal tools disk", "legal tools", "lsd"]
+
+[[series]]
+id = "devious-tools"
+name = "Devious Tools"
+platform = "amiga"
+kind = "pack"
+group = "Devious Designs"
+aliases = ["devious", "devious tools issue", "devious designs tools"]
+
+[[series]]
+id = "tek-mind-funk"
+name = "Mind Funk"
+platform = "amiga"
+kind = "pack"
+group = "The Electronic Knights"
+aliases = ["mindfunk", "tek mind funk", "electronic knights mind funk"]
+
+[[series]]
+id = "scoopex-ranger"
+name = "Ranger Demo Disk"
+platform = "amiga"
+kind = "pack"
+group = "Scoopex"
+label = "Ranger {number}{part_suffix}{version_suffix}"
+aliases = ["ranger", "scoopex ranger", "ranger demo"]
+
+[[series]]
+id = "scoopex-tmb"
+name = "TMB Demo Disk"
+platform = "amiga"
+kind = "pack"
+group = "Scoopex"
+aliases = ["tmb", "scoopex tmb", "tmb demo"]
+
+[[series]]
+id = "trsi-tuff-stuff"
+name = "Tuff Stuff"
+platform = "amiga"
+kind = "pack"
+group = "TRSI"
+aliases = ["tuff stuff", "trsi tuff stuff", "tuff stuff pack", "rebels tuff stuff"]
+description = "One numbered run: Rebels 1 to 8, TRSI 9 to 54, The Electronic Knights from 55."
+
+[[series]]
+id = "devious-bits-n-pieces"
+name = "Bits 'n' Pieces"
+platform = "amiga"
+kind = "pack"
+group = "Devious Designs"
+aliases = ["bits n pieces", "bits and pieces", "devious bits n pieces"]
+
+[[series]]
+id = "intryx-neutralized"
+name = "Neutralized Pack"
+platform = "amiga"
+kind = "pack"
+group = "Intryx"
+aliases = ["neutralized", "intryx neutralized"]
+
+[[series]]
+id = "depth-under-the-surface"
+name = "Under The Surface"
+platform = "amiga"
+kind = "pack"
+group = "Depth"
+aliases = ["under the surface", "uts"]
+
+[[series]]
+id = "flashlight-flash-demodisk"
+name = "Flash DemoDisk"
+platform = "amiga"
+kind = "pack"
+group = "Flashlight Design"
+aliases = ["flash demodisk", "flash demo disk"]
+
+[[series]]
+id = "scene-archives-compilation"
+name = "The Scene Archives Compilation Disk"
+platform = "amiga"
+kind = "pack"
+group = "The Scene Archives"
+label = "TSA Compilation Disk {number}{part_suffix}{version_suffix}"
+aliases = ["tsa", "scene archives", "the scene archives", "tsa compilation disk"]
+
+[[series]]
+id = "17-bit-intros-disk"
+name = "17-Bit Intro's Disk"
+platform = "amiga"
+kind = "pack"
+group = "17-Bit Software"
+aliases = ["17 bit intros", "17bit intros disk", "intros disk"]

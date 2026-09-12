@@ -1,0 +1,51 @@
+name: Catalogue correction
+description: Report a disk whose contents, name or hashes are wrong or missing
+title: "[Catalogue]: "
+labels: ["catalogue", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the disk in words and hashes. Do not attach disk images or archives, and do not link to places that host them.
+  - type: input
+    id: disk
+    attributes:
+      label: Disk
+      description: Series and number as shown in PirateFinder, for example "Pompey Pirates 51" or "Medway Boys 97".
+    validations:
+      required: true
+  - type: input
+    id: catalogue
+    attributes:
+      label: Catalogue build date
+      description: Shown in Preferences, on the Catalogue page, as Built.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong
+      description: Missing or wrong contents, wrong menu order, a disk that is missing entirely, a duplicate, or a local image that does not match.
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: Correct information and its source
+      description: The contents as they appear on the disk menu, and where you checked them (your own disk, a crew list, a reference site).
+    validations:
+      required: true
+  - type: input
+    id: hashes
+    attributes:
+      label: Image hashes, if you have the disk
+      description: The checksums PirateFinder shows for the file in its detail pane, or the MD5 or SHA-1 and size of the image file.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched existing issues for this disk.
+          required: true
+        - label: This report contains no disk images and no links to downloads.
+          required: true

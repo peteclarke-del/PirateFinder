@@ -1,0 +1,10 @@
+# Series the crew lists importer needs that series.toml does not declare.
+
+[[series]]
+id = "terdd-doc"
+name = "TERDD Doc Disk"
+platform = "atari-st"
+kind = "pack"
+group = "Sewer Software"
+aliases = ["terdd", "ter doc", "t.e.r. doc disk", "terdd doc disk"]
+description = "The TERDD doc disks 1 to 5 listed with the Sewer Software doc disks."

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=PirateFinder
+GenericName=Menu Disk Finder
+Comment=Find Amiga and Atari ST menu disks and write them to floppy with Greaseweazle
+Exec=piratefinder
+Icon=com.github.pclarke.PirateFinder
+Terminal=false
+Type=Application
+Categories=Utility;
+Keywords=floppy;disk;Amiga;Atari;Greaseweazle;menu;compact;
+StartupNotify=true

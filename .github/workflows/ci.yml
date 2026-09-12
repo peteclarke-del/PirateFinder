@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python tests and source checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install metadata validators
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y appstream desktop-file-utils
+
+      - name: Install project
+        run: python -m pip install --no-deps --editable . ruff==0.16.4
+
+      - name: Check Python style
+        run: |
+          ruff check src catalogue_builder tests
+          ruff format --check src catalogue_builder tests
+
+      - name: Run tests
+        run: PYTHONPATH=src:. python -m unittest discover -s tests -v
+
+      - name: Compile Python sources
+        run: python -m compileall -q src catalogue_builder tests
+
+      - name: Check launcher syntax
+        run: |
+          bash -n piratefinder packaging/*.sh
+          sh -n packaging/piratefinder packaging/gw packaging/postinst packaging/postrm
+
+      - name: Validate desktop metadata
+        run: |
+          desktop-file-validate data/com.github.pclarke.PirateFinder.desktop
+          appstreamcli validate --no-net data/com.github.pclarke.PirateFinder.metainfo.xml
+
+  package:
+    name: Build the package without a catalogue
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Build the Ubuntu package
+        run: ./packaging/build-deb.sh --no-catalogue dist
+
+      - name: Inspect the package
+        run: |
+          dpkg-deb --info dist/*.deb
+          dpkg-deb --contents dist/*.deb
+          package_root="$(mktemp -d)"
+          trap 'rm -rf -- "${package_root}"' EXIT
+          dpkg-deb --extract dist/*.deb "${package_root}"
+          if find "${package_root}/usr" -perm /022 -print -quit | grep -q .; then
+            echo "Package contains group-writable or world-writable files" >&2
+            exit 1
+          fi
+          test -x "${package_root}/usr/bin/piratefinder"
+          test -x "${package_root}/usr/lib/piratefinder/bin/gw"
+          test -f "${package_root}/usr/lib/udev/rules.d/49-piratefinder-greaseweazle.rules"

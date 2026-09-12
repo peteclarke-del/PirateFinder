@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datafile>
+	<header>
+		<name>Atari ST - Compilations - Games - [ST]</name>
+		<version>2024-04-20</version>
+	</header>
+	<game name="A-Ha Menu - Eliminator - Nebulus (19xx)(A-Ha)">
+		<rom name="A-Ha Menu - Eliminator - Nebulus (19xx)(A-Ha).st" size="737280" crc="a23d118d" md5="dc44467fdfcea70672c74fa7fb6f7191" sha1="87addd20a56faf4936a25bde29aad507972e165d"/>
+	</game>
+	<game name="A-Ha Menu - Eliminator - Nebulus (19xx)(A-Ha)[a]">
+		<rom name="A-Ha Menu - Eliminator - Nebulus (19xx)(A-Ha)[a].st" size="819200" crc="0c21c267" md5="1dcb7248b3f835c9b5e6fae38eb1264f" sha1="5622b9eced02cc9306090579e4abb000436657ef"/>
+	</game>
+	<game name="Automation Menu Disk 000 v2.0 (19xx)(Automation)">
+		<rom name="Automation Menu Disk 000 v2.0 (19xx)(Automation).st" size="860160" crc="2a818c42" md5="451b2cb4e2030889c9d0f2217c2183b3" sha1="d9f088998ae5591812c01975d05b99bf5edbf701"/>
+	</game>
+	<game name="Automation Menu Disk 000 v2.0 (19xx)(Automation)[a]">
+		<rom name="Automation Menu Disk 000 v2.0 (19xx)(Automation)[a].st" size="819200" crc="c7922e9c" md5="9156c4a9a42c966601b56a5140bd3760" sha1="65bc5aaa5a9c4df5b06352fe591481f23aedbf3b"/>
+	</game>
+	<game name="Automation Menu Disk 000 v2.0 (19xx)(Automation)[m LGD]">
+		<rom name="Automation Menu Disk 000 v2.0 (19xx)(Automation)[m LGD].st" size="860160" crc="def100a0" md5="cbe84dafb8f8cc44bc80197bcc35fcee" sha1="764dbcf382c62e4194ccc0ca74b3ad9aacb63317"/>
+	</game>
+	<game name="Automation Menu Disk 000 v2.0 (19xx)(Automation)[m LGD][a]">
+		<rom name="Automation Menu Disk 000 v2.0 (19xx)(Automation)[m LGD][a].st" size="860160" crc="536e8220" md5="e7d0364ad30ef9727f4de49c48bb220d" sha1="70823d22e77f4754be642b3a8656dc38718b6440"/>
+	</game>
+	<game name="Automation Menu Disk 069 (1989)(Automation)(Disk 1 of 5)(Part A)">
+		<rom name="Automation Menu Disk 069 (1989)(Automation)(Disk 1 of 5)(Part A).st" size="819200" crc="fc64890c" md5="27d8ad83eeaa6c1f32b6088199c40cc3" sha1="528308289800778d00a1a1cb89c7ca8b387fe94a"/>
+	</game>
+	<game name="Automation Menu Disk 069 (1989)(Automation)(Disk 1 of 5)(Part A)[a]">
+		<rom name="Automation Menu Disk 069 (1989)(Automation)(Disk 1 of 5)(Part A)[a].st" size="819200" crc="b819795b" md5="a6c5fc5eda616fab2308e90b2a993a29" sha1="9e32cd0d7a48370422ec53442b079effc1410c7f"/>
+	</game>
+	<game name="Automation Menu Disk 250 (1990)(Automation)">
+		<rom name="Automation Menu Disk 250 (1990)(Automation).st" size="839680" crc="ba4a9461" md5="1ecae8b26ad69149f76084a5f61b7941" sha1="c4d16526aaf73fac3297aa0ad343cf2811260b0a"/>
+	</game>
+	<game name="Automation Menu Disk 250 (1990)(Automation)[a]">
+		<rom name="Automation Menu Disk 250 (1990)(Automation)[a].st" size="839680" crc="aa1857cc" md5="dba371bc8c5029b0f447fa799a96aa34" sha1="ad8165e2f2b181aeccc54f143c463b9640ae7f11"/>
+	</game>
+	<game name="Automation Menu Disk 250 (1990)(Automation)[m LGD]">
+		<rom name="Automation Menu Disk 250 (1990)(Automation)[m LGD].st" size="839680" crc="b50a5666" md5="a9c8cf64d6c9005d0ec805f269e7293f" sha1="40b7817d173960bc756597ec5473969fd5bae202"/>
+	</game>
+	<game name="D-Bug Menu Disk 100 (19xx)(D-Bug)(Disk 1 of 5)">
+		<rom name="D-Bug Menu Disk 100 (19xx)(D-Bug)(Disk 1 of 5).st" size="839680" crc="7e7c157e" md5="2e5fd3f166d658b99cf48a82e30a3c4a" sha1="0d72077a13c563fef5243ecebc35f8db7f1eb84f"/>
+	</game>
+	<game name="D-Bug Menu Disk 100 (19xx)(D-Bug)(Disk 1 of 5)[a]">
+		<rom name="D-Bug Menu Disk 100 (19xx)(D-Bug)(Disk 1 of 5)[a].st" size="839680" crc="52c9686f" md5="f71e08d6c2979b40109547e8ae0f223c" sha1="a7cdd0c5bb6c3d314de8313794a3f9c3d30c9497"/>
+	</game>
+	<game name="D-Bug Menu Disk 100 (19xx)(D-Bug)(Disk 2 of 5)">
+		<rom name="D-Bug Menu Disk 100 (19xx)(D-Bug)(Disk 2 of 5).st" size="839680" crc="90747982" md5="df2b58c21e2ba45e2675b8f815966622" sha1="5d61f52b98361d7ab35ecfa25a69f707494c5fd8"/>
+	</game>
+	<game name="Games Compil 02 (19xx)(-)">
+		<rom name="Games Compil 02 (19xx)(-).st" size="737280" crc="f4d230df" md5="3b0ab41849d1f622578b5e2207b8509b" sha1="ccd820e1d8b805c158dbaee4d3a4f402b866e506"/>
+	</game>
+	<game name="Games Compil 03 (19xx)(-)">
+		<rom name="Games Compil 03 (19xx)(-).st" size="839680" crc="0c4bb077" md5="b13f4381b968fdcbb1966e3e61c713aa" sha1="1f33f553f569e5a647d256b13e4a1ab4be95bff8"/>
+	</game>
+	<game name="Imperium (1990)(Electronic Arts)[cr Hotline - MCA] &amp; Pyramax (1990)(Arc)[cr Replicants]">
+		<rom name="Imperium (1990)(Electronic Arts)[cr Hotline - MCA] &amp; Pyramax (1990)(Arc)[cr Replicants].st" size="912384" crc="dfba979f" md5="9c5728ddc422b58100ec85d23778f061" sha1="6ab43d79ef99809dce55af165a588e5c4420f334"/>
+	</game>
+	<game name="Pompey Pirates Menu Disk 051 (19xx)(Pompey Pirates)">
+		<rom name="Pompey Pirates Menu Disk 051 (19xx)(Pompey Pirates).st" size="819200" crc="907a4d39" md5="74172c859925046f6a7bd124431d4b4a" sha1="3bc7c13363a1950c3eb1961cd45fc8b00a6f8372"/>
+	</game>
+	<game name="Pompey Pirates Menu Disk 51, 23, 86 (19xx)(Pompey Pirates)">
+		<rom name="Pompey Pirates Menu Disk 51, 23, 86 (19xx)(Pompey Pirates).st" size="1474560" crc="22e02b13" md5="36a88dd4a0d4506bbc78a8d403f8ff5b" sha1="00e7d4264d272c5ce693988b86885b5c44826563"/>
+	</game>
+</datafile>

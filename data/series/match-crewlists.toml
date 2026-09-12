@@ -1,0 +1,88 @@
+# How the crew lists importer recognises series on the Pompey Pirates CD-R.
+#
+# List entries are matched as "<list path> <heading>: <code>", for example
+# "MENUS/POMPEY/POMPEY.TXT POMPEY PIRATES COMPACT DISKS: CD13-4A"; entries of
+# the merged index as "MENUS/COMPLETE.TXT <crew> #<code>"; the Sewer doc list
+# as "DOCS/SEWER/LIST.DOC <disk>"; disk images by their path in the ISO, for
+# example "MENUS/POMPEY/PP_13_4A.MSA". Each pattern captures the number, the
+# raw part of the code ("4A", "2", "B") and a version ("V2"). The importer
+# turns the raw parts of one number into part letters in list order.
+
+[[match]]
+series = "pompey-pirates"
+source = "crew-lists"
+patterns = [
+    '^MENUS/POMPEY/POMPEY\.TXT POMPEY PIRATES COMPACT DISKS: CD(?P<number>\d+)(?:V(?P<version>\d+))?-?(?P<part>[0-9A-Z]*)$',
+    '^MENUS/COMPLETE\.TXT Pompey Pirates Menu #(?P<number>\d+)(?:V(?P<version>\d+))?-?(?P<part>[0-9A-Z]*)$',
+    '^MENUS/POMPEY/PP_(?P<number>\d+)(?:V(?P<version>\d+))?_?(?P<part>[0-9A-Z]*)\.MSA$',
+]
+
+[[match]]
+series = "pompey-pirates-krappy-kompact"
+source = "crew-lists"
+patterns = [
+    '^MENUS/POMPEY/POMPEY\.TXT POMPEY PIRATES CRAPPY COMPACTS: CD(?P<number>\d+)(?P<part>[A-Z]?)$',
+    '^MENUS/COMPLETE\.TXT Pompey Pirates Crappy #(?P<number>\d+)(?P<part>[A-Z]?)$',
+    '^MENUS/POMPEY/PPKC_(?P<number>\d+)(?P<part>[A-Z]?)\.MSA$',
+]
+
+[[match]]
+series = "medway-boys"
+source = "crew-lists"
+patterns = [
+    '^MENUS/MEDWAY/MEDWAY\.TXT [^:]*: CD(?P<number>\d+)(?P<part>[A-Z]?)$',
+    '^MENUS/COMPLETE\.TXT Medway Boys Menu #(?P<number>\d+)(?P<part>[A-Z]?)$',
+    '^MENUS/MEDWAY/MED_(?P<number>\d+)(?P<part>[A-Z]?)\.MSA$',
+]
+
+[[match]]
+series = "flame-of-finland"
+source = "crew-lists"
+patterns = [
+    '^MENUS/FOF_MENU/FOF\.TXT [^:]*: CD(?P<number>\d+)(?P<part>[A-Z]?)$',
+    '^MENUS/COMPLETE\.TXT F\.O\.F\. Menu #(?P<number>\d+)(?P<part>[A-Z]?)$',
+    '^MENUS/FOF_MENU/FOF_(?P<number>\d+)(?P<part>[A-Z]?)\.MSA$',
+]
+
+[[match]]
+series = "superior"
+source = "crew-lists"
+patterns = [
+    '^MENUS/SUPERIOR/SUPERIOR\.TXT [^:]*: CD(?P<number>\d+)(?P<part>[A-Z]?)$',
+    '^MENUS/COMPLETE\.TXT Superior Menu #(?P<number>\d+)(?P<part>[A-Z]?)$',
+    '^MENUS/SUPERIOR/SUP_(?P<number>\d+)(?P<part>[A-Z]?)\.MSA$',
+]
+
+[[match]]
+series = "cynix"
+source = "crew-lists"
+patterns = [
+    '^MENUS/CYNIX/CYNIX\.TXT [^:]*: CD(?P<number>\d+)(?P<part>[A-Z]?)$',
+    '^MENUS/COMPLETE\.TXT Cynix Menu #(?P<number>\d+)(?P<part>[A-Z]?)$',
+    '^MENUS/CYNIX/CYNIX_(?P<number>\d+)(?P<part>[A-Z]?)\.MSA$',
+]
+
+[[match]]
+series = "delight"
+source = "crew-lists"
+patterns = [
+    '^MENUS/DELIGHT/DAD\.TXT [^:]*: CD(?P<number>\d+)(?P<part>[A-Z]?)$',
+    '^MENUS/COMPLETE\.TXT D\.A\.D\. Menu #(?P<number>\d+)(?P<part>[A-Z]?)$',
+    '^MENUS/DELIGHT/DAD_(?P<number>\d+)(?P<part>[A-Z]?)\.MSA$',
+]
+
+[[match]]
+series = "sewer-doc"
+source = "crew-lists"
+patterns = [
+    '^DOCS/SEWER/LIST\.DOC (?P<number>\d+)$',
+    '^DOCS/SEWER/SEW(?:DOC|DC)(?P<number>\d+)(?P<part>[A-Z]?)\.MSA$',
+]
+
+[[match]]
+series = "terdd-doc"
+source = "crew-lists"
+patterns = [
+    '^DOCS/SEWER/LIST\.DOC T(?P<number>\d+)$',
+    '^DOCS/SEWER/TERDD_(?P<number>\d+)\.MSA$',
+]
