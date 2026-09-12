@@ -244,6 +244,12 @@ write-protected disk, with `Command Failed` and an exit status of zero. The
 client reads the output as well as the exit status, and reports those as
 failures with a specific status (`write-protected`, `no-disk`).
 
+Cancel sends SIGINT to gw, which stops at the end of the current track, and
+kills it if it has not stopped after ten seconds. A process started in the
+background from a shell has SIGINT ignored, and its children inherit that, so
+in that case the runner starts gw through a short Python step that restores
+the default action first (`greaseweazle/runner.py`).
+
 ## Interface
 
 One `Adw.ApplicationWindow` with an `Adw.HeaderBar` holding an

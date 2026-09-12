@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 import signal
 import subprocess
+import sys
 import threading
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -78,6 +79,30 @@ class ProcessResult:
         return self.output.splitlines()
 
 
+# Restores the default SIGINT action, then becomes the real command.
+_RESET_INTERRUPT = (
+    "import os, signal, sys; "
+    "signal.signal(signal.SIGINT, signal.SIG_DFL); "
+    "os.execvp(sys.argv[1], sys.argv[1:])"
+)
+
+
+def with_default_interrupt(command: Sequence[str]) -> list[str]:
+    """The command line to start, making sure ``gw`` can be interrupted.
+
+    Cancelling sends SIGINT. A process started in the background by a
+    non-interactive shell (``nohup ... &``, ``xvfb-run``) has SIGINT ignored,
+    every child inherits that, and gw would then ignore the cancel until the
+    grace period ran out. A shell cannot undo it, because a signal ignored on
+    entry to a non-interactive shell cannot be reset there, and ``preexec_fn``
+    is unsafe in a program with threads, so a small Python step resets the
+    signal and then execs gw.
+    """
+    if signal.getsignal(signal.SIGINT) == signal.SIG_IGN:
+        return [sys.executable, "-c", _RESET_INTERRUPT, *command]
+    return list(command)
+
+
 def run_streaming(
     command: Sequence[str],
     *,
@@ -93,7 +118,7 @@ def run_streaming(
     Raises OSError when the command cannot be started.
     """
     process = process_factory(
-        list(command),
+        with_default_interrupt(command),
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
