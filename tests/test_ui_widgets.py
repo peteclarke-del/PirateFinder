@@ -9,7 +9,11 @@ import textwrap
 import unittest
 from pathlib import Path
 
-from piratefinder.ui.widgets import display_available
+from tests.gtk_support import require_pygobject  # noqa: E402
+
+require_pygobject()
+
+from piratefinder.ui.widgets import display_available  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
