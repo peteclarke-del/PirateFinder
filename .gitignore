@@ -1,0 +1,37 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+*.deb
+.venv/
+venv/
+*~
+
+# Agent and editor working files stay out of the repository.
+.claude/
+.agents/
+.codex/
+AI.md
+TODO.md
+
+# Disk images belong to their owners, never to this repository. Tests build
+# synthetic images at run time.
+*.adf
+*.adz
+*.dms
+*.st
+*.msa
+*.stx
+*.ipf
+*.scp
+*.hfe
+*.zip
+*.7z
+
+# The catalogue is a build product, published as a release asset.
+catalogue.sqlite
+catalogue.sqlite.gz
