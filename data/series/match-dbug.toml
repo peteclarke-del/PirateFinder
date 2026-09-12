@@ -1,0 +1,16 @@
+# How the D-Bug importer recognises series in the D-Bug search engine.
+#
+# Patterns are matched, case-insensitively, against the heading of each
+# search result, for example "Automation CD 100 part A Version 2" or
+# "D-Bug CD 1 part A". The site writes parts as letters ("part A", "part LA")
+# and later releases as "Version 2"; "Version 0" marks an earlier release.
+
+[[match]]
+series = "automation"
+source = "d-bug"
+patterns = ['^Automation CD (?P<number>\d+)(?: part (?P<part>[A-Z]+))?(?: Version (?P<version>\d+))?$']
+
+[[match]]
+series = "d-bug"
+source = "d-bug"
+patterns = ['^D-Bug CD (?P<number>\d+)(?: part (?P<part>[A-Z]+))?(?: Version (?P<version>\d+))?$']

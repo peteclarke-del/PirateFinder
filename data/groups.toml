@@ -1,0 +1,150 @@
+# Cracking and demo groups, with the abbreviations sources use for them.
+#
+# TOSEC and other sources often give a group as a short tag, for example
+# "[cr QTX]" or "[t +2 SR]". The catalogue builder expands a tag found in
+# "abbreviations" or "aliases" to "name", and the search index keeps both
+# spellings, so "Quartex" and "QTX" find the same disks.
+#
+#   name            the spelling shown to the user
+#   abbreviations   short tags, matched case-sensitively
+#   aliases         other spellings, matched after normalisation
+#
+# Only expansions that are well established belong here. A tag that is not
+# listed is shown as the source gives it.
+
+[[group]]
+name = "Skid Row"
+abbreviations = ["SR"]
+aliases = ["Skidrow"]
+
+[[group]]
+name = "Quartex"
+abbreviations = ["QTX"]
+
+[[group]]
+name = "Crystal"
+abbreviations = ["CSL"]
+
+[[group]]
+name = "Paradox"
+abbreviations = ["PDX"]
+
+[[group]]
+name = "Fairlight"
+abbreviations = ["FLT"]
+
+[[group]]
+name = "Vision Factory"
+abbreviations = ["VF"]
+
+[[group]]
+name = "LSD"
+aliases = ["L.S.D."]
+
+[[group]]
+name = "Razor 1911"
+abbreviations = ["RZR"]
+aliases = ["Razor"]
+
+[[group]]
+name = "Tristar & Red Sector Inc"
+abbreviations = ["TRSI"]
+aliases = ["Tristar and Red Sector", "Tristar & Red Sector"]
+
+[[group]]
+name = "Red Sector Inc"
+abbreviations = ["RSi", "RSI"]
+aliases = ["Red Sector"]
+
+[[group]]
+name = "Scoopex"
+abbreviations = ["SCX"]
+
+[[group]]
+name = "Alpha Flight"
+abbreviations = ["AFL"]
+
+[[group]]
+name = "Hoodlum"
+abbreviations = ["HLM"]
+
+[[group]]
+name = "Legend"
+abbreviations = ["LGD"]
+
+[[group]]
+name = "Bamiga Sector One"
+abbreviations = ["BS1"]
+
+[[group]]
+name = "Classic"
+abbreviations = ["CLS"]
+
+[[group]]
+name = "World of Wonders"
+abbreviations = ["WOW"]
+
+[[group]]
+name = "The Silents"
+abbreviations = ["TSL"]
+
+[[group]]
+name = "Eagle Soft Incorporated"
+abbreviations = ["ESI"]
+aliases = ["Eagle Soft", "Eaglesoft"]
+
+[[group]]
+name = "The Magnum Force"
+abbreviations = ["TMF"]
+aliases = ["Magnum Force"]
+
+[[group]]
+name = "Medway Boys"
+abbreviations = ["MWB"]
+aliases = ["The Medway Boys"]
+
+[[group]]
+name = "Bad Brew Crew"
+abbreviations = ["BBC"]
+
+[[group]]
+name = "Flame of Finland"
+abbreviations = ["FOF"]
+
+[[group]]
+name = "Persistence of Vision"
+abbreviations = ["POV"]
+aliases = ["Persistance of Vision"]
+
+[[group]]
+name = "The Electronic Knights"
+abbreviations = ["TEK"]
+aliases = ["Electronic Knights"]
+
+[[group]]
+name = "Australian Crackers United"
+abbreviations = ["ACU"]
+
+[[group]]
+name = "Federation of Free Traders"
+abbreviations = ["FOFT"]
+
+[[group]]
+name = "D-Bug"
+aliases = ["DBug", "D Bug"]
+
+[[group]]
+name = "Blade Runners"
+aliases = ["Bladerunners"]
+
+[[group]]
+name = "Replicants"
+aliases = ["The Replicants"]
+
+[[group]]
+name = "The Syndicate"
+aliases = ["Syndicate"]
+
+[[group]]
+name = "Defjam"
+aliases = ["Def Jam"]

@@ -1,0 +1,142 @@
+# How the Demozoo importer recognises series among Demozoo packs.
+#
+# Patterns are matched, case-insensitively, against "<group> <title>", where
+# the group is the pack's authors joined with " & ", for example
+# "Skid Row Compact 130", "Effect Prevail Pack 147" or "D-Bug D-BUG CD 193 A".
+# A pack no pattern claims is also tried against the declared series names
+# when its title ends in a number and the series belongs to the same group.
+
+# ----------------------------------------------------------------------------
+# Amiga
+# ----------------------------------------------------------------------------
+
+[[match]]
+series = "skid-row-compact"
+source = "demozoo"
+patterns = ['^Skid Row Compact (?:Disk )?#?0*(?P<number>\d+)$']
+
+[[match]]
+series = "prevail-pack"
+source = "demozoo"
+patterns = ['^Effect(?: & [^&]+?)* Prevail Pack #?0*(?P<number>\d+)$']
+
+[[match]]
+series = "depth-under-the-surface"
+source = "demozoo"
+patterns = ['^Depth(?: & [^&]+?)* Under The Surface #?0*(?P<number>\d+)$']
+
+[[match]]
+series = "intryx-neutralized"
+source = "demozoo"
+patterns = ['^Intryx(?: & [^&]+?)* Neutralized #?0*(?P<number>\d+)$']
+
+# Tuff Stuff was numbered in one run by Rebels, TRSI and TEK. D-Tect's own
+# Tuff Stuff disks are a different series and are not matched.
+[[match]]
+series = "trsi-tuff-stuff"
+source = "demozoo"
+patterns = ['^(?:Tristar and Red Sector Inc\.|Rebels|The Electronic Knights)(?: & [^&]+?)* Tuff Stuff #?0*(?P<number>\d+)$']
+
+[[match]]
+series = "rebels-candyland"
+source = "demozoo"
+patterns = ['^Rebels(?: & [^&]+?)* Candyland #?0*(?P<number>\d+)$']
+
+[[match]]
+series = "nightfall-xads-pack"
+source = "demozoo"
+patterns = ["^Nightfall(?: & [^&]+?)* XAD'?s Pack #?0*(?P<number>\\d+)$"]
+
+[[match]]
+series = "crusaders-selector-pack"
+source = "demozoo"
+patterns = ['^Crusaders(?: & [^&]+?)* Selector Pack #?0*(?P<number>\d+)$']
+
+[[match]]
+series = "paradox-blandet-guf"
+source = "demozoo"
+patterns = ['^Paradox(?: & [^&]+?)* Blandet Guf #?0*(?P<number>\d+)$']
+
+[[match]]
+series = "switch-game-pack"
+source = "demozoo"
+patterns = ['^Switch Switch (?:Game-?)?Pack #?0*(?P<number>\d+)$']
+
+[[match]]
+series = "alpha-flight-zylon"
+source = "demozoo"
+patterns = ['^(?:Alpha Flight & )?Zylon Compact Disk #?0*(?P<number>\d+)$']
+
+[[match]]
+series = "bamiga-pack"
+source = "demozoo"
+patterns = ['^Bamiga Sector One(?: & [^&]+?)* Bamiga Pack #?0*(?P<number>\d+)$']
+
+[[match]]
+series = "savage-crystal-pack"
+source = "demozoo"
+patterns = ['^(?:Savage|Intuition) Crystal Pack #?0*(?P<number>\d+)$']
+
+# ----------------------------------------------------------------------------
+# Atari ST
+# ----------------------------------------------------------------------------
+
+[[match]]
+series = "d-bug"
+source = "demozoo"
+patterns = ['^D-Bug D-BUG CD 0*(?P<number>\d+)(?: (?P<part>[A-Z]))?$']
+
+[[match]]
+series = "persistence-of-vision"
+source = "demozoo"
+patterns = ['^Persistence Of Vision POV 0*(?P<number>\d+)$']
+
+[[match]]
+series = "stax"
+source = "demozoo"
+patterns = ['^STAX Compact Disk #0*(?P<number>\d+)$']
+
+[[match]]
+series = "ripped-off"
+source = "demozoo"
+patterns = ['^Ripped Off Demo CD #0*(?P<number>\d+)(?: V(?P<version>\d+))?$']
+
+[[match]]
+series = "blue-software-demo"
+source = "demozoo"
+patterns = ['(?:^|& )(?:Blue Software|The Chaos Engine)\b.* BSW Demo Compact Disk #0*(?P<number>\d+)(?: (?P<part>[A-C])\b)?(?: (?P<version>V\d+(?:\.\d+)?))?(?:$|:)']
+
+[[match]]
+series = "the-source"
+source = "demozoo"
+patterns = ['^The Source Menu 0*(?P<number>\d+)$']
+
+[[match]]
+series = "great-stuff"
+source = "demozoo"
+patterns = ['^Animal Mine Great Stuff Compilation #0*(?P<number>\d+)$']
+
+[[match]]
+series = "industrially-safe"
+source = "demozoo"
+patterns = ['^Effect Industrially Safe Demodisk #0*(?P<number>\d+)$']
+
+[[match]]
+series = "eagles"
+source = "demozoo"
+patterns = ['^Eagles Compact Disc #0*(?P<number>\d+)$']
+
+[[match]]
+series = "special-fx-kids"
+source = "demozoo"
+patterns = ['^Special FX Kids 0*(?P<number>\d+)$']
+
+[[match]]
+series = "adrenalin-uk-pd"
+source = "demozoo"
+patterns = ['^Adrenalin UK Public Domain CD #0*(?P<number>\d+)$']
+
+[[match]]
+series = "serenade"
+source = "demozoo"
+patterns = ['^Serenade PD Disk 0*(?P<number>\d+)(?: V(?P<version>\d+))?$']

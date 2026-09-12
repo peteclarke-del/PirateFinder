@@ -1,0 +1,137 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test release source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install metadata validators
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y appstream desktop-file-utils
+
+      - name: Install project
+        run: python -m pip install --no-deps --editable . ruff==0.16.4
+
+      - name: Check Python style
+        run: |
+          ruff check src catalogue_builder tests
+          ruff format --check src catalogue_builder tests
+
+      - name: Verify release tag
+        run: ./packaging/check-release-tag.sh "${GITHUB_REF_NAME}"
+
+      - name: Run test suite
+        run: PYTHONPATH=src:. python -m unittest discover -s tests -v
+
+      - name: Validate sources and metadata
+        run: |
+          python -m compileall -q src catalogue_builder tests
+          bash -n piratefinder packaging/*.sh
+          sh -n packaging/piratefinder packaging/gw packaging/postinst packaging/postrm
+          desktop-file-validate data/com.github.pclarke.PirateFinder.desktop
+          appstreamcli validate --no-net data/com.github.pclarke.PirateFinder.metainfo.xml
+
+  publish:
+    name: Build and publish the installer
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # The package ships the newest published catalogue. Catalogue releases
+      # are tagged catalogue-YYYY-MM-DD by the Catalogue workflow.
+      - name: Download the newest catalogue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          catalogue_tag="$(gh release list --limit 200 --exclude-drafts \
+            --json tagName,createdAt \
+            --jq '[.[] | select(.tagName | startswith("catalogue-"))]
+                  | sort_by(.createdAt) | last | .tagName // empty')"
+          if [[ -z "${catalogue_tag}" ]]; then
+            echo "No catalogue release found. Run the Catalogue workflow first." >&2
+            exit 1
+          fi
+          mkdir -p build/release-catalogue
+          gh release download "${catalogue_tag}" \
+            --pattern catalogue.sqlite.gz \
+            --pattern catalogue.sqlite.gz.sha256 \
+            --dir build/release-catalogue
+          (cd build/release-catalogue && sha256sum --check catalogue.sqlite.gz.sha256)
+          gunzip --stdout build/release-catalogue/catalogue.sqlite.gz > build/catalogue.sqlite
+          echo "CATALOGUE_TAG=${catalogue_tag}" >> "${GITHUB_ENV}"
+
+      - name: Build the Ubuntu installer
+        run: ./packaging/build-deb.sh --catalogue build/catalogue.sqlite dist
+
+      - name: Inspect installer
+        run: |
+          dpkg-deb --info dist/*.deb
+          dpkg-deb --contents dist/*.deb
+          package_root="$(mktemp -d)"
+          trap 'rm -rf -- "${package_root}"' EXIT
+          dpkg-deb --extract dist/*.deb "${package_root}"
+          if find "${package_root}/usr" -perm /022 -print -quit | grep -q .; then
+            echo "Package contains group-writable or world-writable files" >&2
+            exit 1
+          fi
+          test -f "${package_root}/usr/share/piratefinder/catalogue.sqlite"
+
+      - name: Install and verify package
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ./dist/*.deb
+          test -x /usr/bin/piratefinder
+          /usr/lib/piratefinder/bin/gw info --help
+          PYTHONPATH=/usr/lib/piratefinder /usr/bin/python3 -c "import piratefinder, greaseweazle"
+          PYTHONPATH=/usr/lib/piratefinder /usr/bin/python3 -c "
+          from pathlib import Path
+          from piratefinder.catalogue.store import Catalogue
+          print(Catalogue.open(Path('/usr/share/piratefinder/catalogue.sqlite')).stats())
+          "
+
+      - name: Create checksums
+        run: cd dist && sha256sum -- *.deb > SHA256SUMS
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: PirateFinder-${{ github.ref_name }}
+          path: dist/
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "${GITHUB_REF_NAME}" dist/*
+          --verify-tag
+          --latest
+          --generate-notes
+          --notes "Includes the catalogue published as ${CATALOGUE_TAG}."
+          --title "PirateFinder ${GITHUB_REF_NAME} for Linux"

@@ -1,0 +1,71 @@
+{
+ "created": 1789213051,
+ "dir": "/0/items/commodore-amiga-compilations-games",
+ "files": [
+  {
+   "name": "20 Games (1991)(Stardesign)(PD).zip",
+   "source": "original",
+   "mtime": "1636100744",
+   "size": "724610",
+   "md5": "5b77044cfb53f0dcee3bf7ebdf3c1572",
+   "crc32": "ae3d8f5b",
+   "sha1": "9cbd59da618b9da5e8da2583adfaf08620384558",
+   "format": "ZIP",
+   "viruscheck": "1636108774",
+   "filecount": "1"
+  },
+  {
+   "name": "3D World Soccer & Cubix & Encounter (1991)(Pendale Europa).zip",
+   "source": "original",
+   "mtime": "1636100733",
+   "size": "793482",
+   "md5": "193d2ebef6443eb50950a71ddd7a69fc",
+   "crc32": "517d3499",
+   "sha1": "c8fec2778e7234a6500228e2afb86b053a28e5d5",
+   "format": "ZIP",
+   "viruscheck": "1636108774",
+   "filecount": "1"
+  },
+  {
+   "name": "commodore-amiga-compilations-games_archive.torrent",
+   "source": "original",
+   "mtime": "1738875121",
+   "size": "12",
+   "md5": "b90acad44e90b94cd054765f05a9a713",
+   "crc32": "f9dbd566",
+   "sha1": "7340ce619f32b96b7c3cac52e20438a0fed00d25",
+   "format": "Archive BitTorrent"
+  },
+  {
+   "name": "commodore-amiga-compilations-games_files.xml",
+   "source": "original",
+   "format": "Metadata",
+   "md5": "350a0bdec64c8160163d0f612b9d5683",
+   "summation": "md5"
+  },
+  {
+   "name": "commodore-amiga-compilations-games_meta.sqlite",
+   "source": "original",
+   "mtime": "1636104376",
+   "size": "2252800",
+   "md5": "eb7faed64856871de73d7613e60bcdb5",
+   "crc32": "419a8605",
+   "sha1": "e172cab02e432f18c4b209654fb58d72f8f5bb04",
+   "format": "Metadata"
+  },
+  {
+   "name": "commodore-amiga-compilations-games_jp2.zip",
+   "source": "derivative",
+   "format": "Single Page Processed JP2 ZIP",
+   "original": "x.pdf",
+   "size": "1024"
+  }
+ ],
+ "files_count": 6,
+ "metadata": {
+  "identifier": "commodore-amiga-compilations-games",
+  "title": "Commodore Amiga - Compilations - Games",
+  "mediatype": "software"
+ },
+ "server": "ia601001.us.archive.org"
+}

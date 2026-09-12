@@ -1,0 +1,18 @@
+CRC     	Size	File name
+--------------------------------------------------------------------------------
+74046391	675639	UtilityDisks/MasterSO-UtilityDisk2.dms
+6D96C705	3006	Scrollers/T-Groupstext/Tech/Tech-MelodiousTunes06-menu.txt
+C556A7AF	574	Scrollers/S-Groupstext/Skid_Row/Skid_Row-Compact031-menu.txt
+351697CD	828	Scrollers/R-Groupstext/Reflex/Reflex-GroupSelection011-menu.txt
+50DEC2F1	901120	Packdisks/GroupSelection/Reflex-GroupSelection011.adf
+5DBFA715	830244	Packdisks/GroupSelection/Reflex-GroupSelection011.dms
+A70DF6A7	824514	Packdisks/TuffStuff-tmb/TRSI-TuffStuff12.dms
+62D3BAA6	901120	Packdisks/Skid_Row/Skid_Row-Compact111.adf
+55857904	228418	Packdisks/Skid_Row/SKID_ROW-Compact130.DMS
+0A201259	901120	Packdisks/Skid_Row/Skid_Row-Compact113b.adf
+6954CAAD	320175	Packdisks/Skid_Row/SKID_ROW-Compact128.DMS
+EBC90FE1	901120	Packdisks/Skid_Row/Skid_Row-Compact031.adf
+CCEB4869	352088	Packdisks/Skid_Row/SKID_ROW-Compact031[b].dms
+A08396FD	901120	Packdisks/Effect/Effect-PrevailPack147.adf
+D7D3F506	791704	Packdisks/Effect/Effect-PrevailPack148.dms
+BE4A79D2	901120	Packdisks/DTect-TuffStuff/DTect-TuffStuff05.adf

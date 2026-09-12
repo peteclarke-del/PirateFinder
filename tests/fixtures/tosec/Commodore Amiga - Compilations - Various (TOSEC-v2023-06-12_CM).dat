@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<datafile>
+	<header>
+		<name>Commodore Amiga - Compilations - Various</name>
+		<version>2023-06-12</version>
+	</header>
+	<game name="Compact #031 (1991)(Skid Row)[b errdms]">
+		<rom name="Compact #031 (1991)(Skid Row)[b errdms].adf" size="901120" crc="a9fcc7f2" md5="15452ba55871e4c6906a902907f0ef45" sha1="d4022259029382b63359cea085376edcc7b130b9"/>
+	</game>
+	<game name="Compact #124 (1992)(Skid Row)">
+		<rom name="Compact #124 (1992)(Skid Row).adf" size="901120" crc="3c6b1be6" md5="fa30452832d818c39131c2d5f4495181" sha1="a7d6ef5677f632972b999ccd0801f62df61a17aa"/>
+	</game>
+	<game name="Compact #128 (1992)(Skid Row)">
+		<rom name="Compact #128 (1992)(Skid Row).adf" size="901120" crc="e7bc3f51" md5="653815291d1313a9d7e37d98de1e8014" sha1="877934e1bea4686de8e1eb314bb12aee02a0bbec"/>
+	</game>
+</datafile>
