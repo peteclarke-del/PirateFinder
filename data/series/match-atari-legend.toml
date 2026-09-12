@@ -1,0 +1,268 @@
+# How the Atari Legend importer recognises declared series.
+#
+# Atari Legend names menu sets, not disks. Each pattern is matched,
+# case-insensitively, against the label the site gives a menu: the set name
+# followed by "#" and the menu number, then " v" and the version when there
+# is one, for example "The Medway Boys #20" or "Pompey Pirates #1 v2". A menu
+# with no number is labelled with its issue ("Mad Vision B") or with
+# "#[no number]".
+#
+# Most rules only name the set. A rule may also look at the number, which is
+# how one set that holds two series is split. A named group "number", when a
+# pattern has one, replaces the menu number. Menus that no rule recognises go
+# to the series whose name or alias equals the set name, and sets that name
+# no series become series of their own.
+#
+# Numbering was checked against the TOSEC names of each series before a rule
+# was added. "Arakis / Zuul" has no rule on purpose: it is its own numbered
+# series, and its numbers would collide with Zuul's. "Automation (fake
+# menus)" has none either, so the fakes never merge with real Automation
+# disks.
+
+[[match]]
+series = "pompey-pirates"
+source = "atari-legend"
+patterns = ['^Pompey Pirates #']
+
+[[match]]
+series = "pompey-pirates-krappy-kompact"
+source = "atari-legend"
+patterns = ['^Pompey Pirates Krappy Kompact #']
+
+[[match]]
+series = "medway-boys"
+source = "atari-legend"
+patterns = ['^The Medway Boys #']
+
+# One Atari Legend set holds both crews' menus, numbered as TOSEC numbers
+# them: Flame of Finland 1 to 54, then Superior from 55.
+[[match]]
+series = "flame-of-finland"
+source = "atari-legend"
+patterns = ['^Flame Of Finland/Superior #(?:[1-9]|[1-4][0-9]|5[0-4])\b']
+
+[[match]]
+series = "superior"
+source = "atari-legend"
+patterns = ['^Flame Of Finland/Superior #(?:5[5-9]|[6-9][0-9]|[1-9][0-9]{2,})\b']
+
+[[match]]
+series = "fuzion"
+source = "atari-legend"
+patterns = ['^Fuzion #']
+
+[[match]]
+series = "zuul"
+source = "atari-legend"
+patterns = ['^Zuul #']
+
+[[match]]
+series = "bad-brew-crew"
+source = "atari-legend"
+patterns = ['^Bad Brew Crew #']
+
+[[match]]
+series = "adrenalin-uk"
+source = "atari-legend"
+patterns = ['^Adrenalin UK #']
+
+[[match]]
+series = "replicants"
+source = "atari-legend"
+patterns = ['^The Replicants #']
+
+[[match]]
+series = "hotline"
+source = "atari-legend"
+patterns = ['^Hotline #']
+
+[[match]]
+series = "cynix"
+source = "atari-legend"
+patterns = ['^Cynix #']
+
+[[match]]
+series = "elite"
+source = "atari-legend"
+patterns = ['^Elite #']
+
+[[match]]
+series = "ics"
+source = "atari-legend"
+patterns = ['^ICS #']
+
+[[match]]
+series = "special-fx"
+source = "atari-legend"
+patterns = ['^Special FX #']
+
+[[match]]
+series = "delight"
+source = "atari-legend"
+patterns = ['^Delight Adventure Disk #']
+
+# The set is named after both crews; TOSEC files its disks as Awesome.
+[[match]]
+series = "awesome"
+source = "atari-legend"
+patterns = ['^Awesome / Elite #']
+
+[[match]]
+series = "delicious"
+source = "atari-legend"
+patterns = ['^The SyndiCate Delicious Disk #']
+
+[[match]]
+series = "lemmings"
+source = "atari-legend"
+patterns = ['^The Lemmings #']
+
+[[match]]
+series = "blue-software"
+source = "atari-legend"
+patterns = ['^Blue SoftWare #']
+
+[[match]]
+series = "pulsion"
+source = "atari-legend"
+patterns = ['^Pulsion #']
+
+[[match]]
+series = "dodgysoft"
+source = "atari-legend"
+patterns = ['^Dodgysoft #']
+
+[[match]]
+series = "pure-energy"
+source = "atari-legend"
+patterns = ['^Pure Energy #']
+
+[[match]]
+series = "klapauzius"
+source = "atari-legend"
+patterns = ['^Klapauzius #']
+
+[[match]]
+series = "federation-of-free-traders"
+source = "atari-legend"
+patterns = ['^Federation Of Free Traders #']
+
+[[match]]
+series = "reanimators"
+source = "atari-legend"
+patterns = ['^Reanimators #']
+
+[[match]]
+series = "supremacy"
+source = "atari-legend"
+patterns = ['^Supremacy #']
+
+[[match]]
+series = "crazy-boy"
+source = "atari-legend"
+patterns = ['^Crazy Boy #']
+
+[[match]]
+series = "tumult"
+source = "atari-legend"
+patterns = ['^Tumult #']
+
+[[match]]
+series = "section-one"
+source = "atari-legend"
+patterns = ['^Section One #']
+
+[[match]]
+series = "new-order"
+source = "atari-legend"
+patterns = ['^New Order #']
+
+[[match]]
+series = "impact"
+source = "atari-legend"
+patterns = ['^Impact #']
+
+[[match]]
+series = "timelords"
+source = "atari-legend"
+patterns = ['^The TTC / Timelords #']
+
+[[match]]
+series = "alliance"
+source = "atari-legend"
+patterns = ['^The Alliance \(german\) #']
+
+[[match]]
+series = "conceptors"
+source = "atari-legend"
+patterns = ['^The Conceptors #']
+
+[[match]]
+series = "cheshire-cats"
+source = "atari-legend"
+patterns = ['^The Cheshire Cats #']
+
+[[match]]
+series = "dream-weavers"
+source = "atari-legend"
+patterns = ['^Dream Weavers #']
+
+[[match]]
+series = "gravatics"
+source = "atari-legend"
+patterns = ['^Gravatics #']
+
+[[match]]
+series = "revolution"
+source = "atari-legend"
+patterns = ['^Revolution #']
+
+[[match]]
+series = "shaolin-masters"
+source = "atari-legend"
+patterns = ['^Shaolin Masters #']
+
+[[match]]
+series = "x-static"
+source = "atari-legend"
+patterns = ['^X-Static #']
+
+[[match]]
+series = "g-force"
+source = "atari-legend"
+patterns = ['^Mersey Pirates / G-Force #']
+
+[[match]]
+series = "nothing-personal"
+source = "atari-legend"
+patterns = ['^Nothing Personal #']
+
+[[match]]
+series = "euroswap"
+source = "atari-legend"
+patterns = ['^Euroswap #']
+
+[[match]]
+series = "guardians-of-logik"
+source = "atari-legend"
+patterns = ['^The Bald Eagle / The Guardians Of Logik #']
+
+[[match]]
+series = "ancient-celts"
+source = "atari-legend"
+patterns = ['^Ancient Celts #']
+
+[[match]]
+series = "quartet"
+source = "atari-legend"
+patterns = ['^Quartet #']
+
+[[match]]
+series = "wild"
+source = "atari-legend"
+patterns = ['^WILD! #']
+
+[[match]]
+series = "sewer-doc"
+source = "atari-legend"
+patterns = ['^Sewer Doc Disc #']

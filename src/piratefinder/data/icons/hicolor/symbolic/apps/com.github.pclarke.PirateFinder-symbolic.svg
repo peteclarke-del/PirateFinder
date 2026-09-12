@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <title>PirateFinder</title>
+  <!-- Floppy disk with the shutter and label cut out, and a skull on the label. -->
+  <path fill="#2e3436" fill-rule="evenodd" d="M2.5 1h9.5l3 3v9.5a1.5 1.5 0 0 1-1.5 1.5h-11a1.5 1.5 0 0 1-1.5-1.5v-11a1.5 1.5 0 0 1 1.5-1.5zM4 2v4h7v-4zM9 3v2h1v-2zM3.5 7.5a0.5 0.5 0 0 0-0.5 0.5v6h10v-6a0.5 0.5 0 0 0-0.5-0.5z"/>
+  <path fill="#2e3436" fill-rule="evenodd" d="M8 8.3a2.5 2.5 0 0 0-2.5 2.5c0 0.8 0.4 1.5 0.9 1.9v1.1h3.2v-1.1c0.5-0.4 0.9-1.1 0.9-1.9a2.5 2.5 0 0 0-2.5-2.5zM6.9 10.1a0.8 0.8 0 1 1 0 1.6a0.8 0.8 0 1 1 0-1.6zM9.1 10.1a0.8 0.8 0 1 1 0 1.6a0.8 0.8 0 1 1 0-1.6z"/>
+</svg>

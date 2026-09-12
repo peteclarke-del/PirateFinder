@@ -1,0 +1,72 @@
+# How the 8bitchip importer recognises the crew prefixes of its disk ids.
+#
+# Patterns are matched, case-insensitively, against the disk id of each row,
+# for example "AU061", "DB031B" (part B), "PP013V2" (version 2) or
+# "AU123EV2" (part E, version 2). The prefixes are the ones the list's own
+# legend declares. EM (Electric Mouse) and SO (Spaced Out) have no numbered
+# series and are left out.
+
+[[match]]
+series = "automation"
+source = "8bitchip"
+patterns = ['^AU(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "cynix"
+source = "8bitchip"
+patterns = ['^CY(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "d-bug"
+source = "8bitchip"
+patterns = ['^DB(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "flame-of-finland"
+source = "8bitchip"
+patterns = ['^FF(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "fuzion"
+source = "8bitchip"
+patterns = ['^FZ(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "supergau"
+source = "8bitchip"
+patterns = ['^GG(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "medway-boys"
+source = "8bitchip"
+patterns = ['^MB(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "pompey-pirates-krappy-kompact"
+source = "8bitchip"
+patterns = ['^PK(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "pompey-pirates"
+source = "8bitchip"
+patterns = ['^PP(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "sewer-doc"
+source = "8bitchip"
+patterns = ['^SD(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "superior"
+source = "8bitchip"
+patterns = ['^SU(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "terdd-doc"
+source = "8bitchip"
+patterns = ['^TE(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "vectronix"
+source = "8bitchip"
+patterns = ['^VE(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']

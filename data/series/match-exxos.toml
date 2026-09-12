@@ -1,0 +1,11 @@
+# How the exxos importer recognises series in its gallery pages.
+#
+# Each pattern is matched, case-insensitively, against the heading of one
+# disk cell, for example "POV_001". The named group "number" is required;
+# "part" and "version" are optional. When a pattern has no version, the
+# version comes from the name of the zip the cell links to ("006v2.0(1989)").
+
+[[match]]
+series = "persistence-of-vision"
+source = "exxos"
+patterns = ['^POV[ _]?(?P<number>\d+)\b']

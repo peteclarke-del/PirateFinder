@@ -1,0 +1,38 @@
+name: Feature request
+description: Propose a workflow, catalogue source or engineering improvement
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Describe the workflow or limitation without assuming an implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Machines, disk series, formats and hardware
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Expected outcome and safe failure behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Technical references
+      description: Link documentation or public reference pages. For a new catalogue source, include its terms of use and whether it permits automated access. Do not upload or link disk images.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched existing issues and documentation.
+          required: true
+        - label: I identified any operation that could overwrite a floppy or lose data.
+          required: true

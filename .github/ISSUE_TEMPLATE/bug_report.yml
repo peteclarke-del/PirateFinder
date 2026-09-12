@@ -1,0 +1,66 @@
+name: Bug report
+description: Report reproducible behaviour that differs from the documentation
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not attach disk images, archives, private paths, identifiers or secrets. Follow SECURITY.md for vulnerabilities. Wrong or missing disk contents belong in a catalogue correction instead.
+  - type: input
+    id: version
+    attributes:
+      label: PirateFinder version or commit
+    validations:
+      required: true
+  - type: input
+    id: catalogue
+    attributes:
+      label: Catalogue build date
+      description: Shown in Preferences, on the Catalogue page, as Built.
+  - type: input
+    id: host
+    attributes:
+      label: Linux distribution and GNOME version
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Greaseweazle model, drive and host-tool version
+  - type: input
+    id: disk
+    attributes:
+      label: Disk label, image format and where the image came from
+      description: For example "Automation 250, MSA from a NAS folder" or "Skid Row Compact 12, ADF downloaded from the Internet Archive".
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction
+      description: Give the smallest exact sequence of steps.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result and sanitised logs
+      description: Include the session summary or the gw output if the write failed.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched existing issues and the current documentation.
+          required: true
+        - label: This report contains no disk images, secrets or media I lack permission to share.
+          required: true
+        - label: This is not a privately reportable security vulnerability.
+          required: true

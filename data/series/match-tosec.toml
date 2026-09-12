@@ -1,0 +1,604 @@
+# How the TOSEC importer recognises declared series in TOSEC DAT names.
+#
+# Each pattern is matched, case-insensitively, against the full TOSEC game
+# name, for example "Compact #004 (1990)(Skid Row)[a]", so a pattern can use
+# the publisher field to tell apart two series with the same title. The
+# named group "number" is required; "part" and "version" are optional. When
+# a pattern does not capture them, the part comes from the name's
+# "(Part A)" or "(Disk 1 of 2)" field and the version from its "v2.0" suffix.
+#
+# The shared tail "(?: (?P<version>v\d+(?:\.\d+)*))? \(" accepts an optional
+# version and then requires the date field, so combined entries such as
+# "Pompey Pirates Menu Disk 51, 23, 86" are left to the generic rules.
+
+# ----------------------------------------------------------------------------
+# Atari ST
+# ----------------------------------------------------------------------------
+
+[[match]]
+series = "automation"
+source = "tosec"
+patterns = ['^Automation Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "d-bug"
+source = "tosec"
+patterns = ['^D-Bug Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "pompey-pirates"
+source = "tosec"
+patterns = ['^Pompey Pirates Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "medway-boys"
+source = "tosec"
+patterns = ['^Medway Boys Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "flame-of-finland"
+source = "tosec"
+patterns = ['^Flame of Finland Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "superior"
+source = "tosec"
+patterns = ['^Superior Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "fuzion"
+source = "tosec"
+patterns = ['^Fuzion CD (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "zuul"
+source = "tosec"
+patterns = ['^Zuul (?P<number>\d+)(?: (?P<version>bis|v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "vectronix"
+source = "tosec"
+patterns = ['^Vectronix Compilation (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "supergau"
+source = "tosec"
+patterns = ['^SuperGAU Compilation (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "enigma"
+source = "tosec"
+patterns = ['^Enigma Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "bad-brew-crew"
+source = "tosec"
+patterns = ['^Bad Brew Crew Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "adrenalin-uk"
+source = "tosec"
+patterns = ['^Adrenalin UK CD (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "cynix"
+source = "tosec"
+patterns = ['^Cynix Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "elite"
+source = "tosec"
+patterns = ['^Elite Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "ics"
+source = "tosec"
+patterns = ['^ICS Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "special-fx"
+source = "tosec"
+patterns = ['^Special FX Disk Saver (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "delight"
+source = "tosec"
+patterns = ['^Delight Adventures Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "the-source"
+source = "tosec"
+patterns = ['^Source Menu (?P<number>\d+), The(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "awesome"
+source = "tosec"
+patterns = ['^Awesome Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "delicious"
+source = "tosec"
+patterns = ['^Delicious Disk (?P<number>\d+)(?: (?P<part>Demo|Game))?(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "syndicate"
+source = "tosec"
+patterns = ['^Syndicate Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "lemmings"
+source = "tosec"
+patterns = ['^Lemmings Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "blue-software"
+source = "tosec"
+patterns = ['^Blue Software Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "blue-software-demo"
+source = "tosec"
+patterns = ['^Blue Software Demo CD (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "pulsion"
+source = "tosec"
+patterns = ['^Pulsion CD (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "dodgysoft"
+source = "tosec"
+patterns = ['^Dodgysoft Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "pure-energy"
+source = "tosec"
+patterns = ['^Pure Energy Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "klapauzius"
+source = "tosec"
+patterns = ['^Klapauzius Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "federation-of-free-traders"
+source = "tosec"
+patterns = ['^Federation Of Free Traders Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "reanimators"
+source = "tosec"
+patterns = ['^Reanimators CD (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "supremacy"
+source = "tosec"
+patterns = ['^Supremacy Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "crazy-boy"
+source = "tosec"
+patterns = ['^Crazy Boy (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "atariforce-inform"
+source = "tosec"
+patterns = ['^Atariforce Inform Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "atariforce-cd"
+source = "tosec"
+patterns = ['^Atariforce CD (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "tumult"
+source = "tosec"
+patterns = ['^Tumult Compact Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "section-one"
+source = "tosec"
+patterns = ['^Section One Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "new-order"
+source = "tosec"
+patterns = ['^New Order Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "impact"
+source = "tosec"
+patterns = ['^Impact Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "timelords"
+source = "tosec"
+patterns = ['^Timelords of London Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "alliance"
+source = "tosec"
+patterns = ['^Alliance CD (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "conceptors"
+source = "tosec"
+patterns = ['^Conceptors Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "cheshire-cats"
+source = "tosec"
+patterns = ['^TCC Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "dream-weavers"
+source = "tosec"
+patterns = ['^Dream Weavers Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "gravatics"
+source = "tosec"
+patterns = ['^Gravatics (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "revolution"
+source = "tosec"
+patterns = ['^Revolution Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "shaolin-masters"
+source = "tosec"
+patterns = ['^Shaolin Masters Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "x-static"
+source = "tosec"
+patterns = ['^X-Static Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "g-force"
+source = "tosec"
+patterns = ['^G-Force Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "nothing-personal"
+source = "tosec"
+patterns = ['^Nothing Personal (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "euroswap"
+source = "tosec"
+patterns = ['^Euroswap Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "guardians-of-logik"
+source = "tosec"
+patterns = ['^Guardians of Logik Menu (?P<number>\d+), The(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "ancient-celts"
+source = "tosec"
+patterns = ['^Ancient Celts Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "quartet"
+source = "tosec"
+patterns = ['^Quartet CD (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "wild"
+source = "tosec"
+patterns = ['^Wild! CD (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "persistence-of-vision"
+source = "tosec"
+patterns = ['^Persist[ae]nce of Vision (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "stax"
+source = "tosec"
+patterns = ['^Stax Compact Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "ripped-off"
+source = "tosec"
+patterns = ['^Ripped-Off (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "great-stuff"
+source = "tosec"
+patterns = ['^Great Stuff Compil (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "industrially-safe"
+source = "tosec"
+patterns = ['^Industrially Safe Demo Disk (?:Number )?(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+# ----------------------------------------------------------------------------
+# Amiga
+# ----------------------------------------------------------------------------
+
+[[match]]
+series = "skid-row-compact"
+source = "tosec"
+patterns = ['^Compact #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \([^)]*\)\(Skid Row']
+
+[[match]]
+series = "alpha-flight-fdt"
+source = "tosec"
+patterns = ['^FDT Compacted Disk #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "alpha-flight-kom"
+source = "tosec"
+patterns = ['^KoM Compacted Disk #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "alpha-flight-zylon"
+source = "tosec"
+patterns = ['^Zylon CD #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "bsa-compact"
+source = "tosec"
+patterns = ['^Amiga Compact Disc #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \([^)]*\)\(BSA']
+
+[[match]]
+series = "defjam-ccs-compact"
+source = "tosec"
+patterns = ['^Compact Disk #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \([^)]*\)\(Defjam']
+
+[[match]]
+series = "tmf-compact"
+source = "tosec"
+patterns = ['^TMF Compact (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "tmf-gamespack"
+source = "tosec"
+patterns = ['^Gamespack (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \([^)]*\)\(The Magnum Force']
+
+[[match]]
+series = "jacknife-compact"
+source = "tosec"
+patterns = ['^Knife Compact #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "switch-game-pack"
+source = "tosec"
+patterns = ['^Switch Game-Pack #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "ackerlight-compact"
+source = "tosec"
+patterns = ['^Ackerlight - Compact Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "effect-games-pack"
+source = "tosec"
+patterns = ['^Games Pack #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \([^)]*\)\(Effect']
+
+[[match]]
+series = "bamiga-pack"
+source = "tosec"
+patterns = ['^Bamiga Pack #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "lsd-games"
+source = "tosec"
+patterns = ['^LSD Games #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "rebels-candyland"
+source = "tosec"
+patterns = ['^Candyland #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "crusaders-selector-pack"
+source = "tosec"
+patterns = ['^Selector Pack #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "paradox-blandet-guf"
+source = "tosec"
+patterns = ['^Blandet Guf #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "games-galore"
+source = "tosec"
+patterns = ['^Games Galore (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "savage-crystal-pack"
+source = "tosec"
+patterns = ['^Crystal Pack (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \([^)]*\)\(Savage']
+
+[[match]]
+series = "nightfall-xads-pack"
+source = "tosec"
+patterns = ['''^Xad's Pack #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(''']
+
+[[match]]
+series = "mailman-docs-and-trainers"
+source = "tosec"
+patterns = ['^Docs and Trainers #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "koz-main-source-bbs-pack"
+source = "tosec"
+patterns = ['^Main Source BBS Pack #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "prevail-pack"
+source = "tosec"
+patterns = ['^Prevail Pack #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "lsd-legal-tools"
+source = "tosec"
+patterns = ['^LSD Legal Tools Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "devious-tools"
+source = "tosec"
+patterns = ['^Devious Tools Issue (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "tek-mind-funk"
+source = "tosec"
+patterns = ['^Mind Funk #(?P<number>\d+)\b']
+
+[[match]]
+series = "scoopex-ranger"
+source = "tosec"
+patterns = ['^Ranger Demo Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "scoopex-tmb"
+source = "tosec"
+patterns = ['^TMB Demo Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "trsi-tuff-stuff"
+source = "tosec"
+patterns = ['^Tuff Stuff #?(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \([^)]*\)\((?:Rebels|TRSI|The Electronic Knights)\b']
+
+[[match]]
+series = "devious-bits-n-pieces"
+source = "tosec"
+patterns = ['''^Bits 'n' Pieces #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(''']
+
+[[match]]
+series = "intryx-neutralized"
+source = "tosec"
+patterns = ['^Neutralized Pack No\.\s*(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "depth-under-the-surface"
+source = "tosec"
+patterns = ['^Under The Surface #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "flashlight-flash-demodisk"
+source = "tosec"
+patterns = ['^Flash DemoDisk #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "scene-archives-compilation"
+source = "tosec"
+patterns = ['^Compilation Disk #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \([^)]*\)\(The Scene Archives']
+
+[[match]]
+series = "17-bit-intros-disk"
+source = "tosec"
+patterns = ['''^Intro's Disk #(?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \([^)]*\)\(17-Bit''']
+
+# ----------------------------------------------------------------------------
+# Atari ST series declared in extra-atari-legend.toml
+# ----------------------------------------------------------------------------
+
+[[match]]
+series = "serenade"
+source = "tosec"
+patterns = ['^Serenade PD Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "neon-lights"
+source = "tosec"
+patterns = ['^Neon Lights Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "special-fx-kids"
+source = "tosec"
+patterns = ['^Special FX Kids Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "adrenalin-uk-pd"
+source = "tosec"
+patterns = ['^Adrenalin UK Public Domain (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "orion"
+source = "tosec"
+patterns = ['^Orion Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "crime"
+source = "tosec"
+patterns = ['^Crime (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "eagles"
+source = "tosec"
+patterns = ['^Eagles Demo Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "construct-crew"
+source = "tosec"
+patterns = ['^Construct Crew Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "crack-connexion"
+source = "tosec"
+patterns = ['^Crack Connexion Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "regression-therapy"
+source = "tosec"
+patterns = ['^Regression Therapy Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "sigma"
+source = "tosec"
+patterns = ['^Sigma Compil (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "deadly-fx"
+source = "tosec"
+patterns = ['^Deadly FX Compacted Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "safari"
+source = "tosec"
+patterns = ['^Safari Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "analog-bubble-bath"
+source = "tosec"
+patterns = ['^Analog Bubble Bath Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "northside"
+source = "tosec"
+patterns = ['^Northside CD (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "tommi-of-finland"
+source = "tosec"
+patterns = ['^Tommi of Finland Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "justice-department"
+source = "tosec"
+patterns = ['^Justice Department Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "evil-force"
+source = "tosec"
+patterns = ['^Evil Force Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "scottish-cracking-crew"
+source = "tosec"
+patterns = ['^Scottish Cracking Crew Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "shaolin-temple"
+source = "tosec"
+patterns = ['^Shaolin Temple Menu Disk (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
+
+[[match]]
+series = "timewarp"
+source = "tosec"
+patterns = ['^Timewarp Menu (?P<number>\d+)(?: (?P<version>v\d+(?:\.\d+)*))? \(']
