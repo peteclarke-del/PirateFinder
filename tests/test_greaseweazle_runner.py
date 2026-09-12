@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import stat
 import sys
 import tempfile
@@ -132,6 +133,26 @@ class CancelTests(RunnerTestCase):
         self.assertTrue(result.cancelled)
         self.assertIn("Interrupted", result.output)
         self.assertEqual(result.return_code, 1)
+        self.assertLess(time.monotonic() - started, 10)
+
+    def test_cancel_interrupts_even_when_the_parent_ignores_interrupts(self) -> None:
+        # Started with "nohup ... &" or under xvfb-run, SIGINT arrives ignored
+        # and every child inherits that.
+        previous = signal.signal(signal.SIGINT, signal.SIG_IGN)
+        self.addCleanup(signal.signal, signal.SIGINT, previous)
+        command = fake_gw(self.folder, ["writing"], hang=30)
+        controller = OperationController()
+
+        def on_line(line: str) -> None:
+            if line == "writing":
+                threading.Thread(target=controller.cancel).start()
+
+        started = time.monotonic()
+        result = run_streaming(
+            [command], timeout=60, on_line=on_line, controller=controller, grace=20
+        )
+        self.assertTrue(result.cancelled)
+        self.assertIn("Interrupted", result.output, "gw ignored the cancel")
         self.assertLess(time.monotonic() - started, 10)
 
     def test_cancel_before_start_interrupts_at_once(self) -> None:
