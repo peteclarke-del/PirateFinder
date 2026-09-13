@@ -218,11 +218,31 @@ The installed catalogue stays in use in every case, since an update replaces
 it only after every check has passed.
 
 PirateFinder 0.1.0 reads layout 1 and looks for any catalogue file in the
-releases, not only its own layout. Once the weekly Catalogue workflow
-publishes layout 3 catalogues from the current source, 0.1.0 finds one,
-downloads it and refuses it with "The new catalogue needs a newer version of
-PirateFinder." Its own catalogue stays in use. A PirateFinder package newer
-than 0.1.0 reads layout 3 and brings a layout 3 catalogue with it.
+releases, not only its own layout. The weekly Catalogue workflow publishes
+layout 3 catalogues, so 0.1.0 finds one, downloads it and refuses it with
+"The new catalogue needs a newer version of PirateFinder." Its own catalogue
+stays in use. Install version 0.2.0 or later, which reads layout 3 and brings
+a layout 3 catalogue with it.
+
+## Updating PirateFinder
+
+Check for Application Updates, in the About window, reports what happened
+under the button:
+
+| Message | Meaning |
+| --- | --- |
+| Could not check for a newer version: ... | GitHub could not be reached, or its answer could not be read; the rest says why. Nothing is known about newer versions. Try again later. |
+| Could not check for a newer version: No application release has been published on GitHub yet. | The repository has no application release. |
+| Could not check for a newer version: The latest release on GitHub, ..., is not an application release. | The release marked as the latest is not a `vX.Y.Z` application release, which is a mistake in publishing it. Report it. |
+| ... This copy runs from its source code, so it cannot update itself ... | PirateFinder was started from a source tree. Update the tree, or install a package from the release page. |
+| ... The release has no package for ... | No package was built for your distribution and architecture. The release page lists the ones there are. |
+| The update failed: The downloaded package does not match its published checksum, so it was not installed. Try again. | The download was damaged or cut short; it was deleted. |
+| The password prompt was dismissed, so nothing was installed. | The update stays offered; press Update to again. |
+| The update failed: pkexec is not installed ... / The system did not allow the installation ... / The package could not be installed: ... | pkexec is missing, polkit refused, or apt stopped. The message ends with the command to install the downloaded package in a terminal, `sudo apt install` followed by its path in `~/.cache/piratefinder/updates`. |
+| PirateFinder can be updated once the disks have been written | The package replaces the Greaseweazle host tools a session is using. Install it when the session is over. |
+
+"PirateFinder ... is the newest version" is shown only when the check worked.
+The Diagnostic Log, in the main menu, records each check and install.
 
 ## Downloads
 

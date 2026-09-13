@@ -69,8 +69,6 @@ The packages are named `PirateFinder_<version>_<distro>_<arch>.deb`. Take
 Debian 13; `dpkg --print-architecture` prints the architecture. A package for
 one release does not install on the other.
 [Installation](docs/INSTALLATION.md#choosing-the-package) explains the choice.
-These names start with the next release: version 0.1.0 has one package,
-`PirateFinder_0.1.0_ubuntu24.04_amd64.deb`.
 
 Download the package and `SHA256SUMS` from the
 [latest release](https://github.com/peteclarke-del/PirateFinder/releases/latest)
@@ -95,6 +93,18 @@ Then unplug the Greaseweazle and plug it in again. The package installs a udev
 rule that gives the logged-in user access to the device, and it applies only
 when the device is connected again. Start **PirateFinder** from the
 application grid, or run `piratefinder` in a terminal.
+
+### Updating PirateFinder
+
+Open **About PirateFinder** from the main menu and press **Check for
+Application Updates**. PirateFinder asks GitHub for the latest release and
+compares it with the version it shows. When a newer one is published,
+**Update to** downloads the package made for your system, checks it against
+the release's `SHA256SUMS`, installs it with apt after the system asks for your
+password, and offers to restart PirateFinder. Your settings, library, queue
+and history are kept. Nothing is checked until you press the button. A copy
+run from the source tree is sent to the release page instead, and installing
+the new package with `sudo apt install` as above works as well.
 
 ### Alongside Greaseweazle-GUI
 
@@ -388,7 +398,9 @@ Ultimate Virus Killer book by Richard Karsmakers; see
 
 PirateFinder has no account, telemetry or crash reporting, and searches run on
 the local catalogue. It goes online to check for a newer catalogue at start
-(which can be switched off), to download a disc you ask for, to fetch pictures
+(which can be switched off), to check for and download a newer version of
+PirateFinder when you press Check for Application Updates, to download a disc
+you ask for, to fetch pictures
 and Wikipedia summaries for the disc in the details pane (which can be
 switched off), and to download the Amiga Bootblock Reader brainfile, or the
 SPS Decoder Library for IPF images from fs-uae.net, when you ask. The
@@ -507,10 +519,9 @@ new catalogue sources.
 
 ## Status and roadmap
 
-Version 0.1.0 is the first release. The paged Find screen with its filters,
-the pictures, crew histories and trivia in the details pane, and virus
-detection are in the source tree and come with the next release. No write to
-a real floppy has been tested yet: writing has been checked against the real
+Version 0.2.0 is the current release. It brought the paged Find screen with
+its filters, the pictures, crew histories and trivia in the details pane, and
+virus detection. No write to a real floppy has been tested yet: writing has been checked against the real
 `gw` tool without a Greaseweazle attached. [Current status](docs/CURRENT_STATUS.md)
 lists what works and what is unfinished, and the [Roadmap](ROADMAP.md) the
 planned catalogue, library, writing and distribution work.
