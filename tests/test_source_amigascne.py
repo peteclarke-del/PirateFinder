@@ -1,4 +1,4 @@
-"""The amigascne.org importers, run offline on an excerpt of the archive index."""
+"""The amigascne importers, run offline on an excerpt of the archive index."""
 
 from __future__ import annotations
 
@@ -108,7 +108,10 @@ class AmigaScneTest(unittest.TestCase):
         [location] = adf.locations
         self.assertEqual(
             location.url,
-            "http://ftp.amigascne.org/pub/amiga/Packdisks/Effect/Effect-PrevailPack147.adf",
+            "https://ftp.scene.org/mirrors/amigascne/Packdisks/Effect/Effect-PrevailPack147.adf",
+        )
+        self.assertEqual(
+            location.page_url, "https://ftp.scene.org/mirrors/amigascne/Packdisks/Effect/"
         )
         self.assertEqual((location.hash_kind, location.hash_value), ("crc32", "a08396fd"))
         self.assertEqual(
@@ -119,6 +122,23 @@ class AmigaScneTest(unittest.TestCase):
         self.assertEqual(dms.images, [])
         self.assertEqual((dms.locations[0].hash_kind, dms.locations[0].hash_value), ("", ""))
         self.assertEqual(dms.locations[0].size, 228418)
+
+    def test_every_address_is_on_the_scene_org_mirror(self) -> None:
+        # ftp.amigascne.org forbids automated access (robots.txt "Disallow: /"
+        # and "Mirroring via ftp or http is strictly prohibited"), so neither
+        # the builder nor the application may be sent there.
+        records = [*self.keyed.values(), *self.loose.values()]
+        addresses = [
+            address
+            for record in records
+            for location in record.locations
+            for address in (location.url, location.page_url)
+        ]
+        addresses += [amigascne.INDEX, amigascne.INFO.url, amigascne_menus.INFO.url]
+        self.assertTrue(addresses)
+        for address in addresses:
+            self.assertTrue(address.startswith("https://ftp.scene.org/mirrors/amigascne/"), address)
+            self.assertNotIn("amigascne.org", address)
 
     def test_files_of_one_disk_share_a_record(self) -> None:
         disk = self.keyed[("skid-row-compact", 31, "", "")]
@@ -175,7 +195,13 @@ class MenuTextTest(unittest.TestCase):
         )
         keyed, loose = (record for _path, record in self.plan)
         self.assertEqual(keyed.key, ("skid-row-compact", 31, "", ""))
+        self.assertTrue(keyed.attach_only)
         self.assertEqual([image.crc32 for image in loose.images], ["50dec2f1"])
+
+    def test_menu_texts_are_built_by_default(self) -> None:
+        # The mirror allows automated access, and the texts are cached for 30
+        # days, so every build includes them.
+        self.assertTrue(amigascne_menus.DEFAULT_ENABLED)
 
     def test_text_is_fetched_cleaned_and_limited(self) -> None:
         path = "Scrollers/S-Groupstext/Skid_Row/Skid_Row-Compact031-menu.txt"

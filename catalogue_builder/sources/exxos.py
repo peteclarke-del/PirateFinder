@@ -20,19 +20,19 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 
 from ..context import BuildContext
-from ..records import ContentRecord, DiskRecord, LocationRecord, SourceInfo
+from ..records import NO_LICENCE_STATED, ContentRecord, DiskRecord, LocationRecord, SourceInfo
 
 INFO = SourceInfo(
     id="exxos",
     name="exxos Atari pages",
     url="https://www.exxosforum.co.uk/atari/",
+    licence=NO_LICENCE_STATED,
 )
 CONTENT_PRIORITY = 30
 
 FIRST_PAGE = "https://www.exxosforum.co.uk/atari/games/POV/page1.htm"
 PLATFORM = "atari-st"
-# A small hobby site: one request every two seconds, pages kept for a month.
-MIN_INTERVAL = 2.0
+# Pages are kept for a month.
 MAX_AGE_DAYS = 30.0
 
 _PAGE_LINK = re.compile(r"^page\d+\.html?$", re.IGNORECASE)
@@ -190,9 +190,7 @@ def collect(ctx: BuildContext) -> Iterator[DiskRecord]:
     emitted = skipped = 0
     while pages:
         page_url = pages.pop(0)
-        text = decode(
-            ctx.fetch(page_url, min_interval=MIN_INTERVAL, max_age_days=MAX_AGE_DAYS).read_bytes()
-        )
+        text = decode(ctx.fetch(page_url, max_age_days=MAX_AGE_DAYS).read_bytes())
         entries, links = parse_page(text)
         for link in links:
             url = urllib.parse.urljoin(page_url, link)

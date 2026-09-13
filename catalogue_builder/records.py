@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from pathlib import PurePosixPath
 
 _PART_OF = re.compile(r"^(?:disk|side|part)?\s*(\d+)\s*(?:of\s*\d+)?$", re.IGNORECASE)
 
@@ -31,6 +32,20 @@ def normalise_part(part: str) -> str:
     if len(text) == 1 and text.isalpha():
         return text.upper()
     return text.upper()
+
+
+def base_name(name: str) -> str:
+    """A file name without its folders, "/" or "\\" separated."""
+    return PurePosixPath(name.replace("\\", "/")).name
+
+
+def image_name_keys(name: str) -> list[str]:
+    """The keys an image file name is compared by: without folders or case,
+    with and without its extension. Merge ties locations and pictures to
+    images this way, and importers that look names up in a DAT use it too."""
+    base = base_name(name).lower()
+    stem = base.rsplit(".", 1)[0] if "." in base else base
+    return [base, stem] if stem != base else [base]
 
 
 _LATIN_ORDINALS = {"bis": "2", "ter": "3", "quater": "4"}
@@ -62,6 +77,82 @@ class ContentRecord:
     cracker: str = ""
     version: str = ""
     extra: str = ""
+    # Reference ids for this title: ("wikipedia", "Rick Dangerous"),
+    # ("atari-legend-game", "329"), ("demozoo", "91700").
+    links: list[tuple[str, str]] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class MediaRecordIn:
+    """A picture of a disc or of one title on it, fetched by the app on demand.
+
+    A media record inside a DiskRecord belongs to that disc, or to the title
+    named by ``content_title``. A MEDIA-ONLY record (a DiskRecord with no key,
+    images or contents) attaches instead by ``image_name`` (the disc owning an
+    image of that file name, compared as for locations) or by ``title_key``
+    (every title whose normalised title equals it, on ``platform``).
+    """
+
+    kind: str  # "menu", "intro", "snap", "title", "boxart", "demo"
+    url: str
+    source: str = ""  # defaults to the importer id
+    thumb_url: str = ""
+    width: int | None = None
+    height: int | None = None
+    credit: str = ""
+    page_url: str = ""
+    rank: int = 100
+    content_title: str = ""
+    image_name: str = ""
+    title_key: str = ""
+
+
+@dataclass(slots=True)
+class TriviaRecordIn:
+    """A fact, note or reference article for a disc or one of its titles.
+
+    ``kind`` "wikipedia" means ``text`` is an English Wikipedia article title
+    the app fetches a summary of; "fact" and "note" hold plain text.
+
+    Inside a DiskRecord it belongs to the disc, or to the title named by
+    ``content_title``. In a record with no key, images or contents, it
+    attaches to every title whose normalised title equals ``content_title``
+    on the record's platform.
+    """
+
+    kind: str
+    text: str
+    source: str = ""
+    url: str = ""
+    licence: str = ""
+    content_title: str = ""
+
+
+@dataclass(slots=True)
+class CrewRecord:
+    """History and members of one crew as one source knows it.
+
+    ``name`` is the name disks carry in disks.crew. Different crews share
+    names ("Awesome" on the ST and on the Amiga), so a record also says
+    where the crew released: ``platforms`` maps each platform to the number
+    of releases the source credits the crew with there (0 when the source
+    knows the crew released there but credits it with nothing, as Atari
+    Legend, which covers only the ST, does for some crews), and the merge
+    never gives the record to a disk of another platform. ``id`` is the
+    source's own id for the crew; a DiskRecord of the same source lists it
+    in ``crew_ids`` when the source credits the crew with that disk. A
+    record without ``platforms`` describes the crew of no disk.
+    """
+
+    name: str
+    source: str
+    notes: str = ""
+    members: list[str] = field(default_factory=list)
+    founded: str = ""
+    url: str = ""
+    wikipedia: str = ""
+    id: str = ""
+    platforms: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -75,6 +166,9 @@ class ImageRecordIn:
     sha1: str = ""
     sha512: str = ""
     bad: bool = False
+    virus: str = ""  # TOSEC [v Name]
+    virus_damage: bool = False  # TOSEC [b virus damage]
+    antivirus: str = ""  # TOSEC [m ... antivirus]
 
 
 @dataclass(slots=True)
@@ -119,6 +213,17 @@ class DiskRecord:
     images: list[ImageRecordIn] = field(default_factory=list)
     locations: list[LocationRecord] = field(default_factory=list)
     links: list[tuple[str, str]] = field(default_factory=list)  # label, url
+    media: list[MediaRecordIn] = field(default_factory=list)
+    trivia: list[TriviaRecordIn] = field(default_factory=list)
+    # "YYYY", "YYYY-MM" or "YYYY-MM-DD"; the most precise source wins in merge.
+    # ``date`` keeps the text a source gives; this is the parsed release date.
+    release_date: str = ""
+    # The ids (CrewRecord.id) of this source's crews credited with the disk.
+    crew_ids: list[str] = field(default_factory=list)
+    # A keyed record that only adds to a disc other sources describe: when no
+    # other record has its key, the merge drops it (its locations count as
+    # unmatched) instead of making a disc of it.
+    attach_only: bool = False
 
     @property
     def key(self) -> tuple[str, int | None, str, str] | None:
@@ -133,8 +238,19 @@ class DiskRecord:
         )
 
 
+# The terms of a site that states no licence for its pages: the builder
+# takes facts from them for reference and credits the site.
+NO_LICENCE_STATED = "No licence stated; used under the site's terms, credit given"
+
+
 @dataclass(frozen=True, slots=True)
 class SourceInfo:
+    """A source as the ``sources`` table lists it.
+
+    ``licence`` is the licence of the source's data, or, where it states
+    none, the terms it is used under; every source has one.
+    """
+
     id: str
     name: str
     url: str

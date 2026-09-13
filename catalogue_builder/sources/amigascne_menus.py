@@ -1,4 +1,7 @@
-"""Menu scroller texts of Amiga pack disks from the amigascne.org archive.
+"""Menu scroller texts of Amiga pack disks from the amigascne archive.
+
+Like ``amigascne``, this importer reads the scene.org mirror of the archive,
+not ftp.amigascne.org, which forbids automated access.
 
 Besides the disks themselves the archive keeps the text of their menus and
 scrollers, ripped to plain files such as
@@ -9,11 +12,15 @@ menu text.
 The texts are found in the same daily index the ``amigascne`` importer reads.
 A text is fetched only when it can be tied to a disk: its file name either
 matches a series rule (the rules of ``amigascne`` are reused, so
-``Skid_Row-Compact031`` is Skid Row Compact 31) or equals the name of an ADF
+``Skid_Row-Compact031`` is Skid Row Compact 31; such a record only joins a
+disc another source describes) or equals the name of an ADF
 pack disk in the archive, whose CRC32 then carries the text to that disk.
 The archive holds some 3,600 menu texts, of which about 2,000 can be tied to
-a disk; each is one request, so this importer is off by default. Set ``PIRATEFINDER_AMIGASCNE_MENUS_LIMIT`` to fetch only the
-first few for a trial run.
+a disk. Each is one request, 1.5 seconds apart, and is cached for 30 days, so
+a build with a warm cache (the weekly catalogue build keeps its cache) asks
+for none and a cold one takes about 50 minutes. Set
+``PIRATEFINDER_AMIGASCNE_MENUS_LIMIT`` to fetch only the first few for a
+trial run.
 """
 
 from __future__ import annotations
@@ -27,15 +34,15 @@ from ..records import DiskRecord, ImageRecordIn, SourceInfo
 from ..series import normalise
 from . import amigascne
 
+SCROLLER_ROOT = "Scrollers/"
 INFO = SourceInfo(
     id="amigascne-menus",
-    name="amigascne.org menu texts",
-    url="http://ftp.amigascne.org/pub/amiga/Scrollers/",
-    licence="",
+    name="amigascne menu texts (scene.org mirror)",
+    url=amigascne.BASE + SCROLLER_ROOT,
+    licence=amigascne.INFO.licence,
 )
-DEFAULT_ENABLED = False
+DEFAULT_ENABLED = True
 
-SCROLLER_ROOT = "Scrollers/"
 MENU_SUFFIX = "-menu.txt"
 LIMIT_VARIABLE = "PIRATEFINDER_AMIGASCNE_MENUS_LIMIT"
 PLATFORM = "amiga"
@@ -91,6 +98,8 @@ def plan(
                     number=found.number,
                     part=found.part,
                     version=found.version,
+                    # A menu text alone is no disc to download or check.
+                    attach_only=True,
                 ),
             )
             continue
@@ -124,7 +133,6 @@ def collect(ctx: BuildContext) -> Iterator[DiskRecord]:
         try:
             data = ctx.fetch(
                 amigascne.file_url(path),
-                min_interval=amigascne.MIN_INTERVAL,
                 max_age_days=amigascne.MAX_AGE_DAYS,
             ).read_bytes()
         except (OSError, RuntimeError) as error:

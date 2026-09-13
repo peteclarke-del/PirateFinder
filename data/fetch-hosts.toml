@@ -1,0 +1,54 @@
+# How often the catalogue builder may send a request to each host.
+#
+# Every source fetches through BuildContext.fetch (catalogue_builder/
+# context.py), which keeps two requests to the same host at least "interval"
+# seconds apart. This file is the only place those intervals are set. A host
+# that is not listed gets "default_interval".
+#
+# Hosts are compared exactly, so "demozoo.org" (the website) and
+# "data.demozoo.org" (the daily database export) are separate. Where a
+# site's robots.txt asks for a Crawl-delay, the interval here is at least
+# that delay; the robots.txt files were read in September 2026.
+
+default_interval = 1.0
+
+# robots.txt: "Crawl-delay: 5".
+[[host]]
+host = "www.tosecdev.org"
+interval = 5.0
+
+# robots.txt: "Crawl-delay: 5".
+[[host]]
+host = "www.exxosforum.co.uk"
+interval = 5.0
+
+# The Demozoo website. robots.txt: "Crawl-delay: 10" for every client. The
+# builder reads the export on data.demozoo.org and fetches no website page,
+# but a source that does must keep to this.
+[[host]]
+host = "demozoo.org"
+interval = 10.0
+
+# The Internet Archive answers bursts with HTTP 429; one request a second.
+[[host]]
+host = "archive.org"
+interval = 1.0
+
+# Small hobby sites without a Crawl-delay: one request every 1.5 seconds.
+[[host]]
+host = "d-bug.me"
+interval = 1.5
+
+[[host]]
+host = "steem.atari.st"
+interval = 1.5
+
+[[host]]
+host = "atari.8bitchip.info"
+interval = 1.5
+
+# The scene.org mirror of the amigascne archive, read for about 2,000
+# menu texts in one build.
+[[host]]
+host = "ftp.scene.org"
+interval = 1.5

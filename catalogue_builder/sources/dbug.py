@@ -11,6 +11,11 @@ whole group in one page. With menu credits switched on the site stops
 writing part way through a long result, so credits for the disks missing
 from that page are fetched one menu number at a time. Every page is cached
 for 30 days and requests are spaced 1.5 seconds apart.
+
+Pages with menu credits also show a screenshot of each menu (Mr. Sam's
+pictures, under ``gfx/automenugfx`` and ``gfx/dbugmenugfx``). The picture's
+address becomes a disc picture of the disk; the application fetches it when
+it is shown.
 """
 
 from __future__ import annotations
@@ -22,13 +27,20 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 
 from ..context import BuildContext
-from ..records import ContentRecord, DiskRecord, LocationRecord, SourceInfo
+from ..records import (
+    NO_LICENCE_STATED,
+    ContentRecord,
+    DiskRecord,
+    LocationRecord,
+    MediaRecordIn,
+    SourceInfo,
+)
 
 INFO = SourceInfo(
     id="d-bug",
     name="D-Bug search engine",
     url="https://d-bug.me/",
-    licence="",
+    licence=NO_LICENCE_STATED,
 )
 CONTENT_PRIORITY = 15
 
@@ -36,9 +48,10 @@ SITE = "https://d-bug.me/"
 SEARCH = SITE + "newsearch.php"
 GROUPS = ("Automation", "D-Bug")  # values of the search form's group field
 PLATFORM = "atari-st"
-MIN_INTERVAL = 1.5
 MAX_AGE_DAYS = 30.0
 LOCATION_PRIORITY = 35
+PICTURE_RANK = 20
+PICTURE_CREDIT = "Menu screenshot: D-Bug archive, d-bug.me (screenshots by Mr. Sam)"
 
 _HEADER = re.compile(
     r"<TD style=\"margin: 0 auto; background-color: blue; color: yellow\">"
@@ -57,6 +70,7 @@ _CREDIT = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 _MARKUP = re.compile(r"<[^>]+>")
+_PICTURE = re.compile(r"<img\s[^>]*?src=\"(?P<src>gfx/[^\"]*menugfx/[^\"]+)\"", re.IGNORECASE)
 _NUMBER = re.compile(r"\bCD\s+(?P<number>\d+)\b", re.IGNORECASE)
 _UNKNOWN = {"", "n/a", "unknown", "-", "?", "none"}
 
@@ -78,6 +92,7 @@ class Entry:
     href: str = ""
     contents: list[ContentRecord] = field(default_factory=list)
     credits: str = ""
+    picture: str = ""  # address of the menu screenshot, relative to the site
     complete: bool = False  # the block ended normally, so its credits are trustworthy
 
 
@@ -152,6 +167,8 @@ def parse_results(page: str) -> list[Entry]:
                 if content is not None:
                     entry.contents.append(content)
         entry.credits = _credits(block)
+        picture = _PICTURE.search(block)
+        entry.picture = html.unescape(picture.group("src")) if picture else ""
         entry.complete = complete and "Music:" in block
         entries.append(entry)
     return entries
@@ -170,9 +187,7 @@ def search_url(group: str, *, title: str = "", menu: str = "", credits: bool = T
 
 
 def _fetch(ctx: BuildContext, url: str, name: str) -> str:
-    return ctx.fetch_text(
-        url, encoding="latin-1", name=name, min_interval=MIN_INTERVAL, max_age_days=MAX_AGE_DAYS
-    )
+    return ctx.fetch_text(url, encoding="latin-1", name=name, max_age_days=MAX_AGE_DAYS)
 
 
 def _group_entries(ctx: BuildContext, group: str) -> Iterator[Entry]:
@@ -208,6 +223,7 @@ def _group_entries(ctx: BuildContext, group: str) -> Iterator[Entry]:
         if full is not None:
             entry.credits = full.credits
             entry.href = entry.href or full.href
+            entry.picture = entry.picture or full.picture
             if len(full.contents) >= len(entry.contents):
                 entry.contents = full.contents
         yield entry
@@ -233,6 +249,17 @@ def records_for(ctx: BuildContext, group: str, entries: Iterable[Entry]) -> Iter
             contents=entry.contents,
             links=[("D-Bug", page)],
         )
+        if entry.picture:
+            record.media.append(
+                MediaRecordIn(
+                    kind="menu",
+                    url=urllib.parse.urljoin(SITE, entry.picture),
+                    source=INFO.id,
+                    credit=PICTURE_CREDIT,
+                    page_url=page,
+                    rank=PICTURE_RANK,
+                )
+            )
         if entry.href.lower().endswith((".msa", ".st")):
             record.locations.append(
                 LocationRecord(
@@ -247,10 +274,11 @@ def records_for(ctx: BuildContext, group: str, entries: Iterable[Entry]) -> Iter
 
 def collect(ctx: BuildContext) -> Iterator[DiskRecord]:
     for group in GROUPS:
-        count = 0
+        count = pictures = 0
         for record in records_for(ctx, group, _group_entries(ctx, group)):
             if record.key is None:
                 ctx.log(f"d-bug: no series rule for {record.title!r}")
             count += 1
+            pictures += len(record.media)
             yield record
-        ctx.log(f"d-bug: {count} {group} disks")
+        ctx.log(f"d-bug: {count} {group} disks, {pictures} with a menu screenshot")

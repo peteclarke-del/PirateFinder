@@ -19,13 +19,20 @@ import re
 from collections.abc import Iterator
 
 from ..context import BuildContext
-from ..records import ContentRecord, DiskRecord, SourceInfo, normalise_part, normalise_version
+from ..records import (
+    NO_LICENCE_STATED,
+    ContentRecord,
+    DiskRecord,
+    SourceInfo,
+    normalise_part,
+    normalise_version,
+)
 
 INFO = SourceInfo(
     id="8bitchip",
     name="8bitchip Atari ST games on menu disks",
     url="https://atari.8bitchip.info/MenuDG.html",
-    licence="",
+    licence=NO_LICENCE_STATED,
 )
 CONTENT_PRIORITY = 60
 
@@ -116,7 +123,7 @@ def records_from_page(ctx: BuildContext, page: str) -> Iterator[DiskRecord]:
 
 
 def collect(ctx: BuildContext) -> Iterator[DiskRecord]:
-    page = ctx.fetch_text(PAGE, encoding="latin-1", min_interval=1.5, max_age_days=30)
+    page = ctx.fetch_text(PAGE, encoding="latin-1", max_age_days=30)
     count = 0
     for record in records_from_page(ctx, page):
         count += 1

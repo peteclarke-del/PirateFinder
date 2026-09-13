@@ -1,0 +1,239 @@
+# Atari Legend menu sets that data/series/match-internet-archive.toml names.
+#
+# The Atari Legend importer registers a series for every menu set that no
+# declared series names, with the id made from the set name, the set name as
+# its name and the set's crews as its group. These sets are declared here in
+# exactly that form, so that the Internet Archive rules may name them; the
+# Atari Legend and TOSEC importers find each by its name as before, and the
+# catalogue is the same with or without this file.
+
+[[series]]
+id = "the-world-s-picture-collection"
+name = "The World's Picture Collection"
+platform = "atari-st"
+kind = "menu"
+group = "The World's Picture Collection"
+
+[[series]]
+id = "the-midland-boyz"
+name = "The Midland Boyz"
+platform = "atari-st"
+kind = "menu"
+group = "The Midland Boyz"
+
+[[series]]
+id = "tripple-h"
+name = "Tripple H"
+platform = "atari-st"
+kind = "menu"
+group = "Tripple H"
+
+[[series]]
+id = "eone-less-than-zero"
+name = "Eone/Less Than Zero"
+platform = "atari-st"
+kind = "menu"
+group = "Eone / Less Than Zero"
+
+[[series]]
+id = "now-5"
+name = "Now 5"
+platform = "atari-st"
+kind = "menu"
+group = "Now 5"
+
+[[series]]
+id = "the-deliverance"
+name = "The Deliverance"
+platform = "atari-st"
+kind = "menu"
+group = "The Deliverance"
+
+[[series]]
+id = "the-radical-bandits"
+name = "The Radical Bandits"
+platform = "atari-st"
+kind = "menu"
+group = "The Radical Bandits"
+
+[[series]]
+id = "floppy-copy-crew"
+name = "Floppy Copy Crew"
+platform = "atari-st"
+kind = "menu"
+group = "Floppy Copy Crew"
+
+[[series]]
+id = "mars-disc"
+name = "Mars Disc"
+platform = "atari-st"
+kind = "menu"
+group = "Mars"
+
+[[series]]
+id = "lowlife"
+name = "Lowlife"
+platform = "atari-st"
+kind = "menu"
+group = "Lowlife Inc."
+
+[[series]]
+id = "ecg-s-fake-orgasm"
+name = "ECG's Fake Orgasm"
+platform = "atari-st"
+kind = "menu"
+group = "East Cracking Group"
+
+[[series]]
+id = "the-public-enemies"
+name = "The Public Enemies"
+platform = "atari-st"
+kind = "menu"
+group = "The Public Enemies"
+
+[[series]]
+id = "the-fallen-angels"
+name = "The Fallen Angels"
+platform = "atari-st"
+kind = "menu"
+group = "The Fallen Angels"
+
+[[series]]
+id = "the-biker"
+name = "The Biker"
+platform = "atari-st"
+kind = "menu"
+group = "The Biker"
+
+[[series]]
+id = "chaos-krew"
+name = "Chaos Krew"
+platform = "atari-st"
+kind = "menu"
+group = "Chaos Krew"
+
+[[series]]
+id = "supremacy-of-omni"
+name = "Supremacy Of Omni"
+platform = "atari-st"
+kind = "menu"
+group = "Supremacy Of Omni"
+
+[[series]]
+id = "fanatics"
+name = "Fanatics"
+platform = "atari-st"
+kind = "menu"
+group = "Fanatics"
+
+[[series]]
+id = "cobra"
+name = "Cobra"
+platform = "atari-st"
+kind = "menu"
+group = "Cobra"
+
+[[series]]
+id = "atomic"
+name = "Atomic"
+platform = "atari-st"
+kind = "menu"
+group = "Atomic"
+
+[[series]]
+id = "blues-brothers"
+name = "Blues Brothers"
+platform = "atari-st"
+kind = "menu"
+group = "Blues Brothers"
+
+[[series]]
+id = "dirty-tricks-brigade"
+name = "Dirty Tricks Brigade"
+platform = "atari-st"
+kind = "menu"
+group = "Dirty Tricks Brigade"
+
+[[series]]
+id = "insanity"
+name = "Insanity"
+platform = "atari-st"
+kind = "menu"
+group = "Insanity"
+
+[[series]]
+id = "syncro-systems"
+name = "Syncro Systems"
+platform = "atari-st"
+kind = "menu"
+group = "Syncro Systems"
+
+[[series]]
+id = "the-mockingbird"
+name = "The Mockingbird"
+platform = "atari-st"
+kind = "menu"
+group = "The Mockingbird"
+
+[[series]]
+id = "mysterons"
+name = "Mysterons"
+platform = "atari-st"
+kind = "menu"
+group = "Mysterons"
+
+[[series]]
+id = "out-of-order"
+name = "Out Of Order"
+platform = "atari-st"
+kind = "menu"
+group = "Out Of Order"
+
+[[series]]
+id = "electric-blue"
+name = "Electric Blue"
+platform = "atari-st"
+kind = "menu"
+group = "Electric Blue"
+
+[[series]]
+id = "mantronix"
+name = "Mantronix"
+platform = "atari-st"
+kind = "menu"
+group = "Mantronix"
+
+[[series]]
+id = "factory"
+name = "Factory"
+platform = "atari-st"
+kind = "menu"
+group = "Factory"
+
+[[series]]
+id = "the-next-generation"
+name = "The Next Generation"
+platform = "atari-st"
+kind = "menu"
+group = "The Next Generation"
+
+[[series]]
+id = "arakis-zuul"
+name = "Arakis / Zuul"
+platform = "atari-st"
+kind = "menu"
+group = "Arakis / Zuul"
+
+[[series]]
+id = "share-wares"
+name = "Share Wares"
+platform = "atari-st"
+kind = "menu"
+group = "Share Wares"
+
+[[series]]
+id = "pulse"
+name = "Pulse"
+platform = "atari-st"
+kind = "menu"
+group = "Pulse"
