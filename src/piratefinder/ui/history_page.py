@@ -80,11 +80,8 @@ class HistoryPage(Gtk.Stack):
             )
         )
         for label, outcome, source in summary.items:
-            item = plain_row(title=label)
-            item.set_subtitle_lines(3)
-            details = fmt.outcome_details(outcome, source)
-            text = fmt.outcome_text(outcome)
-            item.set_subtitle(f"{text}\n{details}" if details else text)
+            item = plain_row(title=label, subtitle=fmt.outcome_subtitle(outcome, source))
+            item.set_subtitle_lines(0)  # every note, however many
             item.add_prefix(
                 status_icon(
                     fmt.STATUS_ICONS.get(outcome.status, "dialog-question-symbolic"),

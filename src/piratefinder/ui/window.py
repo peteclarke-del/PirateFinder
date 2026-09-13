@@ -12,14 +12,17 @@ from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
 from .. import __version__  # noqa: E402
 from ..branding import APPLICATION_ID, APPLICATION_NAME, HOMEPAGE  # noqa: E402
+from ..greaseweazle.client import NOT_CONNECTED  # noqa: E402
+from ..images.virus import BRAINFILE_PROJECT  # noqa: E402
 from ..jobs.cancellation import Cancellation  # noqa: E402
+from ..jobs.queue import queue_key  # noqa: E402
 from ..models import DeviceStatus, QueueItem, SessionSummary  # noqa: E402
 from . import formatting as fmt  # noqa: E402
-from .backend import Backend, CatalogueInfo, UpdateOffer  # noqa: E402
+from .backend import Backend, CatalogueInfo, Downloaded, UpdateOffer  # noqa: E402
 from .bridge import Latest, run_in_thread  # noqa: E402
 from .diagnostics import DiagnosticLogDialog, shortcuts_window  # noqa: E402
 from .find_page import FindPage  # noqa: E402
-from .help_content import DATA_CREDITS  # noqa: E402
+from .help_content import DATA_CREDITS, VIRUS_CREDITS  # noqa: E402
 from .help_view import HelpWindow  # noqa: E402
 from .history_page import HistoryPage  # noqa: E402
 from .library_page import LibraryPage  # noqa: E402
@@ -27,9 +30,16 @@ from .log import LOG  # noqa: E402
 from .preferences import PreferencesDialog  # noqa: E402
 from .queue_page import QueuePage  # noqa: E402
 from .updater import CatalogueUpdater  # noqa: E402
-from .widgets import alert  # noqa: E402
+from .widgets import alert, install_style  # noqa: E402
 
-PROBE_INTERVAL_SECONDS = 5
+# The file-only presence check runs this often. It starts no program and makes
+# no network request; gw info runs only when a device appears (see
+# follow_device), on Retry and on Check Connection.
+DEVICE_CHECK_SECONDS = 2
+# gw info runs at most this many times for one arrival of the device: once at
+# once, and once more at the next check when the first found nothing, in case
+# the serial port was not ready yet.
+ARRIVAL_PROBES = 2
 NO_DEVICE_TEXT = "No Greaseweazle connected. You can still search and download."
 
 
@@ -40,8 +50,8 @@ class MainWindow(Adw.ApplicationWindow):
         super().__init__(
             application=application,
             title=APPLICATION_NAME,
-            default_width=1120,
-            default_height=760,
+            default_width=1280,
+            default_height=800,
         )
         self.set_size_request(360, 480)
         self.backend = backend
@@ -51,6 +61,8 @@ class MainWindow(Adw.ApplicationWindow):
         self._probing = False
         self._probe_waiters: list[Callable[[DeviceStatus], None]] = []
         self._probe_source = 0
+        self._present: bool | None = None  # the last file-only answer; None before the first
+        self._arrival_probes = 0
         self._preferences: PreferencesDialog | None = None
         self._help_window: HelpWindow | None = None
         self._close_after_session = False
@@ -73,6 +85,7 @@ class MainWindow(Adw.ApplicationWindow):
             return CatalogueInfo(False, error=str(error))
 
     def _build(self) -> None:
+        install_style()
         self.toast_overlay = Adw.ToastOverlay()
         self.set_content(self.toast_overlay)
         toolbar = Adw.ToolbarView()
@@ -113,8 +126,12 @@ class MainWindow(Adw.ApplicationWindow):
         self.stack.connect("notify::visible-child-name", self._on_page_changed)
         self.queue_changed(len(self.backend.queue_items()))
 
+        # Below 900 the details pane lies over the results instead of beside
+        # them, and the table drops the columns it can best do without.
+        columns = self.find_page.table.columns
         narrow = Adw.Breakpoint.new(Adw.BreakpointCondition.parse("max-width: 900sp"))
         narrow.add_setter(self.find_page.split_view, "collapsed", True)
+        narrow.add_setter(columns["type"], "visible", False)
         self.add_breakpoint(narrow)
         phone = Adw.Breakpoint.new(Adw.BreakpointCondition.parse("max-width: 600sp"))
         phone.add_setter(self.find_page.split_view, "collapsed", True)
@@ -122,6 +139,14 @@ class MainWindow(Adw.ApplicationWindow):
         phone.add_setter(
             self.header, "title-widget", Adw.WindowTitle(title=APPLICATION_NAME, subtitle="")
         )
+        for column_id in ("type", "platform", "crew", "availability"):
+            phone.add_setter(columns[column_id], "visible", False)
+        # On a phone the details cover the whole width.
+        split = self.find_page.split_view
+        phone.add_setter(split, "sidebar-width-fraction", 1.0)
+        phone.add_setter(split, "max-sidebar-width", 600.0)
+        phone.add_setter(split, "min-sidebar-width", 200.0)
+        phone.add_setter(self.find_page.pager.size_box, "visible", False)
         self.add_breakpoint(phone)
 
     def _main_menu(self) -> Gio.Menu:
@@ -168,10 +193,11 @@ class MainWindow(Adw.ApplicationWindow):
         self.actions["show-page"] = show_page
 
     def _start_up(self) -> bool:
-        self.probe_device()
-        self._probe_source = GLib.timeout_add_seconds(PROBE_INTERVAL_SECONDS, self._poll_device)
+        self.follow_device()
+        self._probe_source = GLib.timeout_add_seconds(DEVICE_CHECK_SECONDS, self._poll_device)
         if self.backend.settings.check_catalogue_updates:
             self.updater.check(self._offer_update)
+        self.recheck_boot_blocks()
         return GLib.SOURCE_REMOVE
 
     # Pages
@@ -244,13 +270,25 @@ class MainWindow(Adw.ApplicationWindow):
         elif name in ("providers", "online_enabled"):
             self.find_page.refresh()
             self.find_page.reload_detail()
+        elif name == "fetch_media":
+            self.find_page.detail.forget_cached()
+            self.find_page.reload_detail()
         elif name == "device":
+            # Another port: judge it afresh, as if the device had just appeared.
             self._device = None
-            self.probe_device()
+            self._present = None
+            self.follow_device()
 
     def library_changed(self) -> None:
+        """Library files changed: search again and reload the details."""
         self.find_page.refresh()
         self.find_page.reload_detail()
+
+    def details_changed(self) -> None:
+        """The user corrected a disc or reverted it: the search, the details and the
+        crew and year filters, which count discs by their corrected values, load again."""
+        self.find_page.reload_facets()
+        self.library_changed()
 
     def session_running(self) -> bool:
         return self.queue_page.running
@@ -259,11 +297,11 @@ class MainWindow(Adw.ApplicationWindow):
 
     def add_to_queue(self, items: Sequence[QueueItem]) -> None:
         # A disk, or an unmatched file, is queued at most once.
-        queued = {fmt.queue_key(item) for item in self.backend.queue_items()}
+        queued = {queue_key(item) for item in self.backend.queue_items()}
         new = []
         for item in items:
-            if fmt.queue_key(item) not in queued:
-                queued.add(fmt.queue_key(item))
+            if queue_key(item) not in queued:
+                queued.add(queue_key(item))
                 new.append(item)
         if not new:
             label = items[0].label if len(items) == 1 else "Those disks"
@@ -309,7 +347,11 @@ class MainWindow(Adw.ApplicationWindow):
             self.toast("Tick some disks on the Find page first")
 
     def ensure_device(self, then: Callable[[], None]) -> None:
-        """Run ``then`` once a Greaseweazle is known to be connected."""
+        """Run ``then`` once a Greaseweazle is known to be connected.
+
+        The last answer is used, waiting for a check in progress; gw info runs
+        again only when the user chooses Check Again.
+        """
 
         def checked(status: DeviceStatus) -> None:
             if status.connected:
@@ -318,7 +360,7 @@ class MainWindow(Adw.ApplicationWindow):
 
             def respond(response: str) -> None:
                 if response == "check":
-                    self.ensure_device(then)
+                    self.probe_device(checked)
 
             alert(
                 self,
@@ -329,10 +371,10 @@ class MainWindow(Adw.ApplicationWindow):
                 respond,
             )
 
-        if self._device is not None and self._device.connected:
-            then()
+        if self._probing:
+            self._probe_waiters.append(checked)
         else:
-            self.probe_device(checked)
+            checked(self._device or DeviceStatus(False, NOT_CONNECTED))
 
     def session_started(self) -> None:
         self.show_page("queue")
@@ -352,7 +394,7 @@ class MainWindow(Adw.ApplicationWindow):
             self._close_after_session = False
             self.close()
             return
-        self.probe_device()
+        self.follow_device()
 
     def download(self, item: QueueItem, on_progress, on_done) -> Cancellation:
         """Fetch one disk into the download folder without writing it."""
@@ -360,11 +402,18 @@ class MainWindow(Adw.ApplicationWindow):
         latest = Latest(on_progress)
         backend = self.backend
 
-        def done(path: str) -> None:
+        def done(result: Downloaded) -> None:
             on_done(True)
-            self.toast(f"Downloaded {item.label} to {path}")
             self.find_page.refresh()
             self.find_page.reload_detail()
+            if not result.notes:
+                self.toast(f"Downloaded {item.label} to {result.path}")
+                return
+            # A note, such as a download that could not be checked, stays until read.
+            for note in result.notes:
+                LOG.add("download", f"{item.label}: {note}")
+            notes = "\n\n".join(result.notes)
+            alert(self, f"Downloaded {item.label}", f"Saved to {result.path}.\n\n{notes}")
 
         def failed(error: BaseException) -> None:
             on_done(False)
@@ -379,6 +428,7 @@ class MainWindow(Adw.ApplicationWindow):
     # The Greaseweazle
 
     def probe_device(self, then: Callable[[DeviceStatus], None] | None = None) -> None:
+        """Identify the Greaseweazle with gw info: for Retry, Check Connection and arrivals."""
         if then is not None:
             self._probe_waiters.append(then)
         if self._probing:
@@ -397,13 +447,18 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _probe_done(self, status: DeviceStatus) -> None:
         self._probing = False
+        if status.connected:
+            self._arrival_probes = 0
+        self._show_device(status)
+        self._deliver_probe(status)
+
+    def _show_device(self, status: DeviceStatus) -> None:
         previous = self._device
         self._device = status
         if previous is None or previous.connected != status.connected:
             LOG.add("device", status.message)
         self.banner.set_revealed(not status.connected)
         self.banner.set_tooltip_text(status.message)
-        self._deliver_probe(status)
 
     def _deliver_probe(self, status: DeviceStatus) -> None:
         waiters, self._probe_waiters = self._probe_waiters, []
@@ -414,9 +469,33 @@ class MainWindow(Adw.ApplicationWindow):
         if self._closing:
             self._probe_source = 0
             return GLib.SOURCE_REMOVE
-        if not self._probing and not self.queue_page.running and self.is_visible():
-            self.probe_device()
+        if self.is_visible():
+            self.follow_device()
         return GLib.SOURCE_CONTINUE
+
+    def follow_device(self) -> None:
+        """Follow the Greaseweazle from files, and run gw info only when it appears.
+
+        Nothing runs while disks are written or while gw info is running. A
+        device that goes away is shown as disconnected without running gw. A
+        device that gw info found although the file check never sees one (an
+        unusual system) stays as gw info described it.
+        """
+        if self._probing or self.queue_page.running:
+            return
+        present = self.backend.device_present()  # reads files; unreadable ones find nothing
+        arrived = present and not self._present
+        gone = not present and self._present is not False
+        self._present = present
+        if arrived:
+            self._arrival_probes = ARRIVAL_PROBES
+        connected = self._device is not None and self._device.connected
+        if present and self._arrival_probes and not connected:
+            self._arrival_probes -= 1
+            self.probe_device()
+        elif gone:
+            self._arrival_probes = 0
+            self._show_device(DeviceStatus(False, NOT_CONNECTED))
 
     def device_message(self) -> str:
         if self._device is None:
@@ -493,6 +572,11 @@ class MainWindow(Adw.ApplicationWindow):
         self.show_page("library")
         self.library_page.scan()
 
+    def recheck_boot_blocks(self) -> None:
+        """Check the library's boot blocks again if the virus data changed: at start,
+        and after the brainfile is installed. The Library page shows the progress."""
+        self.library_page.recheck_boot_blocks()
+
     def show_diagnostic_log(self) -> None:
         DiagnosticLogDialog().present(self)
 
@@ -528,12 +612,24 @@ class MainWindow(Adw.ApplicationWindow):
         about.add_acknowledgement_section(
             "Greaseweazle", ["Keir Fraser https://github.com/keirf/greaseweazle"]
         )
+        about.add_acknowledgement_section("Virus Data", list(VIRUS_CREDITS))
+        about.add_acknowledgement_section(
+            "Amiga Bootblock Reader", [f"Jason and Jordan Smith {BRAINFILE_PROJECT}"]
+        )
         about.add_legal_section(
             "Catalogue",
             None,
             Gtk.License.CUSTOM,
             "The catalogue is licensed under CC BY-NC-SA 4.0 because it includes data from "
             "Atari Legend under that licence. Disk names and checksums come from TOSEC.",
+        )
+        about.add_legal_section(
+            "Amiga Bootblock Reader Brainfile",
+            None,
+            Gtk.License.CUSTOM,
+            "The brainfile that names Amiga boot blocks, by Jason and Jordan Smith, is not "
+            "shipped with PirateFinder. It is downloaded from its GitHub release only when you "
+            "ask for it in Preferences.",
         )
         about.present(self)
 

@@ -1,237 +1,128 @@
-"""The Find page: search entry, filters, results and the detail pane."""
+"""The Find page: search, filters, a page of titles or discs, and the details pane.
+
+Every change of text, filter, sort, mode or page asks the backend for one
+page (``Backend.search_page``) on a worker thread. A generation counter drops
+answers that arrive after a newer question. The table is never sorted here;
+a click on a column header changes the query's sort order.
+"""
 
 from __future__ import annotations
 
-from collections import Counter
+from collections.abc import Sequence
 from dataclasses import replace
 
 import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gio, GObject, Gtk, Pango  # noqa: E402
+from gi.repository import Adw, Gdk, Gtk  # noqa: E402
 
-from ..models import Availability, DiskKind, Platform, SearchFilters, SearchResult  # noqa: E402
+from ..archive_layout import UNKNOWN_CREW  # noqa: E402
+from ..jobs.queue import item_from_local  # noqa: E402
+from ..library.library import local_name  # noqa: E402
+from ..models import (  # noqa: E402
+    DiskKind,
+    Facets,
+    LocalFile,
+    Platform,
+    Query,
+    ResultMode,
+    ResultPage,
+    ResultRow,
+    Series,
+    SortOrder,
+)
 from . import formatting as fmt  # noqa: E402
 from .backend import CatalogueInfo  # noqa: E402
 from .bridge import run_in_thread  # noqa: E402
-from .detail_pane import DetailPane, make_item_for_result  # noqa: E402
+from .detail_pane import DetailPane, queue_items_for_rows  # noqa: E402
+from .find_widgets import ChoiceDropDown, Pager, ResultsTable, WrapBox  # noqa: E402
 from .help_content import EXAMPLE_SEARCHES  # noqa: E402
 from .log import LOG  # noqa: E402
-from .widgets import text_button  # noqa: E402
+from .widgets import icon_button, plain_row, set_accessible_label, text_button  # noqa: E402
 
 PLATFORM_CHOICES = (
-    (None, "All Platforms"),
-    (Platform.AMIGA, "Amiga"),
-    (Platform.ATARI_ST, "Atari ST"),
+    (None, "Any Platform", None),
+    (Platform.AMIGA, "Amiga", None),
+    (Platform.ATARI_ST, "Atari ST", None),
 )
 SEARCH_DELAY_MS = 250
 MAX_EXAMPLES = 4
+UNMATCHED_LIMIT = 50
+SIDEBAR_WIDTH = (340, 420)  # the details pane's usual narrowest and widest
+SIDEBAR_LIMITS = (300, 720)  # how far it can be dragged
+MIN_CONTENT_WIDTH = 420
 
 
-class ResultObject(GObject.Object):
-    """A search result in a Gio.ListStore."""
+def largest_crew(facets: Facets, series: Sequence[Series] = ()) -> str:
+    """A crew to offer for browsing: the one with the most discs.
 
-    __gtype_name__ = "PirateFinderResult"
-
-    def __init__(self, result: SearchResult) -> None:
-        super().__init__()
-        self.result = result
-
-
-class ResultRow(Gtk.Box):
-    """One row of the results list. Rows are recycled by the list view."""
-
-    def __init__(self, page: FindPage) -> None:
-        super().__init__(spacing=12, margin_top=8, margin_bottom=8, margin_start=6, margin_end=6)
-        self._page = page
-        self.result: SearchResult | None = None
-        self.check = Gtk.CheckButton(valign=Gtk.Align.CENTER, tooltip_text="Select for writing")
-        self._toggle_handler = self.check.connect("toggled", self._on_toggled)
-        self.append(self.check)
-
-        grid = Gtk.Grid(column_spacing=12, row_spacing=2, hexpand=True)
-        self.title = Gtk.Label(xalign=0, hexpand=True, ellipsize=Pango.EllipsizeMode.END)
-        self.title.add_css_class("heading")
-        grid.attach(self.title, 0, 0, 1, 1)
-        self.platform = Gtk.Label(xalign=1)
-        self.platform.add_css_class("caption")
-        self.platform.add_css_class("dim-label")
-        grid.attach(self.platform, 1, 0, 1, 1)
-        self.date = Gtk.Label(xalign=1, width_chars=4)
-        self.date.add_css_class("caption")
-        self.date.add_css_class("dim-label")
-        grid.attach(self.date, 2, 0, 1, 1)
-
-        self.summary = Gtk.Label(
-            xalign=0, hexpand=True, ellipsize=Pango.EllipsizeMode.END, use_markup=True
-        )
-        self.summary.add_css_class("dim-label")
-        grid.attach(self.summary, 0, 1, 1, 1)
-        availability = Gtk.Box(spacing=4, halign=Gtk.Align.END)
-        self.availability_icon = Gtk.Image(pixel_size=14)
-        availability.append(self.availability_icon)
-        self.availability = Gtk.Label(xalign=1)
-        self.availability.add_css_class("caption")
-        availability.append(self.availability)
-        self.availability_box = availability
-        grid.attach(availability, 1, 1, 2, 1)
-        self.append(grid)
-
-    def bind(self, result: SearchResult) -> None:
-        self.result = result
-        with self.check.handler_block(self._toggle_handler):
-            self.check.set_active(result.key in self._page.checked)
-        if result.disk is not None:
-            disk = result.disk
-            self.title.set_text(disk.label)
-            self.platform.set_text(fmt.platform_name(disk.platform))
-            self.date.set_text(disk.date[:4])
-            summary = result.summary or disk.title
-        else:
-            local = result.local
-            self.title.set_text(fmt.local_file_name(local))
-            self.platform.set_text((local.format or "").upper())
-            self.date.set_text("")
-            summary = "Unmatched file"
-            if result.summary:
-                summary += f": {result.summary}"
-        self.summary.set_markup(fmt.summary_markup(summary, result.matched))
-        self.check.update_property(
-            [Gtk.AccessibleProperty.LABEL], [f"Select {self.title.get_text()}"]
-        )
-        availability = result.availability
-        icon = fmt.AVAILABILITY_ICONS[availability]
-        self.availability_icon.set_visible(bool(icon))
-        if icon:
-            self.availability_icon.set_from_icon_name(icon)
-        self.availability.set_text(fmt.AVAILABILITY_NAMES[availability])
-        self.availability_box.set_tooltip_text(fmt.AVAILABILITY_TOOLTIPS[availability])
-        if availability == Availability.MISSING:
-            self.availability.add_css_class("dim-label")
-        else:
-            self.availability.remove_css_class("dim-label")
-
-    def _on_toggled(self, check: Gtk.CheckButton) -> None:
-        if self.result is not None:
-            self._page.set_checked(self.result, check.get_active())
+    Crews with a numbered menu series come first, since menu disks are what
+    PirateFinder is for. The name given to discs with no known crew is never
+    offered.
+    """
+    counts = {name: count for name, count in facets.crews if name and name != UNKNOWN_CREW}
+    menus = {item.group for item in series if item.kind is DiskKind.MENU and item.group}
+    for pool in ({name: n for name, n in counts.items() if name in menus}, counts):
+        if pool:
+            return max(pool.items(), key=lambda item: item[1])[0]
+    return ""
 
 
 class FindPage(Gtk.Box):
-    """Search the catalogue and the library, and act on the results.
+    """Search the catalogue and act on the results.
 
-    ``host`` is the main window (see ``DetailPane`` for what it provides, plus
-    ``backend``).
+    ``host`` is the main window (see ``DetailPane`` for what it provides).
     """
 
     def __init__(self, host) -> None:
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self._host = host
-        self.checked: dict[str, SearchResult] = {}
-        self._rows: set[ResultRow] = set()
+        self._info: CatalogueInfo | None = None
         self._generation = 0
         self._detail_generation = 0
-        self._info: CatalogueInfo | None = None
-        self.results: list[SearchResult] = []
-        self._all_results: list[SearchResult] = []  # before the kind filter
-        self._last_text = ""
+        self.facets = Facets()
+        self.page_index = 0
+        self.mode = ResultMode.TITLES
+        self.sort = SortOrder.RELEVANCE
+        self.result_page: ResultPage | None = None
+        self.results: list[ResultRow] = []
+        self.unmatched: list[LocalFile] = []
+        self.unmatched_dialog: Adw.Dialog | None = None
+        # Ticked rows by key, with the query page they were ticked on.
+        self.checked: dict[str, tuple[ResultRow, tuple]] = {}
         self.searching = False
+        self.examples: list[tuple[str, str]] = []
+        self._quiet = False
 
         self.split_view = Adw.OverlaySplitView(
             sidebar_position=Gtk.PackType.END,
             show_sidebar=False,
-            # The detail pane is shown and hidden by selecting a result, never
-            # by the window getting narrower or wider.
+            # The pane is shown and hidden by selecting a result, never by the
+            # window getting narrower or wider.
             pin_sidebar=True,
-            min_sidebar_width=320,
-            max_sidebar_width=500,
-            sidebar_width_fraction=0.38,
+            min_sidebar_width=SIDEBAR_WIDTH[0],
+            max_sidebar_width=SIDEBAR_WIDTH[1],
+            sidebar_width_fraction=0.36,
             vexpand=True,
         )
         self.append(self.split_view)
+        sidebar = Gtk.Box()
+        sidebar.append(self._build_resize_handle())
         self.detail = DetailPane(host)
-        self.split_view.set_sidebar(self.detail)
+        self.detail.set_hexpand(True)
+        self.detail.on_title_selected = self._pane_title_selected
+        sidebar.append(self.detail)
+        self.split_view.set_sidebar(sidebar)
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.split_view.set_content(content)
+        self.search_area = self._build_search_area()
+        content.append(self.search_area)
 
-        top = Gtk.Box(
-            orientation=Gtk.Orientation.VERTICAL,
-            spacing=10,
-            margin_top=12,
-            margin_bottom=10,
-            margin_start=12,
-            margin_end=12,
-        )
-        clamp = Adw.Clamp(maximum_size=760, tightening_threshold=560, child=top)
-        self.search_area = clamp
-        content.append(clamp)
-
-        self.search_entry = Gtk.SearchEntry(
-            placeholder_text="Search for a game, crew or disk number",
-            hexpand=True,
-            search_delay=SEARCH_DELAY_MS,
-        )
-        self.search_entry.update_property(
-            [Gtk.AccessibleProperty.LABEL], ["Search the catalogue and your library"]
-        )
-        self.search_entry.connect("search-changed", lambda _entry: self.search())
-        self.search_entry.connect("activate", self._on_entry_activate)
-        self.search_entry.connect("stop-search", lambda _entry: self.search_entry.set_text(""))
-        top.append(self.search_entry)
-
-        filters = Gtk.FlowBox(
-            selection_mode=Gtk.SelectionMode.NONE,
-            column_spacing=8,
-            row_spacing=8,
-            max_children_per_line=4,
-            homogeneous=False,
-        )
-        self.platform_dropdown = Gtk.DropDown.new_from_strings(
-            [name for _platform, name in PLATFORM_CHOICES]
-        )
-        self.platform_dropdown.set_tooltip_text("Platform")
-        self.platform_dropdown.update_property([Gtk.AccessibleProperty.LABEL], ["Platform"])
-        self.platform_dropdown.connect("notify::selected", lambda *_args: self.search())
-        self._add_filter(filters, self.platform_dropdown)
-
-        kinds = Gtk.Box()
-        kinds.add_css_class("linked")
-        self.kind_buttons: dict[DiskKind, Gtk.ToggleButton] = {}
-        self.kind_counts: dict[DiskKind, Gtk.Label] = {}
-        for kind, label, tooltip in fmt.KIND_FILTERS:
-            # Each button says how many results of its kind the search found,
-            # so menu disks are visible even when single disks rank first.
-            inner = Gtk.Box(spacing=6)
-            inner.append(Gtk.Label(label=label))
-            count = Gtk.Label(visible=False)
-            count.add_css_class("dim-label")
-            count.add_css_class("numeric")
-            inner.append(count)
-            button = Gtk.ToggleButton(child=inner, tooltip_text=tooltip)
-            button.update_property([Gtk.AccessibleProperty.LABEL], [label])
-            button.connect("toggled", lambda *_args: self._apply_kinds())
-            kinds.append(button)
-            self.kind_buttons[kind] = button
-            self.kind_counts[kind] = count
-        self._add_filter(filters, kinds)
-
-        top.append(filters)
-
-        status = Gtk.Box(spacing=8)
-        self.count_label = Gtk.Label(xalign=0, hexpand=True)
-        self.count_label.add_css_class("caption")
-        self.count_label.add_css_class("dim-label")
-        status.append(self.count_label)
-        self.spinner = Gtk.Spinner(visible=False)
-        status.append(self.spinner)
-        self.available_button = Gtk.CheckButton.new_with_mnemonic("A_vailable Only")
-        self.available_button.set_tooltip_text(
-            "Show only disks in your library or that can be downloaded"
-        )
-        self.available_button.connect("toggled", lambda *_args: self.search())
-        status.append(self.available_button)
-        top.append(status)
+        self.unmatched_banner = Adw.Banner(button_label="_Show Files", revealed=False)
+        self.unmatched_banner.connect("button-clicked", lambda _banner: self.show_unmatched())
+        content.append(self.unmatched_banner)
 
         self.stack = Gtk.Stack(vexpand=True, transition_type=Gtk.StackTransitionType.CROSSFADE)
         self.stack.set_transition_duration(120)
@@ -256,56 +147,168 @@ class FindPage(Gtk.Box):
         self.action_bar.pack_end(self.clear_checked_button)
         content.append(self.action_bar)
 
-    @staticmethod
-    def _add_filter(flow: Gtk.FlowBox, widget: Gtk.Widget) -> None:
-        child = Gtk.FlowBoxChild(focusable=False, child=widget)
-        flow.append(child)
+        shortcuts = Gtk.ShortcutController(
+            propagation_phase=Gtk.PropagationPhase.CAPTURE, scope=Gtk.ShortcutScope.LOCAL
+        )
+        for accelerator, offset in (("<Control>Page_Down", 1), ("<Control>Page_Up", -1)):
+            shortcuts.add_shortcut(
+                Gtk.Shortcut.new(
+                    Gtk.ShortcutTrigger.parse_string(accelerator),
+                    Gtk.CallbackAction.new(lambda *_args, step=offset: self.step_page(step)),
+                )
+            )
+        self.add_controller(shortcuts)
 
-    # Empty states
+    # Building
+
+    def _build_search_area(self) -> Gtk.Widget:
+        top = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=8,
+            margin_top=10,
+            margin_bottom=8,
+            margin_start=12,
+            margin_end=12,
+        )
+        line = Gtk.Box(spacing=8)
+        self.search_entry = Gtk.SearchEntry(
+            placeholder_text="Search titles, discs, crews, years, file names",
+            hexpand=True,
+            search_delay=SEARCH_DELAY_MS,
+        )
+        set_accessible_label(self.search_entry, "Search the catalogue")
+        self.search_entry.connect("search-changed", lambda _entry: self.search())
+        self.search_entry.connect("activate", self._on_entry_activate)
+        self.search_entry.connect("stop-search", lambda _entry: self.search_entry.set_text(""))
+        line.append(self.search_entry)
+
+        modes = Gtk.Box(valign=Gtk.Align.CENTER)
+        modes.add_css_class("linked")
+        self.titles_button = Gtk.ToggleButton.new_with_mnemonic("_Titles")
+        self.titles_button.set_tooltip_text("One row for each game, demo or program")
+        self.discs_button = Gtk.ToggleButton.new_with_mnemonic("_Discs")
+        self.discs_button.set_tooltip_text("One row for each disc")
+        self.discs_button.set_group(self.titles_button)
+        self.titles_button.set_active(True)
+        for button, mode in (
+            (self.titles_button, ResultMode.TITLES),
+            (self.discs_button, ResultMode.DISCS),
+        ):
+            button.connect("toggled", self._on_mode_toggled, mode)
+            modes.append(button)
+        line.append(modes)
+
+        sort_label = Gtk.Label.new_with_mnemonic("_Sort")
+        sort_label.add_css_class("dim-label")
+        line.append(sort_label)
+        self.sort_dropdown = ChoiceDropDown("Sort order", "How the results are ordered")
+        self.sort_dropdown.set_choices([(order, name, None) for order, name in fmt.SORT_CHOICES])
+        self.sort_dropdown.on_changed(self._on_sort_chosen)
+        sort_label.set_mnemonic_widget(self.sort_dropdown)
+        line.append(self.sort_dropdown)
+        top.append(line)
+
+        # Each control keeps its own width; they wrap onto a second line when
+        # the window is narrow.
+        filters = WrapBox(spacing=6, line_spacing=6)
+        self.platform_dropdown = ChoiceDropDown("Platform", "Platform")
+        self.platform_dropdown.set_choices(PLATFORM_CHOICES)
+        self.type_dropdown = ChoiceDropDown("Type", "Games, applications, demos or music")
+        self.kind_dropdown = ChoiceDropDown(
+            "Disc kind", "Menu disks, packs, singles or compilations"
+        )
+        self.kind_dropdown.set_choices(
+            [(None, "Any Disc Kind", None)]
+            + [(kind, label, None) for kind, label, _tooltip in fmt.KIND_FILTERS]
+        )
+        self.crew_dropdown = ChoiceDropDown("Crew", "Crew; type to find one", search=True)
+        self.year_dropdown = ChoiceDropDown("Year", "Year of release")
+        self._set_facet_choices(Facets())
+        for dropdown in (
+            self.platform_dropdown,
+            self.type_dropdown,
+            self.kind_dropdown,
+            self.crew_dropdown,
+            self.year_dropdown,
+        ):
+            dropdown.on_changed(self._filters_changed)
+            filters.append(dropdown)
+        self.available_button = Gtk.CheckButton.new_with_mnemonic("A_vailable Only")
+        self.available_button.set_tooltip_text(
+            "Show only discs in your library or that can be downloaded"
+        )
+        self.available_button.set_valign(Gtk.Align.CENTER)
+        self.available_button.connect("toggled", lambda *_args: self._filters_changed())
+        filters.append(self.available_button)
+        self.clear_filters_bar_button = icon_button(
+            "edit-clear-all-symbolic", "Clear Filters", lambda _button: self.clear_filters()
+        )
+        self.clear_filters_bar_button.set_visible(False)
+        filters.append(self.clear_filters_bar_button)
+        self.filter_box = filters
+        top.append(filters)
+        return top
+
+    def _build_resize_handle(self) -> Gtk.Widget:
+        handle = Gtk.Box(width_request=5)
+        handle.add_css_class("pane-resize")
+        handle.set_cursor(Gdk.Cursor.new_from_name("col-resize", None))
+        handle.set_tooltip_text("Drag to change the width of the details")
+        drag = Gtk.GestureDrag()
+        drag.connect("drag-begin", self._resize_begin)
+        drag.connect("drag-update", self._resize_update)
+        handle.add_controller(drag)
+        self._resize_start = 0
+        return handle
+
+    def _resize_begin(self, _gesture, _x, _y) -> None:
+        self._resize_start = self.detail.get_width() + 5
+
+    def _resize_update(self, _gesture, offset_x: float, _y) -> None:
+        widest = max(
+            SIDEBAR_LIMITS[0], min(SIDEBAR_LIMITS[1], self.get_width() - MIN_CONTENT_WIDTH)
+        )
+        self.set_detail_width(
+            int(max(SIDEBAR_LIMITS[0], min(widest, self._resize_start - offset_x)))
+        )
+
+    def set_detail_width(self, width: int) -> None:
+        """Fix the width of the details pane, as dragging its edge does."""
+        view = self.split_view
+        if width >= view.get_max_sidebar_width():
+            view.set_max_sidebar_width(width)
+            view.set_min_sidebar_width(width)
+        else:
+            view.set_min_sidebar_width(width)
+            view.set_max_sidebar_width(width)
 
     def _build_welcome(self) -> None:
         self.welcome = Adw.StatusPage(
             icon_name="system-search-symbolic",
-            title="Find a Disk",
-            description="Search for a game, a crew or a disk number.",
+            title="Find a Title or Disc",
+            description="Search for anything, or choose a filter to browse.",
         )
-        # Example searches as links in one line of text, which wraps at any width.
         self.examples_label = Gtk.Label(
             wrap=True, justify=Gtk.Justification.CENTER, use_markup=True, visible=False
         )
         self.examples_label.connect("activate-link", self._on_example)
-        self.examples: list[str] = []
-        box = self.examples_label
-        self.welcome.set_child(box)
+        self.welcome.set_child(self.examples_label)
         self.stack.add_named(self.welcome, "welcome")
 
     def _build_results(self) -> None:
-        self.store = Gio.ListStore(item_type=ResultObject)
-        self.selection = Gtk.SingleSelection(model=self.store, autoselect=False, can_unselect=True)
-        self.selection.connect("notify::selected", self._on_selected)
-        factory = Gtk.SignalListItemFactory()
-        factory.connect("setup", lambda _factory, item: item.set_child(ResultRow(self)))
-        factory.connect("bind", self._bind_row)
-        factory.connect("unbind", self._unbind_row)
-        self.list_view = Gtk.ListView(
-            model=self.selection,
-            factory=factory,
-            show_separators=True,
-            tab_behavior=Gtk.ListTabBehavior.ITEM,
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.table = ResultsTable(
+            is_checked=lambda key: key in self.checked,
+            on_checked=self.set_checked,
+            on_selected=self.show_row,
+            on_sort=self._on_header_sort,
+            on_activate=self.show_row,
         )
-        self.list_view.update_property([Gtk.AccessibleProperty.LABEL], ["Search results"])
-        self.list_view.connect("activate", self._on_activate)
-        scroller = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, vexpand=True)
-        scroller.set_child(self.list_view)
-        self.stack.add_named(scroller, "results")
-
-    def _bind_row(self, _factory, item: Gtk.ListItem) -> None:
-        row = item.get_child()
-        row.bind(item.get_item().result)
-        self._rows.add(row)
-
-    def _unbind_row(self, _factory, item: Gtk.ListItem) -> None:
-        self._rows.discard(item.get_child())
+        box.append(self.table)
+        box.append(Gtk.Separator())
+        self.pager = Pager(self.go_to_page, self._on_page_size)
+        box.append(self.pager)
+        self.stack.add_named(box, "results")
 
     def _build_no_results(self) -> None:
         self.no_results = Adw.StatusPage(icon_name="edit-find-symbolic", title="No Results")
@@ -331,81 +334,140 @@ class FindPage(Gtk.Box):
         self.no_catalogue.set_child(button)
         self.stack.add_named(self.no_catalogue, "no-catalogue")
 
-    # Catalogue information
+    # Catalogue information and facets
 
     def set_catalogue(self, info: CatalogueInfo) -> None:
         self._info = info
-        # Without a catalogue there is nothing to search or filter.
         self.search_area.set_visible(info.available)
         if not info.available:
             self.close_detail()
+            self.unmatched_banner.set_revealed(False)
             self.stack.set_visible_child_name("no-catalogue")
-            self.count_label.set_text("")
             return
         stats = fmt.catalogue_stats_text(info.stats, info.built_at)
         self.welcome.set_description(
-            "Search for a game, a crew or a disk number, then write the disks you pick "
-            f"to floppy.\n{stats}"
+            "Search for a title, disc, crew, year or file name, or choose a filter to browse. "
+            f"Then write the discs you pick to floppy.\n{stats}"
         )
-        self._find_examples(info)
+        self._load_facets()
         self.search()
 
-    def _find_examples(self, info: CatalogueInfo) -> None:
-        """Offer example searches that are known to find something."""
-        largest = sorted(info.series, key=lambda item: -item.disk_count)[:3]
-        candidates = list(dict.fromkeys([*EXAMPLE_SEARCHES, *(item.name for item in largest)]))
+    def _load_facets(self) -> None:
         backend = self._host.backend
+        info = self._info or CatalogueInfo(False)
 
-        def work() -> list[str]:
-            found: list[str] = []
-            for text in candidates:
+        def work() -> tuple[Facets, list[tuple[str, str]]]:
+            facets = backend.facets()
+            examples: list[tuple[str, str]] = []
+            for text in EXAMPLE_SEARCHES:
                 try:
-                    if backend.search(text, SearchFilters()):
-                        found.append(text)
+                    if backend.search_page(Query(text=text, page_size=1)).total:
+                        examples.append(("text", text))
                 except Exception as error:  # noqa: BLE001 - examples are optional
                     LOG.add("search", f"Example search {text!r} failed: {error}")
-                if len(found) >= MAX_EXAMPLES:
+                if len(examples) >= MAX_EXAMPLES - 1:
                     break
-            return found
+            crew = largest_crew(facets, info.series)
+            if crew:
+                examples.append(("crew", crew))
+            return facets, examples
 
-        run_in_thread(work, self._show_examples, name="example-searches")
+        run_in_thread(work, self._facets_loaded, name="facets")
 
-    def _show_examples(self, examples: list[str]) -> None:
+    def _facets_loaded(self, result: tuple[Facets, list[tuple[str, str]]]) -> None:
+        facets, examples = result
+        self._set_facet_choices(facets)
+        self._show_examples(examples)
+
+    def reload_facets(self) -> None:
+        """Load the filter choices again, after a disc's crew or year was corrected."""
+        run_in_thread(self._host.backend.facets, self._set_facet_choices, name="facets")
+
+    def _set_facet_choices(self, facets: Facets) -> None:
+        self.facets = facets
+        self.type_dropdown.set_choices(
+            [("", "Any Type", None)] + [(name, name, count) for name, count in facets.categories]
+        )
+        self.crew_dropdown.set_choices(
+            [("", "Any Crew", None)] + [(name, name, count) for name, count in facets.crews]
+        )
+        self.year_dropdown.set_choices(
+            [(None, "Any Year", None)] + [(year, str(year), count) for year, count in facets.years]
+        )
+
+    def _show_examples(self, examples: list[tuple[str, str]]) -> None:
         self.examples = list(examples)
-        links = [
-            f'<a href="example:{index}">{fmt.escape(text)}</a>'
-            for index, text in enumerate(examples)
-        ]
+        links = []
+        for index, (kind, text) in enumerate(examples):
+            shown = f"every {text} disc by number" if kind == "crew" else text
+            links.append(f'<a href="example:{index}">{fmt.escape(shown)}</a>')
         if len(links) > 1:
-            text = f"Try {', '.join(links[:-1])} or {links[-1]}."
+            markup = f"Try {', '.join(links[:-1])} or {links[-1]}."
         else:
-            text = f"Try {links[0]}." if links else ""
-        self.examples_label.set_markup(text)
+            markup = f"Try {links[0]}." if links else ""
+        self.examples_label.set_markup(markup)
         self.examples_label.set_visible(bool(links))
 
     def _on_example(self, _label, uri: str) -> bool:
         if uri.startswith("example:"):
             index = int(uri.removeprefix("example:"))
             if 0 <= index < len(self.examples):
-                self.search_for(self.examples[index])
+                kind, text = self.examples[index]
+                if kind == "crew":
+                    self.browse_crew(text)
+                else:
+                    self.search_for(text)
         return True
 
-    # Searching
+    # The query
 
-    def filters(self) -> SearchFilters:
-        platform = PLATFORM_CHOICES[self.platform_dropdown.get_selected()][0]
-        kinds = frozenset(kind for kind, button in self.kind_buttons.items() if button.get_active())
-        return SearchFilters(platform, kinds, self.available_button.get_active())
+    def query(self) -> Query:
+        kind = self.kind_dropdown.value
+        return Query(
+            text=self.search_entry.get_text().strip(),
+            platform=self.platform_dropdown.value,
+            category=self.type_dropdown.value or "",
+            kinds=frozenset({kind}) if kind else frozenset(),
+            crew=self.crew_dropdown.value or "",
+            year=self.year_dropdown.value,
+            available_only=self.available_button.get_active(),
+            mode=self.mode,
+            sort=self.sort,
+            page=self.page_index,
+            page_size=self.pager.page_size,
+        )
 
     def filters_active(self) -> bool:
-        current = self.filters()
-        return current.platform is not None or bool(current.kinds) or current.available_only
+        query = self.query()
+        return bool(
+            query.platform
+            or query.category
+            or query.kinds
+            or query.crew
+            or query.year
+            or query.available_only
+        )
+
+    def _filters_changed(self) -> None:
+        self.clear_filters_bar_button.set_visible(self.filters_active())
+        if not self._quiet:
+            self.search()
 
     def clear_filters(self) -> None:
-        self.platform_dropdown.set_selected(0)
-        for button in self.kind_buttons.values():
-            button.set_active(False)
-        self.available_button.set_active(False)
+        self._quiet = True
+        try:
+            for dropdown in (
+                self.platform_dropdown,
+                self.type_dropdown,
+                self.kind_dropdown,
+                self.crew_dropdown,
+                self.year_dropdown,
+            ):
+                dropdown.set_selected(0)
+            self.available_button.set_active(False)
+        finally:
+            self._quiet = False
+        self.clear_filters_bar_button.set_visible(False)
         self.search()
 
     def search_for(self, text: str) -> None:
@@ -413,36 +475,106 @@ class FindPage(Gtk.Box):
         self.search_entry.set_position(-1)
         self.search()
 
+    def browse_crew(self, crew: str) -> None:
+        """Every disc of one crew in disc order, with no search text."""
+        self._quiet = True
+        try:
+            self.search_entry.set_text("")
+            self.crew_dropdown.set_value(crew)
+            self._set_sort(SortOrder.DISC)
+        finally:
+            self._quiet = False
+        self._filters_changed()
+
     def focus_search(self) -> None:
         self.search_entry.grab_focus()
         self.search_entry.select_region(0, -1)
 
-    def search(self) -> None:
+    def _on_mode_toggled(self, button: Gtk.ToggleButton, mode: ResultMode) -> None:
+        if button.get_active() and mode != self.mode:
+            self.mode = mode
+            self.search()
+
+    def set_mode(self, mode: ResultMode) -> None:
+        (self.titles_button if mode == ResultMode.TITLES else self.discs_button).set_active(True)
+
+    def _set_sort(self, sort: SortOrder) -> None:
+        self.sort = sort
+        self.sort_dropdown.set_value(sort, quiet=True)
+        self.table.set_sort(sort)
+
+    def _on_sort_chosen(self) -> None:
+        sort = self.sort_dropdown.value or SortOrder.RELEVANCE
+        if sort != self.sort:
+            self.sort = sort
+            self.table.set_sort(sort)
+            if not self._quiet:
+                self.search()
+
+    def _on_header_sort(self, sort: SortOrder) -> None:
+        if sort != self.sort:
+            self.sort = sort
+            self.sort_dropdown.set_value(sort, quiet=True)
+            self.search()
+
+    def set_sort(self, sort: SortOrder) -> None:
+        """Choose a sort order as the Sort drop-down does."""
+        self.sort_dropdown.set_value(sort)
+
+    # Paging
+
+    def go_to_page(self, page: int) -> None:
+        self.search(reset_page=False, page=page)
+
+    def step_page(self, offset: int) -> bool:
+        if self.stack.get_visible_child_name() != "results":
+            return False
+        return self.pager.go(self.pager.page + offset)
+
+    def _on_page_size(self, _size: int) -> None:
+        self.search()
+
+    # Searching
+
+    def search(self, *, reset_page: bool = True, page: int | None = None) -> None:
         if self._info is not None and not self._info.available:
             return
-        text = self.search_entry.get_text().strip()
+        if page is not None:
+            self.page_index = page
+        elif reset_page:
+            self.page_index = 0
+        query = self.query()
         self._generation += 1
         generation = self._generation
-        if not text:
+        if not query.browsing:
             self.searching = False
-            self.spinner.stop()
-            self.spinner.set_visible(False)
-            self._all_results = []
-            self._show_kind_counts([])
-            self._replace_results([])
-            self.count_label.set_text("")
+            self.pager.set_busy(False)
+            self.result_page = None
+            self.results = []
+            self.table.set_rows([], self.mode, [])
+            self.unmatched = []
+            self.unmatched_banner.set_revealed(False)
+            self.close_detail()
             self.stack.set_visible_child_name("welcome")
             return
-        # Kinds are filtered here rather than in the search, so the buttons can
-        # count every kind and switching kinds needs no new search.
-        filters = replace(self.filters(), kinds=frozenset())
         backend = self._host.backend
         self.searching = True
-        self.spinner.set_visible(True)
-        self.spinner.start()
+        self.pager.set_busy(True)
+        text = query.text
+
+        def work() -> tuple[ResultPage, list[LocalFile]]:
+            result = backend.search_page(query)
+            unmatched: list[LocalFile] = []
+            if text and query.page == 0:
+                try:
+                    unmatched = backend.unmatched_files(UNMATCHED_LIMIT, text)
+                except Exception as error:  # noqa: BLE001 - the page matters more
+                    LOG.add("search", f"Unmatched files could not be searched: {error}")
+            return result, unmatched
+
         run_in_thread(
-            lambda: backend.search(text, filters),
-            lambda results: self._show_results(generation, text, results),
+            work,
+            lambda result: self._show_page(generation, *result),
             lambda error: self._search_failed(generation, error),
             name="search",
         )
@@ -451,8 +583,7 @@ class FindPage(Gtk.Box):
         if generation != self._generation:
             return
         self.searching = False
-        self.spinner.stop()
-        self.spinner.set_visible(False)
+        self.pager.set_busy(False)
         self.no_results.set_title("Search Failed")
         self.no_results.set_description(
             f"{fmt.escape(str(error))}\nThe details are in the Diagnostic Log in the main menu."
@@ -460,173 +591,197 @@ class FindPage(Gtk.Box):
         self.clear_filters_button.set_visible(False)
         self.stack.set_visible_child_name("empty")
 
-    def _show_results(self, generation: int, text: str, results: list[SearchResult]) -> None:
+    def _show_page(self, generation: int, page: ResultPage, unmatched: list[LocalFile]) -> None:
         if generation != self._generation:
             return  # a newer search has started since
-        self.searching = False
-        self.spinner.stop()
-        self.spinner.set_visible(False)
-        self._all_results = list(results)
-        self._last_text = text
-        self._show_kind_counts(results)
-        self._show_filtered(text)
-
-    def _apply_kinds(self) -> None:
-        if self.searching:
-            return  # the running search applies the kind filter when it lands
-        if self._last_text and self._last_text == self.search_entry.get_text().strip():
-            self._show_filtered(self._last_text)
-        else:
-            self.search()
-
-    def _show_kind_counts(self, results: list[SearchResult]) -> None:
-        counts = Counter(result.disk.kind for result in results if result.disk is not None)
-        for kind, label in self.kind_counts.items():
-            label.set_text(f"{counts[kind]:,}")
-            label.set_visible(bool(results))
-
-    def _show_filtered(self, text: str) -> None:
-        kinds = self.filters().kinds
-        results = [
-            result
-            for result in self._all_results
-            if not kinds or (result.disk is not None and result.disk.kind in kinds)
-        ]
-        self._replace_results(results)
-        if results:
-            self.count_label.set_text(fmt.plural(len(results), "result"))
-            self.stack.set_visible_child_name("results")
+        if page.total and not page.rows and page.query.page > 0:
+            # Fewer results than before, for example after a download: go to the last page.
+            self.search(reset_page=False, page=page.pages - 1)
             return
-        self.count_label.set_text("")
+        self.searching = False
+        self.pager.set_busy(False)
+        self.result_page = page
+        self.results = list(page.rows)
+        if page.query.page == 0:
+            self.unmatched = list(unmatched)
+        self._show_unmatched_banner()
+        keys = self.detail.keys() if self.split_view.get_show_sidebar() else ()
+        self.table.set_rows(page.rows, page.query.mode, fmt.query_words(page.query.text))
+        self.table.set_sort(page.query.sort)
+        if page.total:
+            self.pager.update(page)
+            self.stack.set_visible_child_name("results")
+            if keys and not self.table.select_key(keys):
+                self.close_detail()
+            self._update_action_bar()
+            return
+        self.close_detail()
         self.no_results.set_title("No Results")
-        advice = "Check the spelling, try fewer words, or search for a crew and disk number."
+        if page.query.text:
+            quoted = fmt.escape(page.query.text)
+            text = f"Nothing in the catalogue matches “{quoted}”."
+        else:
+            text = "No disc in the catalogue has everything the filters ask for."
+        advice = "Check the spelling, try fewer words, or search for a crew and disc number."
         if self.filters_active():
             advice = "Some filters are on. Clear them to search everything."
-        quoted = fmt.escape(text)
-        self.no_results.set_description(
-            f"Nothing in the catalogue or your library matches “{quoted}”. {advice}"
-        )
+        self.no_results.set_description(f"{text} {advice}")
         self.clear_filters_button.set_visible(self.filters_active())
         self.stack.set_visible_child_name("empty")
 
-    def _replace_results(self, results: list[SearchResult]) -> None:
-        self.results = list(results)
-        keep = self.detail_key()
-        self.store.splice(0, self.store.get_n_items(), [ResultObject(r) for r in results])
-        self.selection.set_selected(Gtk.INVALID_LIST_POSITION)
-        if keep:
-            for index, result in enumerate(results):
-                if result.key == keep:
-                    self.selection.set_selected(index)
-                    break
-
     def refresh(self) -> None:
-        """Search again, for example after a download changed availability."""
-        self.search()
+        """Search again on the same page, for example after a download."""
+        self.search(reset_page=False)
 
-    # Selection and detail
+    # Unmatched library files
 
-    def detail_key(self) -> str:
-        if not self.split_view.get_show_sidebar():
-            return ""
-        if self.detail.detail is not None:
-            return f"disk:{self.detail.detail.disk.id}"
-        if self.detail.local is not None:
-            return f"file:{self.detail.local.path}::{self.detail.local.member}"
-        return ""
+    def _show_unmatched_banner(self) -> None:
+        count = len(self.unmatched)
+        self.unmatched_banner.set_title(
+            f"{fmt.plural(count, 'file')} in your library "
+            f"{'matches' if count == 1 else 'match'} no catalogue disc but "
+            f"{'matches' if count == 1 else 'match'} this search"
+        )
+        self.unmatched_banner.set_revealed(bool(count))
 
-    def _on_selected(self, selection: Gtk.SingleSelection, _property) -> None:
-        item = selection.get_selected_item()
-        if item is not None:
-            self.show_result(item.result)
+    def show_unmatched(self) -> Adw.Dialog:
+        dialog = Adw.Dialog(title="Unmatched Files", content_width=520, content_height=420)
+        view = Adw.ToolbarView()
+        view.add_top_bar(Adw.HeaderBar())
+        page = Adw.PreferencesPage()
+        group = Adw.PreferencesGroup(
+            description=(
+                "These images match no disc in the catalogue. They were found by file name, "
+                "volume label or the names of the files on them."
+            )
+        )
+        for local in self.unmatched:
+            row = plain_row(title=local_name(local), subtitle=fmt.local_file_location(local))
+            row.set_subtitle_lines(2)
+            row.set_activatable(True)
+            row.set_tooltip_text("Show the details of this file")
+            row.connect("activated", lambda _row, file=local: self.show_file(file))
+            button = text_button("Add to Queue", None, style="flat")
+            button.set_tooltip_text(f"Add {local_name(local)} to the queue")
+            button.connect("clicked", lambda _b, file=local: self._queue_file(file))
+            row.add_suffix(button)
+            group.add(row)
+        page.add(group)
+        view.set_content(page)
+        dialog.set_child(view)
+        dialog.present(self.get_root())
+        self.unmatched_dialog = dialog
+        return dialog
 
-    def _on_activate(self, _view, position: int) -> None:
-        item = self.store.get_item(position)
-        if item is not None:
-            self.selection.set_selected(position)
-            self.show_result(item.result)
+    def _queue_file(self, local: LocalFile) -> None:
+        self._host.add_to_queue([item_from_local(local)])
 
-    def show_result(self, result: SearchResult) -> None:
-        if result.key == self.detail_key():
+    def show_file(self, local: LocalFile) -> None:
+        """Show an unmatched library file in the details pane."""
+        if self.unmatched_dialog is not None:
+            self.unmatched_dialog.close()
+        self._detail_generation += 1  # a disc still loading must not replace the file
+        self.table.unselect()
+        self.split_view.set_show_sidebar(True)
+        self.detail.show_local(local)
+
+    # Selection and details
+
+    def show_row(self, row: ResultRow) -> None:
+        showing = self.split_view.get_show_sidebar()
+        if showing and self.detail.key() == row.key:
             return
         self.split_view.set_show_sidebar(True)
-        if result.local is not None and result.disk is None:
-            self.detail.show_local(result.local)
+        if showing and self.detail.show_row(row):
             return
+        self._load_detail(row.disk.id, row.content_id, loading=True)
+
+    def _load_detail(self, disk_id: int, content_id: int | None, *, loading: bool) -> None:
         self._detail_generation += 1
         generation = self._detail_generation
-        disk_id = result.disk.id
-        self.detail.show_loading()
+        if loading:
+            self.detail.show_loading()
         backend = self._host.backend
 
-        def shown(detail) -> None:
+        def work():
+            detail = backend.detail(disk_id)
+            alternates = []
+            if detail.virus is not None and detail.virus.infected:
+                alternates = backend.clean_alternates(disk_id)
+            return detail, alternates
+
+        def shown(result) -> None:
             if generation == self._detail_generation:
-                self.detail.show_disk(detail)
+                detail, alternates = result
+                self.detail.show_disk(detail, content_id, alternates)
 
         def failed(error: BaseException) -> None:
             if generation == self._detail_generation:
-                self._host.toast(f"Could not load {result.disk.label}: {error}")
+                self._host.toast(f"The disc could not be shown: {error}")
                 self.close_detail()
 
-        run_in_thread(lambda: backend.detail(disk_id), shown, failed, name="detail")
+        run_in_thread(work, shown, failed, name="detail")
 
     def reload_detail(self) -> None:
-        """Load the open disk again, for example after it was downloaded."""
+        """Load the open disc again, for example after it was downloaded or cleaned."""
         if self.detail.detail is None or not self.split_view.get_show_sidebar():
             return
-        disk_id = self.detail.detail.disk.id
-        backend = self._host.backend
-        self._detail_generation += 1
-        generation = self._detail_generation
+        self._load_detail(self.detail.detail.disk.id, self.detail.content_id, loading=False)
 
-        def shown(detail) -> None:
-            if generation == self._detail_generation:
-                self.detail.show_disk(detail)
-
-        run_in_thread(lambda: backend.detail(disk_id), shown, name="detail")
+    def _pane_title_selected(self, content_id: int | None) -> None:
+        """A title was picked in the pane: select its row when it is on this page."""
+        if content_id is not None:
+            self.table.select_key((f"title:{content_id}",))
 
     def close_detail(self) -> None:
         self.split_view.set_show_sidebar(False)
-        self.selection.set_selected(Gtk.INVALID_LIST_POSITION)
+        self.table.unselect()
         self.detail.detail = None
         self.detail.local = None
+        self.detail.content_id = None
 
     def _on_entry_activate(self, _entry) -> None:
         """Enter in the search box opens the first result."""
-        if self.store.get_n_items():
-            self.selection.set_selected(0)
-            self.list_view.grab_focus()
+        if self.results:
+            self.table.select_index(0)
+            self.table.view.grab_focus()
 
     # Ticked rows
 
-    def set_checked(self, result: SearchResult, checked: bool) -> None:
+    def _page_signature(self) -> tuple:
+        query = self.result_page.query if self.result_page is not None else self.query()
+        return (replace(query, page=0), query.page)
+
+    def set_checked(self, row: ResultRow, checked: bool) -> None:
         if checked:
-            self.checked[result.key] = result
+            self.checked[row.key] = (row, self._page_signature())
         else:
-            self.checked.pop(result.key, None)
+            self.checked.pop(row.key, None)
         self._update_action_bar()
 
     def clear_checked(self) -> None:
         self.checked.clear()
-        self._rebind()
+        self.table.refresh_checks()
         self._update_action_bar()
 
-    def _rebind(self) -> None:
-        for row in self._rows:
-            if row.result is not None:
-                row.bind(row.result)
+    def selection_counts(self) -> tuple[int, int, int]:
+        """Ticked rows, the discs they are on and the pages they were ticked on."""
+        rows = [row for row, _page in self.checked.values()]
+        discs = len({row.disk.id for row in rows})
+        pages = len({page for _row, page in self.checked.values()})
+        return len(rows), discs, pages
 
     def _update_action_bar(self) -> None:
-        count = len(self.checked)
-        self.selected_label.set_text(f"{count:,} selected")
-        self.action_bar.set_revealed(count > 0)
-        self._host.selection_changed(count)
+        rows, discs, pages = self.selection_counts()
+        self.selected_label.set_text(fmt.selection_text(rows, discs, pages))
+        self.action_bar.set_revealed(rows > 0)
+        self._host.selection_changed(rows)
 
     def checked_items(self):
-        return [make_item_for_result(result) for result in self.checked.values()]
+        return queue_items_for_rows(row for row, _page in self.checked.values())
 
     def selected_items(self):
-        """Ticked rows, or the disk in the detail pane when nothing is ticked."""
+        """Ticked rows, or the disc in the details pane when nothing is ticked."""
         if self.checked:
             return self.checked_items()
         if self.split_view.get_show_sidebar():
