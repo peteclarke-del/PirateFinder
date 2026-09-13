@@ -8,7 +8,7 @@ can download either kind without a GitHub account.
 ## Catalogue layouts
 
 A catalogue's layout is its database schema, numbered by `SCHEMA_VERSION` in
-`src/piratefinder/catalogue/schema.py` (2 at present). The application reads
+`src/piratefinder/catalogue/schema.py` (3 at present). The application reads
 one layout only. Each catalogue release names its layout in the file name,
 `catalogue-layout<N>.sqlite.gz` with `catalogue-layout<N>.sqlite.gz.sha256`
 beside it, so that:
@@ -198,8 +198,8 @@ Merge the reviewed release pull request, then create and push a tag that
 exactly matches the version:
 
 ```sh
-git tag -s v0.1.0 -m "PirateFinder v0.1.0"
-git push origin v0.1.0
+git tag -s v0.2.0 -m "PirateFinder v0.2.0"
+git push origin v0.2.0
 ```
 
 The **Release** workflow (`.github/workflows/release.yml`) then:
@@ -218,6 +218,15 @@ The **Release** workflow (`.github/workflows/release.yml`) then:
    is kept as a workflow artifact named `package-<token>-<arch>`;
 5. writes `SHA256SUMS` for all six packages and publishes them in a GitHub
    Release marked as the latest release, naming the catalogue they include.
+
+The application's own update (Check for Application Updates, in
+`src/piratefinder/app_update.py`) depends on three things this workflow
+does: the application release is marked as the latest release, its tag is
+`vX.Y.Z`, and it carries `SHA256SUMS` beside packages named
+`PirateFinder_<version>_<distro>_<arch>.deb`. Each package records its
+distribution and architecture in `/usr/lib/piratefinder/package-target`, which
+`build-deb.sh` writes and `install-test.sh` checks. `tests/test_packaging.py`
+fails if the workflow, the builder and the update stop agreeing.
 
 A failed check, build or installation of any package prevents publication. A catalogue
 release of the source's layout must exist before an application release can
