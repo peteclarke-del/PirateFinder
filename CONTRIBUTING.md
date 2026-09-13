@@ -28,6 +28,49 @@ that host disk images. Report security defects according to
    [docs/CURRENT_STATUS.md](docs/CURRENT_STATUS.md).
 6. Submit a pull request using the repository template.
 
+## Documentation and screenshots
+
+The User Guide's text is in `src/piratefinder/ui/help_content.py`. The
+application shows it in the User Guide window, and
+[docs/USER_GUIDE.md](docs/USER_GUIDE.md) is generated from it:
+
+```sh
+PYTHONPATH=src python3 -m piratefinder.ui.help_content
+```
+
+A test fails when the two differ, and another when the guide names a picture
+that does not exist. Write guide text in plain ASCII, put commands and paths
+between backticks, and keep `<`, `>`, `*`, `|` and `!` out of the rest; the
+tests check this.
+
+The screenshots in `docs/images` and `src/piratefinder/data/help` are drawn
+from the real window with the simulated back end, never taken by hand. With a
+display, and a catalogue built as described in the README:
+
+```sh
+PYTHONPATH=src:. python3 -m piratefinder.ui.screenshot --catalogue build/catalogue.sqlite
+```
+
+Without a desktop session, a Broadway display serves as well:
+`gtk4-broadwayd :5 &`, then run the command above with
+`GDK_BACKEND=broadway BROADWAY_DISPLAY=:5`. With no browser attached,
+Broadway draws about once a second and never resizes a window, so the tool
+sets the font resolution itself, lays each picture out at its own size,
+closes dialogs at once and draws the narrow picture in a window made at
+that size.
+
+Each state is saved in light and dark; the light pictures the guide shows are
+copied into the package, and ones it no longer shows are removed. A new
+picture needs a state in `src/piratefinder/ui/screenshot.py` and a reference
+in `help_content.py`. Look at every picture after regenerating it. The
+pictures in the details pane are drawn by the simulated back end; never add a
+downloaded screenshot to the repository.
+
+The documents follow the house style checked by `tests/test_documentation.py`:
+no em or en dashes, ellipsis characters, arrows or curly quotes, British
+spelling, and every document linked from the README or
+[docs/README.md](docs/README.md).
+
 ## Tests and checks
 
 Run before submitting:
