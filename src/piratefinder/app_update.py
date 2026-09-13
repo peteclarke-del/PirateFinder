@@ -42,7 +42,6 @@ _SUM_LINE = re.compile(r"^([0-9a-fA-F]{64})\s+\*?(\S.*)$")
 # pkexec's exit statuses when the password prompt is dismissed or refused.
 _PKEXEC_DISMISSED = 126
 _PKEXEC_REFUSED = 127
-INSTALL_TIMEOUT = 15 * 60
 NOTES_LIMIT = 2000
 
 Progress = Callable[[int, int | None], None]
@@ -240,6 +239,11 @@ def install(package: Path, *, run: Callable[..., Any] = subprocess.run) -> None:
 
     Raises UpdateCancelled when the password prompt is dismissed, and
     UpdateError with the reason and a command to run by hand otherwise.
+
+    There is no time limit. pkexec waits for as long as the password prompt
+    is open, and once it is answered apt runs as root, where this process
+    cannot stop it: giving up would report a failure while apt went on to
+    install the package.
     """
     command = install_command(package)
     by_hand = f"Install it in a terminal with: {manual_command(package)}"
@@ -248,8 +252,8 @@ def install(package: Path, *, run: Callable[..., Any] = subprocess.run) -> None:
             f"pkexec is not installed, so the package cannot be installed here. {by_hand}"
         )
     try:
-        result = run(command, capture_output=True, text=True, timeout=INSTALL_TIMEOUT, check=False)
-    except (OSError, subprocess.TimeoutExpired) as error:
+        result = run(command, capture_output=True, text=True, check=False)
+    except OSError as error:
         raise UpdateError(f"The package could not be installed: {error}. {by_hand}") from error
     if result.returncode == _PKEXEC_DISMISSED:
         raise UpdateCancelled("The password prompt was dismissed, so nothing was installed.")

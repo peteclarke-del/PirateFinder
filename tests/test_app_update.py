@@ -261,6 +261,13 @@ class InstallTests(unittest.TestCase):
         )
         self.assertFalse(self.package.exists())
 
+    def test_the_install_waits_for_the_password_prompt_and_apt_however_long(self) -> None:
+        # pkexec and apt run as root and cannot be stopped from here, so a time
+        # limit would report a failure while apt went on to install.
+        run = self.run_with(0)
+        install(self.package, run=run)
+        self.assertNotIn("timeout", run.call_args.kwargs)
+
     def test_a_dismissed_password_prompt_installs_nothing(self) -> None:
         with self.assertRaises(UpdateCancelled):
             install(self.package, run=self.run_with(126))
