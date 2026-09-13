@@ -49,6 +49,15 @@
     <keyword>compact</keyword>
   </keywords>
   <releases>
+    <release version="0.2.2" date="2026-09-14">
+      <description>
+        <p>Pictures a busy site turned away are asked for again.</p>
+        <ul>
+          <li>A picture a site says it does not have is asked for again an hour later, and a cached copy is kept meanwhile; only a second such answer in a row leaves it out for seven days</li>
+          <li>Download All Pictures rests a site that misses picture after picture, and asks once more at the end for every picture it missed</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.1" date="2026-09-13">
       <description>
         <p>Pictures ahead of time, and a steadier application update.</p>
