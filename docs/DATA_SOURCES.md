@@ -305,9 +305,11 @@ both on. [Privacy](PRIVACY.md) lists every request.
 - Requests: one picture at a time for each site, at least a second apart for
   Atari Legend, D-Bug and Demozoo. Each picture is kept in
   `~/.cache/piratefinder/media` for 30 days and then checked again with
-  `If-None-Match` and `If-Modified-Since`. A picture the site does not have,
-  or a reply that is not a PNG, GIF or JPEG of at most 8 MB, is not asked for
-  again for 7 days.
+  `If-None-Match` and `If-Modified-Since`. A picture the site says it does not
+  have, or a reply that is not a PNG, GIF or JPEG of at most 8 MB, is asked
+  for again after an hour, since a busy site sometimes answers so for pictures
+  it has; after a second such answer in a row it is not asked for again for 7
+  days.
 
 ### Wikipedia
 

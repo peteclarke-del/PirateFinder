@@ -6,6 +6,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from piratefinder.catalogue.store import Catalogue
 from piratefinder.jobs.cancellation import Cancellation
@@ -130,11 +131,39 @@ class PrefetchTests(unittest.TestCase):
         asked = len(self.server.requests)
         summary = prefetch.download(self.cache, self.addresses)
         self.assertEqual((summary.already, summary.fetched, summary.unavailable), (2, 3, 1))
-        self.assertEqual(len(self.server.requests), asked + 4)
-        # A picture the site did not have is not asked for again for a while.
+        # Four new pictures, and the missing one asked for once more at the end.
+        self.assertEqual(len(self.server.requests), asked + 5)
+        # Missed twice in a row, it is not asked for again for a week.
         again = prefetch.download(self.cache, self.addresses)
         self.assertEqual((again.already, again.fetched, again.unavailable), (5, 0, 1))
-        self.assertEqual(len(self.server.requests), asked + 4)
+        self.assertEqual(len(self.server.requests), asked + 5)
+
+    def test_a_picture_a_busy_site_turned_away_is_found_at_the_end(self) -> None:
+        # The site says it does not have 3.png, then has it again.
+        first, second = self.sites
+        path = "/3.png"
+        picture = self.server.pictures.pop(path)
+        original = self.cache.fetch_telling
+
+        def refusing(item, **options):
+            found = original(item, **options)
+            self.server.pictures[path] = picture  # the site recovers
+            return found
+
+        with mock.patch.object(self.cache, "fetch_telling", side_effect=refusing):
+            summary = prefetch.download(self.cache, [(f"{second}{path}", "demozoo")])
+        self.assertEqual((summary.fetched, summary.unavailable), (1, 0))
+
+    def test_a_site_missing_picture_after_picture_is_given_a_rest(self) -> None:
+        gone = [(f"{self.sites[0]}/gone{n}.png", "atari-legend") for n in range(12)]
+        rests: list[float] = []
+        with mock.patch.object(
+            prefetch, "sleep_unless_cancelled", side_effect=lambda s, c: rests.append(s) or False
+        ):
+            summary = prefetch.download(self.cache, gone)
+        self.assertEqual(summary.unavailable, 12)
+        # Five misses, a minute's rest; five more, two minutes; then the second try.
+        self.assertEqual(rests[:2], [prefetch.BACKOFF_FIRST, 2 * prefetch.BACKOFF_FIRST])
 
     def test_sites_are_fetched_side_by_side_one_request_each_at_a_time(self) -> None:
         prefetch.download(self.cache, self.addresses)

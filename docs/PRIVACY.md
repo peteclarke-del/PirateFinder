@@ -90,7 +90,7 @@ time to each site.
 | A catalogue installed by an update | `~/.local/share/piratefinder/catalogue.sqlite` | Until replaced by a newer one |
 | The Amiga Bootblock Reader brainfile and a note of its release | `~/.local/share/piratefinder/virus/abr/` | Until replaced by a newer one |
 | The SPS Decoder Library for IPF (`libcapsimage.so.5`) and a note of its release and source | `~/.local/share/piratefinder/caps/` | Until you choose Remove under IPF Support |
-| Pictures and Wikipedia summaries | `~/.cache/piratefinder/media/<source>/` | 30 days, then checked again with the site; a picture a site does not have is remembered for 7 days |
+| Pictures and Wikipedia summaries | `~/.cache/piratefinder/media/<source>/` | 30 days, then checked again with the site; a picture a site says it does not have is asked for again after an hour, and remembered for 7 days after a second such answer |
 | Downloads being checked | `~/.cache/piratefinder/downloads/` | Until the check, then deleted; a partial download stays so it can be resumed |
 | A new PirateFinder package | `~/.cache/piratefinder/updates/` | Until it is installed, then deleted |
 | Downloaded disk images | The download folder, `~/Floppy Images/PirateFinder` unless you choose another | Until you delete them |

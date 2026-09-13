@@ -7,6 +7,12 @@ least a second apart. One worker per site runs at once, so the whole takes
 about as long as the site with the most pictures left. A picture already in
 the cache and fresh is passed over without a request, so a download that was
 stopped carries on where it stopped.
+
+A busy site can answer that it does not have pictures it has, as GitHub's raw
+file server did for a quarter of an hour of the first full run. So a worker
+whose site misses several pictures in a row pauses before going on, longer
+each time it goes on missing, and every picture missed is asked for once more
+at the end; only a picture missed both times counts as unavailable.
 """
 
 from __future__ import annotations
@@ -16,7 +22,7 @@ from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
-from ..jobs.cancellation import is_cancelled
+from ..jobs.cancellation import is_cancelled, sleep_unless_cancelled
 from ..models import MediaItem
 from .media import POLITE_INTERVAL, MediaCache, host_key, picture_key
 
@@ -24,6 +30,10 @@ from .media import POLITE_INTERVAL, MediaCache, host_key, picture_key
 SECONDS_PER_PICTURE = POLITE_INTERVAL
 # Below this many cached pictures of a source, their average says little about its rest.
 ESTIMATE_SAMPLE = 100
+# Misses in a row from one site before its worker pauses, and the pauses.
+BACKOFF_AFTER = 5
+BACKOFF_FIRST = 60.0
+BACKOFF_MOST = 15 * 60.0
 
 Address = tuple[str, str]  # the picture's address and its source
 
@@ -120,11 +130,9 @@ def download(
     cache is switched off (Download Screenshots and Background Information,
     or Online Downloads).
     """
-    by_site: dict[str, list[Address]] = {}
-    for address in addresses:
-        by_site.setdefault(host_key(address[0]), []).append(address)
     lock = threading.Lock()
     tally = Counter[str]()
+    missed: list[Address] = []
     stopped = threading.Event()
 
     def report() -> None:
@@ -138,29 +146,64 @@ def download(
                 )
             )
 
-    def work(site: list[Address]) -> None:
+    def halted() -> bool:
+        if stopped.is_set() or is_cancelled(cancel) or not cache.enabled:
+            stopped.set()
+            return True
+        return False
+
+    def work(site: list[Address], recheck: bool) -> None:
+        in_a_row, pause = 0, BACKOFF_FIRST
         for url, source in site:
-            if stopped.is_set() or is_cancelled(cancel) or not cache.enabled:
-                stopped.set()
+            if halted():
                 return
             had = cache.cached_picture(url, source) is not None
-            found = cache.fetch(MediaItem("", url, source), cancel=cancel)
-            if found is None and (is_cancelled(cancel) or not cache.enabled):
-                stopped.set()
+            found, asked = cache.fetch_telling(
+                MediaItem("", url, source), cancel=cancel, recheck_missing=recheck
+            )
+            if found is None and halted():
                 return
-            outcome = "already" if had and found else "fetched" if found else "unavailable"
             with lock:
-                tally[outcome] += 1
+                if recheck:
+                    if found is not None:
+                        tally["unavailable"] -= 1
+                        tally["fetched"] += 1
+                else:
+                    outcome = "already" if had and found else "fetched" if found else "unavailable"
+                    tally[outcome] += 1
+                    # A picture missed twice in a row before is gone; the rest get another try.
+                    if found is None and (asked or cache.misses(url, source) < 2):
+                        missed.append((url, source))
                 report()
+            if found is not None or not asked:
+                in_a_row, pause = 0, BACKOFF_FIRST
+                continue
+            in_a_row += 1
+            if in_a_row >= BACKOFF_AFTER:
+                # The site may be turning requests away: give it a rest.
+                if sleep_unless_cancelled(pause, cancel):
+                    stopped.set()
+                    return
+                in_a_row, pause = 0, min(pause * 2, BACKOFF_MOST)
 
-    workers = [
-        threading.Thread(target=work, args=(site,), name=f"pictures-{name}", daemon=True)
-        for name, site in by_site.items()
-    ]
-    for worker in workers:
-        worker.start()
-    for worker in workers:
-        worker.join()
+    def run(chosen: Sequence[Address], recheck: bool) -> None:
+        by_site: dict[str, list[Address]] = {}
+        for address in chosen:
+            by_site.setdefault(host_key(address[0]), []).append(address)
+        workers = [
+            threading.Thread(
+                target=work, args=(site, recheck), name=f"pictures-{name}", daemon=True
+            )
+            for name, site in by_site.items()
+        ]
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join()
+
+    run(addresses, recheck=False)
+    if missed and not stopped.is_set():
+        run(missed, recheck=True)
     return PictureSummary(
         len(addresses),
         tally["already"],

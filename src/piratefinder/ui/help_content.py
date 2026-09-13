@@ -714,8 +714,10 @@ HELP_TOPICS = (
                     "folder and are refreshed the same way. The download carries on with "
                     "Preferences closed, Stop ends it, and closing PirateFinder stops it too. "
                     "The next Download carries on from the pictures already there and asks "
-                    "nothing of a site for them. A picture a site no longer has is counted and "
-                    "left out.",
+                    "nothing of a site for them. When a site misses several pictures in a row, "
+                    "PirateFinder rests before asking it for more, longer each time, and every "
+                    "picture missed is asked for once more at the end; one missed both times is "
+                    "counted as no longer on its site.",
                 ),
             ),
         ),
@@ -1856,8 +1858,9 @@ HELP_TOPICS = (
                 (
                     "Check that Download Screenshots and Background Information and Online "
                     "Downloads are on in Preferences. The Picture Is Not Available means the "
-                    "site no longer has it; PirateFinder does not ask for that picture again for "
-                    "seven days.",
+                    "site said it does not have the picture. A busy site sometimes says so of "
+                    "pictures it has, so PirateFinder asks again an hour later, and only after "
+                    "two such answers in a row leaves the picture for seven days.",
                 ),
             ),
             HelpSection(
@@ -2182,7 +2185,8 @@ HELP_TOPICS = (
                     (
                         "Pictures and Wikipedia summaries",
                         "`~/.cache/piratefinder/media/`, kept for 30 days and then checked "
-                        "again. A picture a site does not have is remembered for 7 days.",
+                        "again. A picture a site says twice in a row it does not have is "
+                        "remembered for 7 days.",
                     ),
                     (
                         "Downloads being checked",

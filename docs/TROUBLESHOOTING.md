@@ -261,9 +261,13 @@ The Diagnostic Log, in the main menu, records each check and install.
 
 Pictures and Wikipedia summaries need both Online Downloads and Download
 Screenshots and Background Information switched on. "The Picture Is Not
-Available" means the site no longer has that picture, or sent something that
-is not a PNG, GIF or JPEG of at most 8 MB; PirateFinder does not ask for it
-again for seven days. Deleting `~/.cache/piratefinder/media` forgets every
+Available" means the site said it does not have that picture, or sent
+something that is not a PNG, GIF or JPEG of at most 8 MB. A busy site
+sometimes says so of pictures it has: GitHub's raw file server, which serves
+the libretro-thumbnails pictures, did for a quarter of an hour of a long
+Download All Pictures. So PirateFinder asks again an hour later, keeps any
+copy it already has meanwhile, and leaves the picture for seven days only
+after two such answers in a row. Deleting `~/.cache/piratefinder/media` forgets every
 cached picture and summary.
 
 ## The library

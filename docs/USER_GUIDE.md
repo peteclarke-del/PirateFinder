@@ -264,7 +264,7 @@ Pictures and Wikipedia summaries are downloaded only while Download Screenshots 
 
 The details pane fetches a disc's pictures when it first shows the disc. To have them all at once, for example before going offline, use Download All Pictures in Preferences, under Details Pane. Choose Atari ST and Amiga, Atari ST or Amiga, then Download. The row says how many of the pictures are already on this computer, and how long the rest take.
 
-Pictures are fetched one a second from each site, as the details pane fetches them, so every picture the catalogue lists, about 78,000, takes about 12 hours, most of it for Demozoo's, and about 3 GB of space, most of it for libretro-thumbnails' full-size screens. Once some of each site's pictures are cached, the row also estimates the space the rest will take. They go into the same cache folder and are refreshed the same way. The download carries on with Preferences closed, Stop ends it, and closing PirateFinder stops it too. The next Download carries on from the pictures already there and asks nothing of a site for them. A picture a site no longer has is counted and left out.
+Pictures are fetched one a second from each site, as the details pane fetches them, so every picture the catalogue lists, about 78,000, takes about 12 hours, most of it for Demozoo's, and about 3 GB of space, most of it for libretro-thumbnails' full-size screens. Once some of each site's pictures are cached, the row also estimates the space the rest will take. They go into the same cache folder and are refreshed the same way. The download carries on with Preferences closed, Stop ends it, and closing PirateFinder stops it too. The next Download carries on from the pictures already there and asks nothing of a site for them. When a site misses several pictures in a row, PirateFinder rests before asking it for more, longer each time, and every picture missed is asked for once more at the end; one missed both times is counted as no longer on its site.
 
 ## Writing Disks
 
@@ -752,7 +752,7 @@ Could not check for a newer catalogue, followed by a reason, means the list of r
 
 ### Pictures do not appear
 
-Check that Download Screenshots and Background Information and Online Downloads are on in Preferences. The Picture Is Not Available means the site no longer has it; PirateFinder does not ask for that picture again for seven days.
+Check that Download Screenshots and Background Information and Online Downloads are on in Preferences. The Picture Is Not Available means the site said it does not have the picture. A busy site sometimes says so of pictures it has, so PirateFinder asks again an hour later, and only after two such answers in a row leaves the picture for seven days.
 
 ### The first scan is slow
 
@@ -904,7 +904,7 @@ Online Downloads off stops disk image, picture and summary downloads. Download S
 | A catalogue installed by an update | `~/.local/share/piratefinder/catalogue.sqlite` |
 | The Amiga Bootblock Reader brainfile | `~/.local/share/piratefinder/virus/abr/` |
 | The SPS Decoder Library, when installed with IPF Support | `~/.local/share/piratefinder/caps/` |
-| Pictures and Wikipedia summaries | `~/.cache/piratefinder/media/`, kept for 30 days and then checked again. A picture a site does not have is remembered for 7 days. |
+| Pictures and Wikipedia summaries | `~/.cache/piratefinder/media/`, kept for 30 days and then checked again. A picture a site says twice in a row it does not have is remembered for 7 days. |
 | Downloads being checked | `~/.cache/piratefinder/downloads/`, removed after the check. |
 | Downloaded disk images | The download folder, Floppy Images/PirateFinder in your home folder to start with. |
 | Images prepared for writing | A temporary folder, removed when the disc is done. |
