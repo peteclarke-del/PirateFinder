@@ -92,10 +92,23 @@ class PrefetchTests(unittest.TestCase):
         count = prefetch.count(self.cache, self.addresses)
         self.assertEqual((count.cached, count.size), (1, len(PNG)))
         self.assertEqual(count.remaining_by_site, {"127.0.0.1": 2, "localhost": 3})
+        self.assertEqual(count.by_source, {"atari-legend": (1, len(PNG), 2), "demozoo": (0, 0, 3)})
 
-    def test_an_estimate_comes_from_the_pictures_cached_so_far(self) -> None:
-        count = prefetch.PictureCount(1000, 200, 200 * 5000, {"a": 800})
-        self.assertEqual(count.estimated_size, 800 * 5000)
+    def test_each_source_is_estimated_from_its_own_pictures(self) -> None:
+        # Small pictures from one source, large from another: one average for
+        # all would put the rest at 700 * 55,000 bytes.
+        by_source = {"demozoo": (100, 100 * 10_000, 600), "libretro": (100, 100 * 100_000, 100)}
+        count = prefetch.PictureCount(900, 200, 11_000_000, {"a": 700}, by_source)
+        self.assertEqual(count.estimated_size, 600 * 10_000 + 100 * 100_000)
+        # A source still short of samples leaves the estimate out.
+        few = by_source | {"d-bug": (5, 5 * 8_000, 10)}
+        self.assertIsNone(prefetch.PictureCount(915, 205, 0, {"a": 710}, few).estimated_size)
+        # A finished source needs no samples.
+        done = by_source | {"d-bug": (5, 5 * 8_000, 0)}
+        self.assertEqual(
+            prefetch.PictureCount(905, 205, 0, {"a": 700}, done).estimated_size,
+            count.estimated_size,
+        )
 
     def test_every_picture_goes_into_the_panes_cache(self) -> None:
         steps: list[prefetch.PictureProgress] = []
@@ -146,7 +159,7 @@ class PrefetchTests(unittest.TestCase):
         self.assertEqual(self.cache.cached_picture(url, "atari-legend"), fetched)
         folder, key = media.picture_key(url, "atari-legend")
         self.assertEqual(fetched, self.folder / "media" / folder / f"{key}.png")
-        self.assertEqual(self.cache.cached_keys(), {folder: {key}})
+        self.assertEqual(self.cache.cached_sizes(), {folder: {key: len(PNG)}})
         self.assertEqual(self.cache.picture_bytes(), len(PNG))
 
 
