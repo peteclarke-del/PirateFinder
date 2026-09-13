@@ -1,9 +1,12 @@
 # Current implementation status
 
-Version 0.2.0, released on 13 September 2026, is the current release. It
+Version 0.2.1, released on 13 September 2026, is the current release. It
+adds Download All Pictures and lets an application update wait for the
+password prompt however long it takes. Version 0.2.0, released the same day,
 brought the paged Find screen with filters and sorting, the details pane's
 pictures, crew histories and trivia, virus detection, the illustrated User
-Guide and Check for Application Updates. Version 0.1.0, released the day before, was the first. This page
+Guide and Check for Application Updates. Version 0.1.0, released the day
+before, was the first. This page
 describes the source tree; [DESIGN.md](DESIGN.md) describes how the parts fit
 together.
 
@@ -103,8 +106,8 @@ histories. It takes 249 MB installed and 73 MB compressed.
 - Download All Pictures in Preferences: every picture of the Atari ST, the
   Amiga or both fetched ahead of time into the same cache, one worker per
   site at the pane's pace of one request a second, with a count of what is
-  already there, a time estimate, Stop, and a next run that starts from the
-  cached pictures
+  already there, time and size estimates (about 12 hours and 3 GB for every
+  picture), Stop, and a next run that starts from the cached pictures
 
 ### Viruses
 
@@ -245,11 +248,11 @@ histories. It takes 249 MB installed and 73 MB compressed.
   refuses it with "The new catalogue needs a newer version of PirateFinder."
   Its own catalogue stays in use. Released code cannot be changed; version
   0.2.0 looks only for its own layout, so upgrading ends the offers.
-- Check for Application Updates first appears in 0.2.0, so no installed
-  copy has updated itself from a real release yet: the first real update is
-  from 0.2.0 to the next version. The check, the download and its checksum
-  have been tested against a local web server, and the install against a
-  stand-in for pkexec and apt.
+- Check for Application Updates first appears in 0.2.0. The first update of
+  an installed copy from the About window is 0.2.0 to 0.2.1, on the owner's
+  machine. 0.2.0 itself was installed through the same check, download,
+  checksum and pkexec code, run from the source tree, which found the
+  install time limit that 0.2.1 removes.
 - IPF on arm64: the SPS Decoder Library, which cannot be bundled, has no
   Linux aarch64 build anywhere (fs-uae.net, the CAPSImg GitHub releases or
   FS-UAE's own arm64 package), so IPF Support says that there is no build for
