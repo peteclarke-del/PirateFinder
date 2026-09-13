@@ -28,6 +28,18 @@ disk of the same menu:
 The disk record carries the condition, notes, scroll text, contents in menu
 order, the MSA dump with its SHA-512, the download location and a link to
 the disk on its set page.
+
+For the details pane it also carries the menu's release date, the site's
+screenshots of the menu (a disc picture) and of each game on it (up to
+three title pictures per game), the site's facts about each game and the
+editors' notes on the disk. Each game is linked to its Atari Legend id and,
+where Wikidata knows it (``wikidata.articles``), to its English Wikipedia
+article, and each disk lists the site's ids of the crews of its menu set
+(``crew_ids``). ``collect_crews`` gives the history and members of every
+crew, one record per crew of the site with its id, named as the catalogue
+names the crew of its menus. The site covers the Atari ST only, so every
+crew is an ST crew; its release count is the number of menu disks of its
+sets and of game releases it is credited with.
 """
 
 from __future__ import annotations
@@ -35,18 +47,23 @@ from __future__ import annotations
 import gzip
 import io
 import re
-from collections.abc import Iterable, Iterator
+import urllib.error
+from collections.abc import Iterable, Iterator, Mapping
 from pathlib import Path
 
-from ..context import BuildContext
+from ..context import BuildContext, OfflineError
 from ..records import (
     ContentRecord,
+    CrewRecord,
     DiskRecord,
     ImageRecordIn,
     LocationRecord,
+    MediaRecordIn,
     SourceInfo,
+    TriviaRecordIn,
 )
-from ..series import SeriesDef, SeriesRegistry, slug
+from ..series import SeriesDef, SeriesRegistry, crew_key, slug
+from . import wikidata
 
 INFO = SourceInfo(
     id="atari-legend",
@@ -61,6 +78,15 @@ DUMPS_URL = f"{SITE}/data/database-dumps/"
 PLATFORM = "atari-st"
 # The menu set page lists this many disks per page (Laravel paginator).
 DISKS_PER_PAGE = 20
+# Pictures the site stores, by the id of their row and its file extension.
+MENU_SCREENSHOT_URL = SITE + "/storage/images/menu_screenshots/{id}.{ext}"
+GAME_SCREENSHOT_URL = SITE + "/storage/images/game_screenshots/{id}.{ext}"
+GAME_URL = SITE + "/games/{slug}"
+PICTURE_EXTENSIONS = frozenset({"png", "jpg", "jpeg", "gif", "bmp"})
+SCREENSHOT_CREDIT = f"Screenshot: Atari Legend (atarilegend.com), {INFO.licence}"
+MENU_RANK = 10
+GAME_RANK = 30
+GAME_SCREENSHOTS = 3  # at most this many pictures of one game
 
 TABLES = frozenset(
     {
@@ -70,17 +96,23 @@ TABLES = frozenset(
         "menu_disk_contents",
         "menu_disk_dumps",
         "menu_disk_conditions",
+        "menu_disk_screenshots",
         "menu_software",
         "menu_software_content_types",
         "games",
         "game_akas",
+        "game_facts",
         "game_releases",
         "game_release_akas",
         "game_release_crew",
         "pub_devs",
         "individuals",
+        "individual_nicks",
         "crews",
+        "crew_individual",
         "crew_menu_set",
+        "screenshots",
+        "screenshot_game",
         "trainer_options",
         "game_release_trainer_option",
     }
@@ -331,11 +363,28 @@ def fetch_latest_dump(ctx: BuildContext) -> Path:
     return ctx.fetch(DUMPS_URL + name, max_age_days=3650)
 
 
-def collect(ctx: BuildContext) -> Iterator[DiskRecord]:
+def _tables(ctx: BuildContext) -> dict[str, list[dict]]:
     path = ctx.input(INFO.id) or fetch_latest_dump(ctx)
     ctx.log(f"{INFO.id}: reading {path.name}")
-    tables = load_tables(path)
-    yield from build_records(tables, ctx.series, log=ctx.log)
+    return load_tables(path)
+
+
+def _articles(ctx: BuildContext) -> Mapping[str, str]:
+    """Atari Legend game id -> English Wikipedia article, empty when unavailable."""
+    try:
+        return wikidata.articles(ctx).by_atari_legend
+    except (OfflineError, urllib.error.URLError, OSError, ValueError) as error:
+        ctx.log(f"{INFO.id}: no Wikipedia articles for games: {error}")
+        return {}
+
+
+def collect(ctx: BuildContext) -> Iterator[DiskRecord]:
+    tables = _tables(ctx)
+    yield from build_records(tables, ctx.series, log=ctx.log, articles=_articles(ctx))
+
+
+def collect_crews(ctx: BuildContext) -> Iterator[CrewRecord]:
+    yield from crew_records(_tables(ctx), ctx.series, log=ctx.log, groups=ctx.groups)
 
 
 # --- turning rows into records ---------------------------------------------
@@ -443,6 +492,42 @@ def _text(value: object) -> str:
     return str(value).replace("\r\n", "\n").replace("\r", "\n").strip() if value else ""
 
 
+# The BBCode the site's editors write in facts and crew histories.
+_BB_LINK = re.compile(r"\[url=(?P<url>[^\]]*)\](?P<text>.*?)\[/url\]", re.IGNORECASE | re.DOTALL)
+_BB_PICTURE = re.compile(r"\[img[^\]]*\].*?\[/img\]", re.IGNORECASE | re.DOTALL)
+_BB_TAG = re.compile(r"\[/?(?:b|i|u|s|code|quote|game|url|size|color|list|\*)(?:=[^\]]*)?\]", re.I)
+_BLANK_LINES = re.compile(r"\n{3,}")
+
+
+def plain_text(value: object) -> str:
+    """Site text with its BBCode turned into plain text.
+
+    A link keeps its text, with the address after it in brackets when the
+    text is not the address itself; pictures (smileys) are dropped and every
+    other tag is removed, keeping what it enclosed.
+    """
+
+    def link(found: re.Match[str]) -> str:
+        url, text = found.group("url").strip(), found.group("text").strip()
+        return text if not url or text == url else f"{text} ({url})" if text else url
+
+    text = _text(value).replace("\\'", "'").replace("\u00a0", " ")
+    text = _BB_TAG.sub("", _BB_PICTURE.sub("", _BB_LINK.sub(link, text)))
+    lines = [line.rstrip() for line in text.split("\n")]
+    return _BLANK_LINES.sub("\n\n", "\n".join(lines)).strip()
+
+
+def release_date(value: object) -> str:
+    """A menu's date as a release date, "" when it is missing or not a real date."""
+    text = str(value or "")
+    found = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", text)
+    if found is None or found.group(1) == "0000":
+        return ""
+    if found.group(2) == "00":
+        return found.group(1)
+    return text if found.group(3) != "00" else text[:7]
+
+
 def _asc(value: object) -> tuple[bool, object]:
     """Sort key for MariaDB ascending order: NULL first, text without case."""
     if value is None:
@@ -525,13 +610,8 @@ class _SeriesResolver:
         )
 
 
-def build_records(
-    tables: dict[str, list[dict]],
-    registry: SeriesRegistry,
-    log=lambda message: None,
-) -> Iterator[DiskRecord]:
-    """One DiskRecord per menu disk in the dump tables."""
-    by_id = {
+def _index(tables: dict[str, list[dict]]) -> dict[str, dict[int, dict]]:
+    return {
         name: {row["id"]: row for row in tables.get(name, ()) if "id" in row}
         for name in (
             "menu_sets",
@@ -545,9 +625,25 @@ def build_records(
             "pub_devs",
             "crews",
             "individuals",
+            "individual_nicks",
+            "screenshots",
             "trainer_options",
         )
     }
+
+
+def build_records(
+    tables: dict[str, list[dict]],
+    registry: SeriesRegistry,
+    log=lambda message: None,
+    articles: Mapping[str, str] | None = None,
+) -> Iterator[DiskRecord]:
+    """One DiskRecord per menu disk in the dump tables.
+
+    ``articles`` maps an Atari Legend game id (as text) to the title of its
+    English Wikipedia article.
+    """
+    by_id = _index(tables)
     menus = by_id["menus"]
     akas: dict[tuple[str, int], list[str]] = {}
     for row in tables.get("game_akas", ()):
@@ -565,10 +661,12 @@ def build_records(
         if option:
             trainers.setdefault(row["game_release_id"], []).append(_text(option["name"]))
     set_crews: dict[int, list[str]] = {}
-    for row in tables.get("crew_menu_set", ()):
+    set_crew_ids: dict[int, list[str]] = {}
+    for row in sorted(tables.get("crew_menu_set", ()), key=lambda row: row["crew_id"]):
         crew = by_id["crews"].get(row["crew_id"])
         if crew:
             set_crews.setdefault(row["menu_set_id"], []).append(_text(crew["name"]))
+            set_crew_ids.setdefault(row["menu_set_id"], []).append(str(row["crew_id"]))
     contents: dict[int, list[dict]] = {}
     for row in tables.get("menu_disk_contents", ()):
         contents.setdefault(row["menu_disk_id"], []).append(row)
@@ -580,6 +678,7 @@ def build_records(
 
     resolver = _SeriesResolver(registry)
     context = _RowContext(by_id, akas, release_crews, trainers)
+    context.add_pictures_and_facts(tables, articles or {})
     emitted = 0
     for set_id in sorted(disks_by_set):
         menu_set = by_id["menu_sets"].get(set_id)
@@ -612,6 +711,7 @@ def build_records(
                     part,
                     contents.get(disk["id"], []),
                     disk_url(set_id, disk["id"], positions[disk["id"]]),
+                    crew_ids=set_crew_ids.get(set_id, []),
                 )
     counts = resolver.counts
     log(
@@ -619,6 +719,125 @@ def build_records(
         f"{counts['rule']} menus by match rule, {counts['name']} by set name, "
         f"{counts['registered']} in series registered from their set"
     )
+    log(
+        f"{INFO.id}: {context.counts['menu']} menu screenshots, "
+        f"{context.counts['snap']} game screenshots, {context.counts['fact']} facts, "
+        f"{context.counts['note']} notes, {context.counts['wikipedia']} Wikipedia articles, "
+        f"{context.counts['dated']} release dates"
+    )
+
+
+def crew_records(
+    tables: dict[str, list[dict]],
+    registry: SeriesRegistry,
+    log=lambda message: None,
+    groups=None,
+) -> Iterator[CrewRecord]:
+    """History and members of the site's crews, one record per crew.
+
+    A crew is named as the catalogue names the crew of its menus: the group
+    of the series its sets' menus belong to when one of those groups is the
+    crew ("The Medway Boys" is the group "Medway Boys"), else a series group
+    or a crew from ``data/groups.toml`` of the same name, else the site's
+    own spelling. Crews with neither a history nor members are left out.
+    Each record carries the site's crew id, which the menu disks of the
+    crew's sets list in ``crew_ids``, and its ST release count: the menu
+    disks of its sets and the game releases it is credited with.
+    """
+    by_id = _index(tables)
+    menus = by_id["menus"]
+    crews_of_set: dict[int, list[int]] = {}
+    for row in tables.get("crew_menu_set", ()):
+        crews_of_set.setdefault(row["menu_set_id"], []).append(row["crew_id"])
+    sets_of_crew: dict[int, list[int]] = {}
+    for set_id, crew_ids in crews_of_set.items():
+        for crew_id in crew_ids:
+            sets_of_crew.setdefault(crew_id, []).append(set_id)
+
+    # The ST releases of each crew: the menu disks of its sets and the game
+    # releases it is credited with.
+    set_disks: dict[int, int] = {}
+    for disk in tables.get("menu_disks", ()):
+        menu = menus.get(disk["menu_id"])
+        if menu is not None:
+            set_disks[menu["menu_set_id"]] = set_disks.get(menu["menu_set_id"], 0) + 1
+    releases: dict[int, int] = {}
+    for row in tables.get("game_release_crew", ()):
+        releases[row["crew_id"]] = releases.get(row["crew_id"], 0) + 1
+
+    # The groups of the series each set's menus go to, found as build_records
+    # finds them, for the menus that have disks.
+    resolver = _SeriesResolver(registry)
+    set_groups: dict[int, dict[str, str]] = {}
+    menus_with_disks = {disk["menu_id"] for disk in tables.get("menu_disks", ())}
+    for menu_id in sorted(menus_with_disks):
+        menu = menus.get(menu_id)
+        menu_set = by_id["menu_sets"].get(menu["menu_set_id"]) if menu else None
+        if menu_set is None:
+            continue
+        names = sorted(
+            _text(by_id["crews"][crew_id]["name"])
+            for crew_id in crews_of_set.get(menu_set["id"], [])
+            if crew_id in by_id["crews"]
+        )
+        series, _number = resolver.resolve(
+            menu_set["id"], _text(menu_set["name"]), menu_label(menu), names
+        )
+        for group in series.group.split(" / "):
+            if group.strip():
+                set_groups.setdefault(menu_set["id"], {})[crew_key(group)] = group.strip()
+    everywhere = {
+        crew_key(part): part.strip()
+        for series in registry.all()
+        for part in series.group.split(" / ")
+        if part.strip()
+    }
+
+    members: dict[int, list[str]] = {}
+    nicks = by_id["individual_nicks"]
+    for row in sorted(tables.get("crew_individual", ()), key=lambda row: row["id"]):
+        person = by_id["individuals"].get(row.get("individual_id"))
+        if not person or not _text(person.get("name")):
+            continue
+        name = _text(person["name"])
+        link = nicks.get(row.get("individual_nick_id"))
+        nick = by_id["individuals"].get(link["nick_id"]) if link else None
+        if nick and _text(nick.get("name")) and _text(nick["name"]) != name:
+            name = f"{name} ({_text(nick['name'])})"
+        members.setdefault(row["crew_id"], []).append(name)
+
+    found: list[CrewRecord] = []
+    for crew_id, crew in sorted(by_id["crews"].items()):
+        notes = plain_text(crew.get("history"))
+        people = list(dict.fromkeys(members.get(crew_id, [])))
+        if not notes and not people:
+            continue
+        own = _text(crew["name"])
+        key = crew_key(own)
+        sets = sorted(sets_of_crew.get(crew_id, []))
+        name = next(
+            (set_groups[s][key] for s in sets if key in set_groups.get(s, {})),
+            everywhere.get(key)
+            or (groups.expand_one(own, PLATFORM) if groups is not None else own),
+        )
+        found.append(
+            CrewRecord(
+                name=name,
+                source=INFO.id,
+                notes=notes,
+                members=people,
+                url=set_url(sets[0]) if sets else "",
+                id=str(crew_id),
+                platforms={
+                    PLATFORM: sum(set_disks.get(s, 0) for s in sets) + releases.get(crew_id, 0)
+                },
+            )
+        )
+    log(
+        f"{INFO.id}: {len(found)} crews, {sum(1 for r in found if r.notes)} with a "
+        f"history, {sum(1 for r in found if r.members)} with members"
+    )
+    yield from found
 
 
 class _RowContext:
@@ -640,6 +859,76 @@ class _RowContext:
             pub_dev = by_id["pub_devs"].get(release.get("pub_dev_id"))
             if pub_dev and pub_dev.get("name"):
                 self.publishers.setdefault(release["game_id"], _text(pub_dev["name"]))
+        self.menu_pictures: dict[int, list[dict]] = {}
+        self.game_pictures: dict[int, list[dict]] = {}
+        self.facts: dict[int, list[str]] = {}
+        self.articles: Mapping[str, str] = {}
+        self.counts = dict.fromkeys(("menu", "snap", "fact", "note", "wikipedia", "dated"), 0)
+
+    def add_pictures_and_facts(self, tables: dict[str, list[dict]], articles) -> None:
+        for row in sorted(tables.get("menu_disk_screenshots", ()), key=lambda row: row["id"]):
+            if _picture_extension(row.get("imgext")):
+                self.menu_pictures.setdefault(row["menu_disk_id"], []).append(row)
+        screenshots = self.by_id["screenshots"]
+        for row in sorted(tables.get("screenshot_game", ()), key=lambda row: row["id"]):
+            picture = screenshots.get(row.get("screenshot_id"))
+            if picture is not None and _picture_extension(picture.get("imgext")):
+                self.game_pictures.setdefault(row["game_id"], []).append(picture)
+        for row in sorted(tables.get("game_facts", ()), key=lambda row: row["id"]):
+            fact = plain_text(row.get("fact"))
+            if fact:
+                self.facts.setdefault(row["game_id"], []).append(fact)
+        self.articles = articles
+
+    def game_extras(self, record: DiskRecord, game: dict, title: str) -> None:
+        """Pictures, facts and the Wikipedia article of a game, as title records."""
+        game_id = game["id"]
+        page = GAME_URL.format(slug=game["slug"]) if game.get("slug") else ""
+        for picture in self.game_pictures.get(game_id, [])[:GAME_SCREENSHOTS]:
+            self.counts["snap"] += 1
+            record.media.append(
+                MediaRecordIn(
+                    kind="snap",
+                    url=GAME_SCREENSHOT_URL.format(
+                        id=picture["id"], ext=_picture_extension(picture["imgext"])
+                    ),
+                    source=INFO.id,
+                    credit=SCREENSHOT_CREDIT,
+                    page_url=page,
+                    rank=GAME_RANK,
+                    content_title=title,
+                )
+            )
+        for fact in self.facts.get(game_id, []):
+            self.counts["fact"] += 1
+            record.trivia.append(
+                TriviaRecordIn(
+                    kind="fact",
+                    text=fact,
+                    source=INFO.id,
+                    url=page,
+                    licence=INFO.licence,
+                    content_title=title,
+                )
+            )
+        article = self.articles.get(str(game_id))
+        if article:
+            self.counts["wikipedia"] += 1
+            record.trivia.append(
+                TriviaRecordIn(
+                    kind="wikipedia",
+                    text=article,
+                    source=wikidata.WIKIPEDIA_SOURCE,
+                    url=wikidata.article_url(article),
+                    licence=wikidata.WIKIPEDIA_LICENCE,
+                    content_title=title,
+                )
+            )
+
+
+def _picture_extension(value: object) -> str:
+    extension = str(value or "").strip().lower()
+    return extension if extension in PICTURE_EXTENSIONS else ""
 
 
 def _disk_record(
@@ -652,6 +941,7 @@ def _disk_record(
     part: str,
     rows: list[dict],
     page_url: str,
+    crew_ids: list[str],
 ) -> DiskRecord:
     by_id = context.by_id
     raw_part = _text(disk.get("part"))
@@ -679,16 +969,51 @@ def _disk_record(
         condition=map_condition(condition["name"] if condition else None),
         menu_text=_text(disk.get("scrolltext")),
         links=[("Atari Legend", page_url)],
+        release_date=release_date(menu.get("date")),
+        crew_ids=list(crew_ids),
     )
+    if record.release_date:
+        context.counts["dated"] += 1
+    for index, picture in enumerate(context.menu_pictures.get(disk["id"], [])):
+        context.counts["menu"] += 1
+        record.media.append(
+            MediaRecordIn(
+                kind="menu",
+                url=MENU_SCREENSHOT_URL.format(
+                    id=picture["id"], ext=_picture_extension(picture["imgext"])
+                ),
+                source=INFO.id,
+                credit=SCREENSHOT_CREDIT,
+                page_url=page_url,
+                rank=MENU_RANK + index,
+            )
+        )
+    if _text(disk.get("notes")):
+        context.counts["note"] += 1
+        record.trivia.append(
+            TriviaRecordIn(
+                kind="note",
+                text=plain_text(disk["notes"]),
+                source=INFO.id,
+                url=page_url,
+                licence=INFO.licence,
+            )
+        )
     other_titles: dict[str, dict[str, None]] = {}
+    games_done: set[str] = set()
     for row in sorted(rows, key=lambda row: (row.get("order") or 0, row["id"])):
         found = _content(context, row)
         if found is None:
             continue
-        content, others = found
+        content, others, game = found
         record.contents.append(content)
         if others:
             other_titles.setdefault(content.title, {}).update(dict.fromkeys(others))
+        if game is not None and content.title not in games_done:
+            # A game listed twice on one disk (the game and its cheat) gets
+            # its pictures and facts once.
+            games_done.add(content.title)
+            context.game_extras(record, game, content.title)
         software = by_id["menu_software"].get(row.get("menu_software_id"))
         if software and software.get("demozoo_id"):
             record.links.append(
@@ -728,8 +1053,10 @@ def _disk_record(
     return record
 
 
-def _content(context: _RowContext, row: dict) -> tuple[ContentRecord, list[str]] | None:
-    """One menu entry, and the other titles its game is known by."""
+def _content(
+    context: _RowContext, row: dict
+) -> tuple[ContentRecord, list[str], dict | None] | None:
+    """One menu entry, the other titles its game is known by, and the game."""
     by_id = context.by_id
     release = by_id["game_releases"].get(row.get("game_release_id"))
     game = by_id["games"].get(row.get("game_id"))
@@ -782,4 +1109,11 @@ def _content(context: _RowContext, row: dict) -> tuple[ContentRecord, list[str]]
         version=_text(row.get("version")),
         extra=" ".join(extra),
     )
-    return content, others
+    if game is not None:
+        content.links.append(("atari-legend-game", str(game["id"])))
+        article = context.articles.get(str(game["id"]))
+        if article:
+            content.links.append(("wikipedia", article))
+    elif software is not None and software.get("demozoo_id"):
+        content.links.append(("demozoo", str(software["demozoo_id"])))
+    return content, others, game

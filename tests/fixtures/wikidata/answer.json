@@ -1,0 +1,309 @@
+{
+ "head": {
+  "vars": [
+   "item",
+   "label",
+   "property",
+   "id",
+   "article"
+  ]
+ },
+ "results": {
+  "bindings": [
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q1"
+    },
+    "property": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/prop/direct/P4858"
+    },
+    "id": {
+     "type": "literal",
+     "value": "329"
+    },
+    "article": {
+     "type": "uri",
+     "value": "https://en.wikipedia.org/wiki/Rick_Dangerous"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Rick Dangerous"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q1"
+    },
+    "property": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/prop/direct/P4671"
+    },
+    "id": {
+     "type": "literal",
+     "value": "1234"
+    },
+    "article": {
+     "type": "uri",
+     "value": "https://en.wikipedia.org/wiki/Rick_Dangerous"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Rick Dangerous"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q2"
+    },
+    "property": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/prop/direct/P4858"
+    },
+    "id": {
+     "type": "literal",
+     "value": "360"
+    },
+    "article": {
+     "type": "uri",
+     "value": "https://en.wikipedia.org/wiki/Xenon_2:_Megablast"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Xenon 2: Megablast"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q2"
+    },
+    "property": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/prop/direct/P4846"
+    },
+    "id": {
+     "type": "literal",
+     "value": "77"
+    },
+    "article": {
+     "type": "uri",
+     "value": "https://en.wikipedia.org/wiki/Xenon_2:_Megablast"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Xenon 2: Megablast"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q3"
+    },
+    "property": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/prop/direct/P7683"
+    },
+    "id": {
+     "type": "literal",
+     "value": "lemmings"
+    },
+    "article": {
+     "type": "uri",
+     "value": "https://en.wikipedia.org/wiki/Lemmings_(video_game)"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Lemmings"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q4"
+    },
+    "property": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/prop/direct/P4671"
+    },
+    "id": {
+     "type": "literal",
+     "value": "10"
+    },
+    "article": {
+     "type": "uri",
+     "value": "https://en.wikipedia.org/wiki/Hunter_(1991_video_game)"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Hunter"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q5"
+    },
+    "property": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/prop/direct/P4846"
+    },
+    "id": {
+     "type": "literal",
+     "value": "11"
+    },
+    "article": {
+     "type": "uri",
+     "value": "https://en.wikipedia.org/wiki/Hunter_(video_game)"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Hunter"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q6"
+    },
+    "property": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/prop/direct/P4858"
+    },
+    "id": {
+     "type": "literal",
+     "value": "999"
+    },
+    "article": {
+     "type": "uri",
+     "value": "https://en.wikipedia.org/wiki/Twin_One"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Twin One"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q7"
+    },
+    "property": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/prop/direct/P4858"
+    },
+    "id": {
+     "type": "literal",
+     "value": "999"
+    },
+    "article": {
+     "type": "uri",
+     "value": "https://en.wikipedia.org/wiki/Twin_Two"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Twin Two"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q8"
+    },
+    "property": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/prop/direct/P1234"
+    },
+    "id": {
+     "type": "literal",
+     "value": "5"
+    },
+    "article": {
+     "type": "uri",
+     "value": "https://en.wikipedia.org/wiki/Somewhere_Else"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "Somewhere Else"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q9"
+    },
+    "property": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/prop/direct/P4671"
+    },
+    "id": {
+     "type": "literal",
+     "value": "20"
+    },
+    "article": {
+     "type": "uri",
+     "value": "https://en.wikipedia.org/wiki/The_Chaos_Engine"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q10"
+    },
+    "property": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/prop/direct/P4671"
+    },
+    "id": {
+     "type": "literal",
+     "value": "21"
+    },
+    "article": {
+     "type": "uri",
+     "value": "https://de.wikipedia.org/wiki/Nur_Deutsch"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "German Only"
+    }
+   },
+   {
+    "item": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/entity/Q11"
+    },
+    "property": {
+     "type": "uri",
+     "value": "http://www.wikidata.org/prop/direct/P4671"
+    },
+    "id": {
+     "type": "literal",
+     "value": "22"
+    },
+    "article": {
+     "type": "uri",
+     "value": "https://en.wikipedia.org/wiki/The_Bard%27s_Tale_(1985_video_game)"
+    },
+    "label": {
+     "xml:lang": "en",
+     "type": "literal",
+     "value": "The Bard's Tale"
+    }
+   }
+  ]
+ }
+}

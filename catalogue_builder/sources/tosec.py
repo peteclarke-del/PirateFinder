@@ -17,17 +17,21 @@ Every DAT game becomes part of a ``DiskRecord``:
 - Single-game DATs give one content item per disk: the game, its publisher
   and the crack and trainer groups, with abbreviations expanded through
   data/groups.toml.
+- Each image carries the virus flags of its dump: the virus a "[v Name]"
+  flag names, "virus damage" in a flag such as "[b virus damage]", and the
+  anti-virus or protector boot block a "[m ...]" or "[a ...]" flag names.
 """
 
 from __future__ import annotations
 
 import html
+import io
 import re
 import urllib.parse
 import xml.etree.ElementTree as ElementTree
 import zipfile
 from collections import defaultdict
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO
@@ -56,7 +60,7 @@ INFO = SourceInfo(
     id="tosec",
     name="TOSEC DAT pack",
     url="https://www.tosecdev.org/",
-    licence="TOSEC DAT files, freely distributable",
+    licence="Freely distributed DAT files",
 )
 CONTENT_PRIORITY = 90
 DEFAULT_ENABLED = True
@@ -168,7 +172,7 @@ def collect(ctx: BuildContext) -> Iterator[DiskRecord]:
     RETRIEVED = found.group(1) if found else ""
     wanted = {dat_set.name: dat_set for dat_set in DAT_SETS}
     seen: set[str] = set()
-    for dat_name, version, opener in _dat_files(source):
+    for dat_name, version, opener in dat_files(source):
         dat_set = wanted.get(dat_name)
         if dat_set is None:
             continue
@@ -202,7 +206,6 @@ def _download_pack(ctx: BuildContext) -> Path:
         return ctx.fetch(
             pack_url,
             name=PACK_CACHE_NAME.format(version=version),
-            min_interval=2.0,
             max_age_days=36500,
         )
     except OfflineError:
@@ -213,34 +216,100 @@ def _download_pack(ctx: BuildContext) -> Path:
         return cached[-1]
 
 
-def _dat_files(source: Path) -> Iterator[tuple[str, str, object]]:
-    """(DAT name, DAT version, opener) for every DAT in a pack or folder."""
+def dat_files(source: Path) -> Iterator[tuple[str, str, Callable[[], IO[bytes]]]]:
+    """(DAT name, DAT version, opener) for every DAT in a pack, a folder or a DAT file.
+
+    In a pack only the DATs under ``TOSEC/`` are listed; the name is the DAT
+    file name without its version ("Atari ST - Games - [ST]").
+    """
     if source.is_dir():
-        for path in sorted(source.rglob("*.dat")):
-            found = _DAT_VERSION.match(path.name)
-            name, version = (found["name"], found["version"]) if found else (path.stem, "")
-            yield name, version, (lambda path=path: path.open("rb"))
+        paths = sorted(source.rglob("*.dat"))
+    elif not zipfile.is_zipfile(source):
+        paths = [source]
+    else:
+        with zipfile.ZipFile(source) as archive:
+            for member in archive.namelist():
+                base = member.rsplit("/", 1)[-1]
+                if not base.endswith(".dat") or not member.startswith("TOSEC/"):
+                    continue
+                name, version = _dat_name(base)
+                yield name, version, (lambda member=member: archive.open(member))
         return
-    with zipfile.ZipFile(source) as archive:
-        for member in archive.namelist():
-            base = member.rsplit("/", 1)[-1]
-            if not base.endswith(".dat") or not member.startswith("TOSEC/"):
+    for path in paths:
+        name, version = _dat_name(path.name)
+        yield name, version, (lambda path=path: path.open("rb"))
+
+
+def _dat_name(file_name: str) -> tuple[str, str]:
+    found = _DAT_VERSION.match(file_name)
+    if found:
+        return found["name"], found["version"]
+    return file_name.removesuffix(".dat"), ""
+
+
+# One game of a DAT in the old clrmamepro text format, and the fields of its roms.
+_CMP_GAME = re.compile(
+    r'^game \(\s*\n\s*name "(?P<name>(?:[^"\\]|\\.)*)"(?P<body>.*?)^\)', re.M | re.S
+)
+_CMP_ROM = re.compile(r'rom \( name "(?P<name>(?:[^"\\]|\\.)*)" (?P<fields>.*?)\)\s*$', re.M)
+_CMP_FIELD = re.compile(r"(\w+) (\S+)")
+
+
+def dat_games(handle: IO[bytes]) -> Iterator[tuple[str, list[dict[str, str]]]]:
+    """(game name, the attributes of each of its roms) for every game of a DAT.
+
+    Current DATs are XML (Logiqx), some with a byte order mark; DAT packs
+    before about 2013 hold DATs in the clrmamepro text format, which starts
+    with "clrmamepro (". Both give the rom attributes "name", "size",
+    "crc", "md5" and "sha1".
+    """
+    head = handle.read(64)
+    if not head.lstrip(b"\xef\xbb\xbf \t\r\n").startswith(b"clrmamepro"):
+        stream = io.BufferedReader(_Prefixed(head, handle))
+        for _event, element in ElementTree.iterparse(stream, events=("end",)):
+            if element.tag != "game":
                 continue
-            found = _DAT_VERSION.match(base)
-            name, version = (found["name"], found["version"]) if found else (base[:-4], "")
-            yield name, version, (lambda member=member: archive.open(member))
+            roms = [dict(rom.attrib) for rom in element.iter("rom")]
+            name = element.get("name", "")
+            element.clear()
+            yield name, roms
+        return
+    text = (head + handle.read()).decode("utf-8", errors="replace")
+    for game in _CMP_GAME.finditer(text):
+        roms = []
+        for rom in _CMP_ROM.finditer(game.group("body")):
+            fields = dict(_CMP_FIELD.findall(rom.group("fields")))
+            roms.append({**fields, "name": rom.group("name").replace('\\"', '"')})
+        yield game.group("name").replace('\\"', '"'), roms
+
+
+class _Prefixed(io.RawIOBase):
+    """A stream that gives ``head`` and then the rest of ``handle``."""
+
+    def __init__(self, head: bytes, handle: IO[bytes]) -> None:
+        self._head = head
+        self._handle = handle
+
+    def readable(self) -> bool:
+        return True
+
+    def readinto(self, buffer: bytearray) -> int:
+        if self._head:
+            count = min(len(buffer), len(self._head))
+            buffer[:count] = self._head[:count]
+            self._head = self._head[count:]
+            return count
+        data = self._handle.read(len(buffer))
+        buffer[: len(data)] = data
+        return len(data)
 
 
 def read_dat(ctx: BuildContext, dat_set: DatSet, handle: IO[bytes]) -> Iterator[DiskRecord]:
     """Turn one DAT into disk records, grouped as described in the module notes."""
     entries: list[_Entry] = []
-    for _event, element in ElementTree.iterparse(handle, events=("end",)):
-        if element.tag != "game":
-            continue
-        name = element.get("name", "")
+    for name, roms in dat_games(handle):
         parsed = parse_tosec_name(name)
-        images = [_image(rom, parsed) for rom in element.iter("rom")]
-        element.clear()
+        images = [_image(rom, parsed) for rom in roms]
         entry = _Entry(name, parsed, images, combined=len(split_combined(name)) > 1)
         if dat_set.compilation and not entry.combined:
             entry.match = ctx.series.match(INFO.id, name, dat_set.platform)
@@ -250,7 +319,7 @@ def read_dat(ctx: BuildContext, dat_set: DatSet, handle: IO[bytes]) -> Iterator[
     yield from _records(ctx, dat_set, entries)
 
 
-def _image(rom: ElementTree.Element, parsed: TosecName) -> ImageRecordIn:
+def _image(rom: dict[str, str], parsed: TosecName) -> ImageRecordIn:
     name = rom.get("name", "")
     size = rom.get("size", "")
     return ImageRecordIn(
@@ -262,6 +331,9 @@ def _image(rom: ElementTree.Element, parsed: TosecName) -> ImageRecordIn:
         md5=rom.get("md5", "").lower(),
         sha1=rom.get("sha1", "").lower(),
         bad=parsed.bad,
+        virus=parsed.virus,
+        virus_damage=parsed.virus_damage,
+        antivirus=parsed.antivirus,
     )
 
 
@@ -420,7 +492,11 @@ def _series_record(
         title=_flagless(best.name),
         date=_date(best.parsed.date),
         publisher=best.parsed.publisher,
-        cracker=ctx.groups.expand(" - ".join(dict.fromkeys(crackers))) if crackers else "",
+        cracker=(
+            ctx.groups.expand(" - ".join(dict.fromkeys(crackers)), dat_set.platform)
+            if crackers
+            else ""
+        ),
         contents=_listed_contents(ctx, dat_set, best),
         images=_images(members),
     )
@@ -452,7 +528,7 @@ def _named_record(ctx: BuildContext, dat_set: DatSet, members: list[_Entry]) -> 
         title=title,
         date=_date(parsed.date),
         publisher=parsed.publisher,
-        cracker=ctx.groups.expand(parsed.cracker) if parsed.cracker else "",
+        cracker=ctx.groups.expand(parsed.cracker, dat_set.platform) if parsed.cracker else "",
         contents=contents,
         images=_images(members),
     )
@@ -468,13 +544,13 @@ def _content(ctx: BuildContext, dat_set: DatSet, parsed: TosecName) -> ContentRe
     if parsed.trained:
         trainer = f"{parsed.trainer_count} trainer" if parsed.trainer_count else "trainer"
         if parsed.trainer_group:
-            trainer = f"{trainer} by {ctx.groups.expand(parsed.trainer_group)}"
+            trainer = f"{trainer} by {ctx.groups.expand(parsed.trainer_group, dat_set.platform)}"
         notes.append(trainer.strip())
     return ContentRecord(
         title=display_title(parsed.title),
         kind=dat_set.content_kind,
         publisher=parsed.publisher,
-        cracker=ctx.groups.expand(parsed.cracker) if parsed.cracker else "",
+        cracker=ctx.groups.expand(parsed.cracker, dat_set.platform) if parsed.cracker else "",
         version=parsed.version,
         extra=", ".join(notes),
     )
@@ -486,7 +562,18 @@ GENERIC_WORDS = frozenset(
     {"utility", "utilities", "utils", "tool", "tools", "disk", "disc", "system", "systemdisk"}
     | {"games", "programs", "demos", "board"}
 )
-_OTHERS = re.compile(r"^\d+ others?$", re.IGNORECASE)
+_OTHER_WORDS = frozenset({"other", "others"})
+
+
+def _counted(part: str) -> bool:
+    """True for a count of further releases rather than a title: "2 Others",
+    "4 Games"."""
+    words = normalise(part).split()
+    return (
+        len(words) > 1
+        and words[0].isdigit()
+        and all(word in GENERIC_WORDS or word in _OTHER_WORDS for word in words[1:])
+    )
 
 
 def _joined_contents(dat_set: DatSet, entry: _Entry) -> list[ContentRecord]:
@@ -497,6 +584,8 @@ def _joined_contents(dat_set: DatSet, entry: _Entry) -> list[ContentRecord]:
     Dizzy Diamonds" by Astronut - Wise Man) or a numbered name ("Amiga Games
     9 - Missile & Cosmo") is dropped first. Two titles count only when
     neither contains a generic word, so "Copy & Utility Disk" stays whole.
+    Numbers joined by " & " belong to one title: "Mercenary 1 & 2
+    Collection" is one release and "Repton 1 & 2 & Editor" two.
     """
     title = entry.parsed.title
     head, separator, rest = title.partition(" - ")
@@ -505,8 +594,13 @@ def _joined_contents(dat_set: DatSet, entry: _Entry) -> list[ContentRecord]:
         lead = set(normalise(head).split()) - {"and", "the"}
         if (lead and lead <= crew) or numbered_name(head) is not None:
             title = rest
-    parts = [part.strip() for part in title.split(" & ") if part.strip()]
-    parts = [part for part in parts if not _OTHERS.match(part)]
+    parts: list[str] = []
+    for part in (part.strip() for part in title.split(" & ")):
+        if parts and part[:1].isdigit() and parts[-1][-1:].isdigit():
+            parts[-1] = f"{parts[-1]} & {part}"
+        elif part:
+            parts.append(part)
+    parts = [part for part in parts if not _counted(part)]
     if len(parts) < 2:
         return []
     if len(parts) == 2 and any(GENERIC_WORDS & set(normalise(part).split()) for part in parts):
@@ -533,5 +627,5 @@ def _listed_contents(ctx: BuildContext, dat_set: DatSet, entry: _Entry) -> list[
     return [
         ContentRecord(title=display_title(item.strip()), kind=dat_set.content_kind)
         for item in items
-        if item.strip()
+        if item.strip() and not _counted(item)
     ]

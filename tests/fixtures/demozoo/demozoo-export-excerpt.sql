@@ -2,12 +2,44 @@
 -- Synthetic excerpt in the layout of the Demozoo PostgreSQL export, for PirateFinder tests.
 --
 
+COPY public.demoscene_membership (id, member_id, group_id, is_current, data_source) FROM stdin;
+1	81	70	f	\N
+2	80	70	t	\N
+3	82	10	t	\N
+4	80	90	t	\N
+\.
+
 COPY public.demoscene_nick (id, releaser_id, name, abbreviation, differentiator) FROM stdin;
 1	10	Skid Row	SR	
 2	20	Effect		
 3	30	MvA		
 4	40	Some Group		
 5	50	D-Bug		
+6	60	Automation		
+7	70	The Medway Boys		
+8	90	Windows Crew		
+9	65	Automation		
+\.
+
+COPY public.demoscene_releaser (id, name, is_group, notes, location, country_code) FROM stdin;
+10	Skid Row	t	Formed by [Metallica](https://demozoo.org/sceners/2859/) in **1990**.[^1]\r\n\r\n\r\n[^1]: A cracktro.		
+20	Effect	t			
+30	MvA	t			
+40	Some Group	t			
+50	D-Bug	t	Rose from the ashes of <a href="http://demozoo.org/groups/2157/">Automation</a>.		
+60	Automation	t	The Atari ST menu crew.		
+65	Automation	t	An Amiga demo group of the same name.		
+70	The Medway Boys	t	Started by Wurzel on the C64.		
+80	Wurzel	f	A person.		
+81	Gino	f			
+82	Zodiac	f			
+90	Windows Crew	t	Only Windows.		
+\.
+
+COPY public.demoscene_releaserexternallink (id, link_class, parameter, releaser_id, source) FROM stdin;
+1	WikipediaPage	https://en.wikipedia.org/wiki/Skid_Row_%28warez_group%29	10	\N
+2	WikipediaPage	http://de.wikipedia.org/wiki/Effect	20	\N
+3	PouetGroup	871	10	\N
 \.
 
 COPY public.platforms_platform (id, name, intro_text, photo) FROM stdin;
@@ -24,6 +56,7 @@ COPY public.productions_packmember (id, pack_id, member_id, "position", data_sou
 4	200	202	2	\N
 5	200	203	3	\N
 6	300	301	1	\N
+9	300	302	2	\N
 7	400	401	1	\N
 8	500	501	1	\N
 \.
@@ -32,17 +65,24 @@ COPY public.productions_production (id, title, notes, release_date_date, release
 100	Compact 130		1992-04-17	d	production
 101	Paperboy II +2		\N		production
 102	Project X Mini Trainer		\N		production
-200	Prevail Pack #147		1993-12-01	m	production
+200	Prevail Pack #147	Released at [The Party](https://demozoo.org/parties/1/) in *1993*.<br>Second line &amp; more	1993-12-01	m	production
 201	Merry X-Mas		\N		production
 202	Some Unreleased Chiptunes		\N		production
 203	It's Us Again		\N		production
 300	Crazy\tPack 5	line one\nline two	1990-01-01	y	production
 301	Back\\Slash Intro		\N		production
+302	Back\\Slash Intro		\N		production
 400	Windows Pack 1		\N		production
 401	Some Windows Demo		\N		production
 500	D-BUG CD 193 A		2006-03-08	d	production
 501	The Mindbomb Demo		\N		production
 600	Empty Pack 1		\N		production
+700	Automation CD #155 V2 intro	The menu of **CD 155**.	1990-11-02	d	production
+701	Prevail Pack #148 intro		\N		production
+702	Automation CD #156 intro		\N		production
+703	Compact Menu 001 Intro		1988	y	production
+704	Windows Menu 1 Intro		\N		production
+705	Automation Megademo		\N		production
 \.
 
 COPY public.productions_production_author_nicks (id, production_id, nick_id) FROM stdin;
@@ -51,6 +91,13 @@ COPY public.productions_production_author_nicks (id, production_id, nick_id) FRO
 3	200	3
 4	300	4
 5	500	5
+6	700	6
+7	701	2
+8	702	4
+9	703	7
+10	704	8
+11	400	8
+12	705	9
 \.
 
 COPY public.productions_production_platforms (id, production_id, platform_id) FROM stdin;
@@ -61,6 +108,17 @@ COPY public.productions_production_platforms (id, production_id, platform_id) FR
 5	400	1
 6	500	9
 7	600	5
+8	700	9
+9	701	5
+10	702	9
+11	703	9
+12	704	1
+13	101	5
+14	201	5
+15	301	6
+16	302	6
+17	705	5
+18	705	6
 \.
 
 COPY public.productions_production_types (id, production_id, productiontype_id) FROM stdin;
@@ -78,6 +136,13 @@ COPY public.productions_production_types (id, production_id, productiontype_id) 
 12	500	9
 13	501	1
 14	600	9
+15	700	13
+16	701	4
+17	702	4
+18	703	13
+19	704	4
+20	302	13
+21	705	1
 \.
 
 COPY public.productions_productiontype (id, name, path, depth, numchild, "position", internal_name) FROM stdin;
@@ -87,5 +152,20 @@ COPY public.productions_productiontype (id, name, path, depth, numchild, "positi
 14	Music	000D	1	1	3	music
 29	Tracked Music	000D0006	2	0	1	tracked-music
 9	Pack	000F	1	0	4	pack
+\.
+
+COPY public.productions_screenshot (id, production_id, original_url, original_width, original_height, thumbnail_url, thumbnail_width, thumbnail_height, standard_url, standard_width, standard_height, source_download_id, data_source, janeway_id, janeway_suffix) FROM stdin;
+1	100	https://media.example/o/100.png	640	512	https://media.example/t/100.png	200	160	https://media.example/s/100.png	400	320	\N	\N	\N	\N
+2	101	https://media.example/o/101.png	320	256	https://media.example/t/101.png	200	160	https://media.example/s/101.png	320	256	\N	\N	\N	\N
+3	200	https://media.example/o/200a.png	320	256			\N		\N	\N	\N	\N	\N	\N
+4	200	https://media.example/o/200b.png	640	512	https://media.example/t/200b.png	200	160	https://media.example/s/200b.png	400	320	\N	\N	\N	\N
+5	400	https://media.example/o/400.png	640	480	https://media.example/t/400.png	200	150	https://media.example/s/400.png	400	300	\N	\N	\N	\N
+6	700	https://media.example/o/700.png	320	200	https://media.example/t/700.png	200	125	https://media.example/s/700.png	320	200	\N	\N	\N	\N
+7	201	https://media.example/o/201.png	320	256	https://media.example/t/201.png	200	160	https://media.example/s/201.png	320	256	\N	\N	\N	\N
+9	200	https://media.example/o/200c.png	320	256			\N	https://media.example/s/200c.png	320	256	\N	\N	\N	\N
+10	200	https://media.example/o/200d.png	320	256			\N	https://media.example/s/200d.png	320	256	\N	\N	\N	\N
+11	301	https://media.example/o/301.png	320	256			\N		\N	\N	\N	\N	\N	\N
+12	302	https://media.example/o/302.png	320	256			\N		\N	\N	\N	\N	\N	\N
+8	201	https://media.example/o/201b.png	320	256	https://media.example/t/201b.png	200	160	https://media.example/s/201b.png	320	256	\N	\N	\N	\N
 \.
 

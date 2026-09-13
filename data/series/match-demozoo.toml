@@ -5,6 +5,12 @@
 # "Skid Row Compact 130", "Effect Prevail Pack 147" or "D-Bug D-BUG CD 193 A".
 # A pack no pattern claims is also tried against the declared series names
 # when its title ends in a number and the series belongs to the same group.
+#
+# Menu intros are matched the same way, with the trailing "intro" or
+# "cracktro" taken off the title: "Automation CD #198 intro" by Automation is
+# tried as "Automation Automation CD #198". Only a match to a "menu" series
+# counts for an intro. The rules at the end of this file are for crews whose
+# menu titles the name fallback cannot read.
 
 # ----------------------------------------------------------------------------
 # Amiga
@@ -84,7 +90,7 @@ patterns = ['^(?:Savage|Intuition) Crystal Pack #?0*(?P<number>\d+)$']
 [[match]]
 series = "d-bug"
 source = "demozoo"
-patterns = ['^D-Bug D-BUG CD 0*(?P<number>\d+)(?: (?P<part>[A-Z]))?$']
+patterns = ['^D-Bug D-BUG CD 0*(?P<number>\d+)(?: (?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
 
 [[match]]
 series = "persistence-of-vision"
@@ -140,3 +146,97 @@ patterns = ['^Adrenalin UK Public Domain CD #0*(?P<number>\d+)$']
 series = "serenade"
 source = "demozoo"
 patterns = ['^Serenade PD Disk 0*(?P<number>\d+)(?: V(?P<version>\d+))?$']
+
+# ----------------------------------------------------------------------------
+# Atari ST menu intros
+# ----------------------------------------------------------------------------
+
+[[match]]
+series = "medway-boys"
+source = "demozoo"
+patterns = ['(?:^|& )The Medway Boys(?: & [^&]+?)* Compact Menu #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "pure-energy"
+source = "demozoo"
+patterns = ['(?:^|& )Pure Energy(?: & [^&]+?)* Compact Disk #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "gravatics"
+source = "demozoo"
+patterns = ['(?:^|& )Gravatics(?: & [^&]+?)* Menu #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "federation-of-free-traders"
+source = "demozoo"
+patterns = ['(?:^|& )Federation Of Free Traders(?: & [^&]+?)* FOFT Menu #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "cheshire-cats"
+source = "demozoo"
+patterns = ['(?:^|& )The Cheshire Cats(?: & [^&]+?)* Menu Number #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "euroswap"
+source = "demozoo"
+patterns = ['(?:^|& )Euroswap(?: & [^&]+?)* Euroswap CD #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "lemmings"
+source = "demozoo"
+patterns = ['(?:^|& )The Lemmings(?: & [^&]+?)* Menu #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "guardians-of-logik"
+source = "demozoo"
+patterns = ['(?:^|& )Guardians Of Logik(?: & [^&]+?)* Menu #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "adrenalin-uk"
+source = "demozoo"
+patterns = ['(?:^|& )Adrenalin UK(?: & [^&]+?)* Compact Disc #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "shaolin-masters"
+source = "demozoo"
+patterns = ['(?:^|& )Shaolin Masters(?: & [^&]+?)* Menu Disk #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "timelords"
+source = "demozoo"
+patterns = ['(?:^|& )The Timelords(?: & [^&]+?)* Menu #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "wild"
+source = "demozoo"
+patterns = ['(?:^|& )Wild!(?: & [^&]+?)* Compact Disc #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "new-order"
+source = "demozoo"
+patterns = ['(?:^|& )New Order(?: & [^&]+?)* New Order CD #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "alliance"
+source = "demozoo"
+patterns = ['(?:^|& )The Alliance(?: & [^&]+?)* Menu #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "awesome"
+source = "demozoo"
+patterns = ['(?:^|& )Awesome(?: & [^&]+?)* Awesome CD #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "crazy-boy"
+source = "demozoo"
+patterns = ['(?:^|& )Crazy Boy(?: & [^&]+?)* CD ?# ?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "reanimators"
+source = "demozoo"
+patterns = ['(?:^|& )The Reanimators(?: & [^&]+?)* Compact Disc #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']
+
+[[match]]
+series = "dream-weavers"
+source = "demozoo"
+patterns = ['(?:^|& )Dreamweavers(?: & [^&]+?)* Menu #?0*(?P<number>\d+)(?: (?:Part )?(?P<part>[A-Z]))?(?: \(?V(?P<version>\d+)\)?)?$']

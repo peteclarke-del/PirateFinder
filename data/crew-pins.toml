@@ -1,0 +1,93 @@
+# Which crew a crew name stands for, where a source knows several crews of
+# that name on one platform.
+#
+# Crew names are not unique: Demozoo knows two Amiga groups called Paradox
+# and three called Phoenix. When a disk's own records do not say which crew
+# made it, the catalogue builder (catalogue_builder/merge.py, _Crews) takes
+# the crew pinned here for the name and platform; failing that, the crew
+# with most of the releases the source credits to all crews of that name on
+# that platform, when it has at least "dominant_share" of them and at least
+# "dominant_releases"; failing that, no history from that source at all,
+# because a wrong history is worse than none.
+#
+# A pin gives the crew name as the disks carry it (compared as crew names
+# are: without "The", case or apostrophes), the platform, the source and the
+# source's own id for the crew. Each pin says why it is right. A pin that
+# chooses no crew in a build is logged, so a stale one is noticed.
+
+dominant_share = 0.9
+dominant_releases = 10
+
+# Demozoo group 44901 is the German Amiga cracking group of 1989 to 1991;
+# group 104491 is a Swedish BBS group formed in late 1994. Every Amiga disk
+# credited to Supreme is dated 1988 to 1990.
+[[pin]]
+name = "Supreme"
+platform = "amiga"
+source = "demozoo"
+id = "44901"
+
+# Demozoo group 14754 is the German Amiga cracking group of 1991 and 1992;
+# group 8739 is a Polish demo group whose releases date from 1994 to 1998.
+# Every Amiga disk credited to Venture is a single crack dated 1990 to 1992.
+[[pin]]
+name = "Venture"
+platform = "amiga"
+source = "demozoo"
+id = "14754"
+
+# Demozoo group 605 released Amiga packs from 1989 to 1993; group 3259
+# released from 1996 to 2000. Every Amiga disk credited to Network is a
+# pack dated 1990 to 1993.
+[[pin]]
+name = "Network"
+platform = "amiga"
+source = "demozoo"
+id = "605"
+
+# Pins for crews that data/groups.toml names from a Demozoo abbreviation.
+# There the tag was taken to mean exactly one Demozoo group (the one given
+# with it), and most of the disks of the crew name carry that tag, so the
+# same group is their crew here.
+
+# "NMS", the abbreviation of Demozoo group 1855, credits 87 of the 95 Amiga
+# disks of Nemesis (1988 to 1992; the group released 1991 to 1993). The
+# other two groups have 7 releases and 1.
+[[pin]]
+name = "Nemesis"
+platform = "amiga"
+source = "demozoo"
+id = "1855"
+
+# Every Amiga disk of Fusion carries "FSN", the abbreviation of Demozoo
+# group 3120.
+[[pin]]
+name = "Fusion"
+platform = "amiga"
+source = "demozoo"
+id = "3120"
+
+# Every Amiga disk of Tension carries "TSN", the abbreviation of Demozoo
+# group 61329, dated 1994 as that group's releases are.
+[[pin]]
+name = "Tension"
+platform = "amiga"
+source = "demozoo"
+id = "61329"
+
+# Every Amiga disk of The Vikings carries "TVK", the abbreviation of Demozoo
+# group 36729.
+[[pin]]
+name = "The Vikings"
+platform = "amiga"
+source = "demozoo"
+id = "36729"
+
+# Atari Legend lists the Psycho Hacking Force twice: crew 7, with Grazey's
+# history of the group, and crew 177, with no history and Grazey (Phil
+# Graham) as its only member. They are one crew; 7 has the history.
+[[pin]]
+name = "Psycho Hacking Force"
+platform = "atari-st"
+source = "atari-legend"
+id = "7"

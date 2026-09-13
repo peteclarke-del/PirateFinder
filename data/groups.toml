@@ -8,6 +8,10 @@
 #   name            the spelling shown to the user
 #   abbreviations   short tags, matched case-sensitively
 #   aliases         other spellings, matched after normalisation
+#   platforms       where the abbreviations mean this group ("amiga",
+#                   "atari-st"); without it they mean it everywhere. The
+#                   same tag may name one group on the Amiga and another on
+#                   the Atari ST.
 #
 # Only expansions that are well established belong here. A tag that is not
 # listed is shown as the source gives it.
@@ -148,3 +152,776 @@ aliases = ["Syndicate"]
 [[group]]
 name = "Defjam"
 aliases = ["Def Jam"]
+
+
+# Abbreviations taken from Demozoo (the export of September 2026). Each tag
+# below is one that crack and trainer credits (mostly TOSEC names) use on
+# that platform, and that Demozoo gives as the abbreviation of exactly one
+# group with productions on the same platform, where at least three quarters
+# of the dated discs credited to the tag fall within the years of that
+# group's productions there, a year either side allowed. A tag that is also
+# the name of a declared menu series on the platform is left out. Each
+# comment gives the Demozoo group, its years on the platform, and the number
+# and years of the discs that credit the tag.
+
+# demozoo.org/groups/20/, Amiga 1990 to 1994; 8 discs, 1991 to 1993.
+[[group]]
+name = "2000 A.D."
+platforms = ["amiga"]
+abbreviations = ["2KAD"]
+
+# demozoo.org/groups/398/, Amiga 1992 to 2026; 1 disc, 1992.
+[[group]]
+name = "Abyss"
+platforms = ["amiga"]
+abbreviations = ["AYS"]
+
+# demozoo.org/groups/7085/, Amiga 1992 to 1995; 8 discs, 1988 to 1994.
+[[group]]
+name = "Access"
+platforms = ["amiga"]
+abbreviations = ["ACS"]
+
+# demozoo.org/groups/738/, Amiga 1988 to 2026; 6 discs, 1990 to 1992.
+[[group]]
+name = "Alcatraz"
+platforms = ["amiga"]
+abbreviations = ["ATZ"]
+
+# demozoo.org/groups/38327/, Amiga 1987 to 1992; 2 discs, 1991.
+[[group]]
+name = "Amiga Industries"
+platforms = ["amiga"]
+abbreviations = ["AI"]
+
+# demozoo.org/groups/70586/, Amiga 1992 to 1993; 28 discs, 1989 to 1992.
+[[group]]
+name = "Angelica"
+platforms = ["amiga"]
+abbreviations = ["AGL"]
+
+# demozoo.org/groups/1218/, Amiga 1990 to 1996; 64 discs, 1989 to 1996.
+[[group]]
+name = "Anthrox"
+platforms = ["amiga"]
+abbreviations = ["ATX"]
+
+# demozoo.org/groups/94263/, Amiga 1992; 1 disc, 1993.
+[[group]]
+name = "Arctic Image"
+platforms = ["amiga"]
+abbreviations = ["ACE"]
+
+# demozoo.org/groups/58926/, Amiga 1994 to 1995; 5 discs, 1990 to 1994.
+[[group]]
+name = "Avantgarde"
+platforms = ["amiga"]
+abbreviations = ["AVT"]
+
+# demozoo.org/groups/102568/, Amiga 1988; 2 discs, 1988.
+[[group]]
+name = "Binary Code Smashers"
+platforms = ["amiga"]
+abbreviations = ["BCS"]
+
+# demozoo.org/groups/8214/, Amiga 1988 to 1991; 2 discs, 1989 to 1991.
+[[group]]
+name = "Bloodsuckers"
+platforms = ["amiga"]
+abbreviations = ["BS"]
+
+# demozoo.org/groups/95341/, Amiga 1993 to 1995; 1 disc, 1994.
+[[group]]
+name = "Bold And The Beautiful"
+platforms = ["amiga"]
+abbreviations = ["B&B"]
+
+# demozoo.org/groups/1508/, Amiga 1990 to 2015; 1 disc, 1990.
+[[group]]
+name = "Bronx"
+platforms = ["amiga"]
+abbreviations = ["BNX"]
+
+# demozoo.org/groups/27438/, Amiga 1992 to 1994; 25 discs, 1992 to 1994.
+[[group]]
+name = "Comax"
+platforms = ["amiga"]
+abbreviations = ["CMX"]
+
+# demozoo.org/groups/2910/, Amiga 1987 to 1992; 96 discs, 1987 to 1990.
+[[group]]
+name = "Computerbrains Copy Service"
+platforms = ["amiga"]
+abbreviations = ["CCS"]
+
+# demozoo.org/groups/20566/, Amiga 1992 to 1993; 12 discs, 1992 to 1993.
+[[group]]
+name = "Copyright Destroyers Inc."
+platforms = ["amiga"]
+abbreviations = ["CDI"]
+
+# demozoo.org/groups/95505/, Amiga 1987; 3 discs, 1987.
+[[group]]
+name = "Corner Crackware Inc."
+platforms = ["amiga"]
+abbreviations = ["CCW"]
+
+# demozoo.org/groups/18506/, Amiga 1995 to 1996; 20 discs, 1994 to 1996.
+[[group]]
+name = "Corrupt"
+platforms = ["amiga"]
+abbreviations = ["COR"]
+
+# demozoo.org/groups/145012/, Amiga 1987 to 1989; 2 discs, 1988.
+[[group]]
+name = "Cracker Force Nijmegen"
+platforms = ["amiga"]
+abbreviations = ["CFN"]
+
+# demozoo.org/groups/95708/, Amiga 1987 to 1988; 1 disc, 1988.
+[[group]]
+name = "Crackman Crew"
+platforms = ["amiga"]
+abbreviations = ["CRM"]
+
+# demozoo.org/groups/5452/, Amiga 1996 to 1998; 11 discs, 1996.
+[[group]]
+name = "Crux"
+platforms = ["amiga"]
+abbreviations = ["CRX"]
+
+# demozoo.org/groups/1845/, Amiga 1991 to 1994; 18 discs, 1990 to 1994.
+[[group]]
+name = "Decade"
+platforms = ["amiga"]
+abbreviations = ["DCD"]
+
+# demozoo.org/groups/1635/, Amiga 1991 to 1998; 26 discs, 1993 to 1996.
+[[group]]
+name = "Delight"
+platforms = ["amiga"]
+abbreviations = ["DLT"]
+
+# demozoo.org/groups/1984/, Amiga 1993 to 1997; 56 discs, 1993 to 1995.
+[[group]]
+name = "Delirium"
+platforms = ["amiga"]
+abbreviations = ["DLM"]
+
+# demozoo.org/groups/16156/, Amiga 1992 to 1993; 11 discs, 1992 to 1993.
+[[group]]
+name = "Diamonds and Rust"
+platforms = ["amiga"]
+abbreviations = ["D&R"]
+
+# demozoo.org/groups/1079/, Amiga 1991 to 1999; 3 discs, 1992 to 1993.
+[[group]]
+name = "Digital"
+platforms = ["amiga"]
+abbreviations = ["DTL"]
+
+# demozoo.org/groups/7753/, Amiga 1988 to 1990; 1 disc, 1989.
+[[group]]
+name = "Double Density Crew"
+platforms = ["amiga"]
+abbreviations = ["DDC"]
+
+# demozoo.org/groups/874/, Amiga 1988 to 1993; 9 discs, 1989 to 1992.
+[[group]]
+name = "Dual Crew"
+platforms = ["amiga"]
+abbreviations = ["DC"]
+
+# demozoo.org/groups/2930/, Amiga 1988; 6 discs, 1988.
+[[group]]
+name = "Dynamic Systems"
+platforms = ["amiga"]
+abbreviations = ["DNS"]
+
+# demozoo.org/groups/6698/, Amiga 1991 to 1997; 11 discs, 1991 to 1992.
+[[group]]
+name = "Dytec"
+platforms = ["amiga"]
+abbreviations = ["DTC"]
+
+# demozoo.org/groups/54454/, Amiga 1986 to 1988; 17 discs, 1986 to 1988.
+[[group]]
+name = "Electronic Cracking Association"
+platforms = ["amiga"]
+abbreviations = ["ECA"]
+
+# demozoo.org/groups/1862/, Amiga 1990 to 1994; 51 discs, 1989 to 1991.
+[[group]]
+name = "Endless Piracy"
+platforms = ["amiga"]
+abbreviations = ["EP"]
+
+# demozoo.org/groups/1420/, Amiga 1989 to 1994; 6 discs, 1989 to 1992.
+[[group]]
+name = "Energy"
+platforms = ["amiga"]
+abbreviations = ["NRG"]
+
+# demozoo.org/groups/65913/, Amiga 1988 to 1991; 1 disc, 1988.
+[[group]]
+name = "European Software Agency"
+platforms = ["amiga"]
+abbreviations = ["ESA"]
+
+# demozoo.org/groups/10964/, Amiga 1993 to 1999; 6 discs, 1993 to 2000.
+[[group]]
+name = "Faith"
+platforms = ["amiga"]
+abbreviations = ["FTH"]
+
+# demozoo.org/groups/5180/, Amiga 1989 to 1992; 1 disc, 1991.
+[[group]]
+name = "Fraxion"
+platforms = ["amiga"]
+abbreviations = ["FRX"]
+
+# demozoo.org/groups/2981/, Amiga 1991; 4 discs, 1987 to 1991.
+[[group]]
+name = "Fuck Corporate Communction"
+platforms = ["amiga"]
+abbreviations = ["FCC"]
+
+# demozoo.org/groups/48004/, Amiga 1993; 2 discs, 1993.
+[[group]]
+name = "Fuck The Protection"
+platforms = ["amiga"]
+abbreviations = ["FTP"]
+
+# demozoo.org/groups/18661/, Amiga 1989 to 1990; 4 discs, 1989 to 1990.
+[[group]]
+name = "Full Immersion Cracking Association"
+platforms = ["amiga"]
+abbreviations = ["FICA"]
+
+# demozoo.org/groups/3120/, Amiga 1991 to 1993; 30 discs, 1989 to 1992.
+[[group]]
+name = "Fusion"
+platforms = ["amiga"]
+abbreviations = ["FSN"]
+
+# demozoo.org/groups/89070/, Amiga 1987 to 1988; 1 disc, 1988.
+[[group]]
+name = "Happy Cracking Service"
+platforms = ["amiga"]
+abbreviations = ["HCS"]
+
+# demozoo.org/groups/67783/, Amiga 1993 to 1994; 7 discs, 1992 to 1993.
+[[group]]
+name = "Heavy Cool Cracks"
+platforms = ["amiga"]
+abbreviations = ["HCC"]
+
+# demozoo.org/groups/10323/, Amiga 1995 to 1997; 102 discs, 1990 to 1998.
+[[group]]
+name = "Hellfire"
+platforms = ["amiga"]
+abbreviations = ["HF"]
+
+# demozoo.org/groups/28636/, Amiga 1986 to 1992; 36 discs, 1987 to 1992.
+[[group]]
+name = "High Quality Crackings"
+platforms = ["amiga"]
+abbreviations = ["HQC"]
+
+# demozoo.org/groups/719/, Amiga 1990 to 1991; 23 discs, 1989 to 1991.
+[[group]]
+name = "Horizon"
+platforms = ["amiga"]
+abbreviations = ["HZ"]
+
+# demozoo.org/groups/12757/, Amiga 1987 to 1992; 23 discs, 1987 to 1992.
+[[group]]
+name = "Hotline"
+platforms = ["amiga"]
+abbreviations = ["HTL"]
+
+# demozoo.org/groups/7737/, Amiga 1988 to 1989; 23 discs, 1986 to 1988.
+[[group]]
+name = "Inertia"
+platforms = ["amiga"]
+abbreviations = ["INA"]
+
+# demozoo.org/groups/4515/, Amiga 1991 to 1992; 12 discs, 1991.
+[[group]]
+name = "Infinite Perfection"
+platforms = ["amiga"]
+abbreviations = ["IP"]
+
+# demozoo.org/groups/610/, Amiga 1990 to 2025; 3 discs, 1990 to 1995.
+[[group]]
+name = "iNSANE"
+platforms = ["amiga"]
+abbreviations = ["INS"]
+
+# demozoo.org/groups/1555/, Amiga 1987 to 1993; 5 discs, 1989 to 1993.
+[[group]]
+name = "Italian Bad Boys"
+platforms = ["amiga"]
+abbreviations = ["IBB"]
+
+# demozoo.org/groups/2197/, Amiga 1990 to 1992; 16 discs, 1989 to 1993.
+[[group]]
+name = "Italian Cracking Service"
+platforms = ["amiga"]
+abbreviations = ["ICS"]
+
+# demozoo.org/groups/37053/, Amiga 1990 to 1992; 9 discs, 1988 to 1991.
+[[group]]
+name = "Katharsis"
+platforms = ["amiga"]
+abbreviations = ["KTS"]
+
+# demozoo.org/groups/5235/, Amiga 1988 to 2021; 48 discs, 1996 to 1997.
+[[group]]
+name = "Lightforce"
+platforms = ["amiga"]
+abbreviations = ["LFC"]
+
+# demozoo.org/groups/1825/, Amiga 1989 to 1992; 1 disc, 1989.
+[[group]]
+name = "Magnetic Fields"
+platforms = ["amiga"]
+abbreviations = ["MF"]
+
+# demozoo.org/groups/54765/, Amiga 1988 to 1989; 2 discs, 1988 to 1989.
+[[group]]
+name = "Magnificent Force"
+platforms = ["amiga"]
+abbreviations = ["MGF"]
+
+# demozoo.org/groups/2978/, Amiga 1987 to 1989; 11 discs, 1988.
+[[group]]
+name = "Megaforce"
+platforms = ["amiga"]
+abbreviations = ["MFC"]
+
+# demozoo.org/groups/98173/, Amiga 1988; 1 disc, 1988.
+[[group]]
+name = "Motley Crue Team"
+platforms = ["amiga"]
+abbreviations = ["MCT"]
+
+# demozoo.org/groups/1035/, Amiga 1993 to 2026; 28 discs, 1986 to 1995.
+[[group]]
+name = "Mystic"
+platforms = ["amiga"]
+abbreviations = ["MST"]
+
+# demozoo.org/groups/1855/, Amiga 1991 to 1993; 97 discs, 1990 to 1992.
+[[group]]
+name = "Nemesis"
+platforms = ["amiga"]
+abbreviations = ["NMS"]
+
+# demozoo.org/groups/3078/, Amiga 1988 to 1991; 14 discs, 1988 to 1989.
+[[group]]
+name = "North Star"
+platforms = ["amiga"]
+abbreviations = ["NS"]
+
+# demozoo.org/groups/10570/, Amiga 1991 to 1999; 2 discs, 1990.
+[[group]]
+name = "Old Bulls"
+platforms = ["amiga"]
+abbreviations = ["OBS"]
+
+# demozoo.org/groups/2335/, Amiga 1993 to 1997; 14 discs, 1992 to 1994.
+[[group]]
+name = "Outlaws"
+platforms = ["amiga"]
+abbreviations = ["OTL"]
+
+# demozoo.org/groups/52019/, Amiga 1993 to 1997; 4 discs, 1995 to 1996.
+[[group]]
+name = "Over The Top"
+platforms = ["amiga"]
+abbreviations = ["OTT"]
+
+# demozoo.org/groups/95553/, Amiga 1988 to 1989; 5 discs, 1988.
+[[group]]
+name = "Patch Up Boys"
+platforms = ["amiga"]
+abbreviations = ["PUB"]
+
+# demozoo.org/groups/80719/, Amiga 1993; 1 disc, 1993.
+[[group]]
+name = "Plasma Shadow Incorporated"
+platforms = ["amiga"]
+abbreviations = ["PSI"]
+
+# demozoo.org/groups/1434/, Amiga 1994 to 1996; 145 discs, 1994 to 1995.
+[[group]]
+name = "Prestige"
+platforms = ["amiga"]
+abbreviations = ["PSG"]
+
+# demozoo.org/groups/1923/, Amiga 1992 to 1996; 88 discs, 1991 to 1996.
+[[group]]
+name = "Prodigy"
+platforms = ["amiga"]
+abbreviations = ["PDY"]
+
+# demozoo.org/groups/7001/, Amiga 1993 to 1996; 10 discs, 1993 to 1995.
+[[group]]
+name = "Progress"
+platforms = ["amiga"]
+abbreviations = ["PGS"]
+
+# demozoo.org/groups/16206/, Amiga 1988 to 1990; 17 discs, 1987 to 1988.
+[[group]]
+name = "Quoram"
+platforms = ["amiga"]
+abbreviations = ["QRM"]
+
+# demozoo.org/groups/4562/, Amiga 1991 to 1996; 7 discs, 1994.
+[[group]]
+name = "Rednex"
+platforms = ["amiga"]
+abbreviations = ["RNX"]
+
+# demozoo.org/groups/3918/, Amiga 1998 to 2026; 6 discs, 2000.
+[[group]]
+name = "Resistance"
+platforms = ["amiga"]
+abbreviations = ["RSE"]
+
+# demozoo.org/groups/1030/, Amiga 1995 to 2023; 16 discs, 1995 to 1997.
+[[group]]
+name = "Royal"
+platforms = ["amiga"]
+abbreviations = ["RYL"]
+
+# demozoo.org/groups/63629/, Amiga 1988; 3 discs, 1988.
+[[group]]
+name = "Réseau de Distributeurs Associés Parisiens"
+platforms = ["amiga"]
+abbreviations = ["RDAP"]
+
+# demozoo.org/groups/6356/, Amiga 1988 to 1991; 2 discs, 1989.
+[[group]]
+name = "Share and Enjoy"
+platforms = ["amiga"]
+abbreviations = ["SAE"]
+
+# demozoo.org/groups/46362/, Amiga 1990 to 1992; 6 discs, 1990 to 1992.
+[[group]]
+name = "SKiLLiON"
+platforms = ["amiga"]
+abbreviations = ["SKN"]
+
+# demozoo.org/groups/3361/, Amiga 1986 to 2026; 38 discs, 1988 to 1994.
+[[group]]
+name = "Spreadpoint"
+platforms = ["amiga"]
+abbreviations = ["SP"]
+
+# demozoo.org/groups/16489/, Amiga 1993 to 1995; 3 discs, 1993.
+[[group]]
+name = "SubZero Selim Rudi"
+platforms = ["amiga"]
+abbreviations = ["SSR"]
+
+# demozoo.org/groups/58940/, Amiga 1994 to 1997; 19 discs, 1994 to 1996.
+[[group]]
+name = "Sunflex Inc."
+platforms = ["amiga"]
+abbreviations = ["SXI"]
+
+# demozoo.org/groups/59295/, Amiga 1986 to 2026; 3 discs, 1986 to 1987.
+[[group]]
+name = "Swiss Cracking Association"
+platforms = ["amiga"]
+abbreviations = ["SCA"]
+
+# demozoo.org/groups/1859/, Amiga 1989 to 1993; 36 discs, 1988 to 1995.
+[[group]]
+name = "Tarkus Team"
+platforms = ["amiga"]
+abbreviations = ["TT"]
+
+# demozoo.org/groups/75071/, Amiga 1992 to 1994; 13 discs, 1991 to 1994.
+[[group]]
+name = "Technobrains"
+platforms = ["amiga"]
+abbreviations = ["TCB"]
+
+# demozoo.org/groups/22183/, Amiga 1987; 2 discs, 1987 to 1988.
+[[group]]
+name = "Teesside Cracking Service"
+platforms = ["amiga"]
+abbreviations = ["TCS"]
+
+# demozoo.org/groups/61329/, Amiga 1994 to 1995; 5 discs, 1994.
+[[group]]
+name = "Tension"
+platforms = ["amiga"]
+abbreviations = ["TSN"]
+
+# demozoo.org/groups/10109/, Amiga 1990 to 1993; 2 discs, 1992.
+[[group]]
+name = "Terminators"
+platforms = ["amiga"]
+abbreviations = ["TMT"]
+
+# demozoo.org/groups/70004/, Amiga 1989; 1 disc, 1989.
+[[group]]
+name = "The Ballcrackers"
+platforms = ["amiga"]
+abbreviations = ["TBC"]
+
+# demozoo.org/groups/36282/, Amiga 1986 to 1992; 17 discs, 1987 to 1992.
+[[group]]
+name = "The Bitstoppers"
+platforms = ["amiga"]
+abbreviations = ["BST"]
+
+# demozoo.org/groups/89883/, Amiga 1987 to 1988; 1 disc, 1987.
+[[group]]
+name = "The Blade Runners"
+platforms = ["amiga"]
+abbreviations = ["TBR"]
+
+# demozoo.org/groups/96667/, Amiga 1988; 1 disc, 1988.
+[[group]]
+name = "The British Bulldogs"
+platforms = ["amiga"]
+abbreviations = ["TBB"]
+
+# demozoo.org/groups/2870/, Amiga 1991 to 1992; 70 discs, 1989 to 1994.
+[[group]]
+name = "The Company"
+platforms = ["amiga"]
+abbreviations = ["CPY"]
+
+# demozoo.org/groups/5067/, Amiga 1988 to 1992; 3 discs, 1988 to 1991.
+[[group]]
+name = "The Dominators"
+platforms = ["amiga"]
+abbreviations = ["DOM"]
+
+# demozoo.org/groups/57663/, Amiga 1988 to 1989; 1 disc, 1988.
+[[group]]
+name = "The Exceptions"
+platforms = ["amiga"]
+abbreviations = ["EXS"]
+
+# demozoo.org/groups/7736/, Amiga 1987 to 1993; 70 discs, 1986 to 1988.
+[[group]]
+name = "The Kent Team"
+platforms = ["amiga"]
+abbreviations = ["TKT"]
+
+# demozoo.org/groups/14863/, Amiga 1987 to 1988; 4 discs, 1987 to 1989.
+[[group]]
+name = "The Light Circle"
+platforms = ["amiga"]
+abbreviations = ["TLC"]
+
+# demozoo.org/groups/3434/, Amiga 1989 to 1990; 6 discs, 1988 to 1990.
+[[group]]
+name = "The Magic Arts"
+platforms = ["amiga"]
+abbreviations = ["TMA"]
+
+# demozoo.org/groups/71722/, Amiga 1987 to 1994; 12 discs, 1987 to 1994.
+[[group]]
+name = "The Organized Crime"
+platforms = ["amiga"]
+abbreviations = ["TOC"]
+
+# demozoo.org/groups/97260/, Amiga 1990 to 1994; 1 disc, 1991.
+[[group]]
+name = "The Oviesoft Amiga Division"
+platforms = ["amiga"]
+abbreviations = ["TOAD"]
+
+# demozoo.org/groups/97267/, Amiga 1988; 1 disc, 1988.
+[[group]]
+name = "The Power Boys"
+platforms = ["amiga"]
+abbreviations = ["TPB"]
+
+# demozoo.org/groups/2962/, Amiga 1990 to 1991; 8 discs, 1990 to 1991.
+[[group]]
+name = "The Punishers"
+platforms = ["amiga"]
+abbreviations = ["PNS"]
+
+# demozoo.org/groups/1653/, Amiga 1988 to 1990; 22 discs, 1988 to 1991.
+[[group]]
+name = "The Softkiller Crew"
+platforms = ["amiga"]
+abbreviations = ["TSK"]
+
+# demozoo.org/groups/1116/, Amiga 1988 to 1998; 2 discs, 1990 to 1992.
+[[group]]
+name = "The Special Brothers"
+platforms = ["amiga"]
+abbreviations = ["TSB"]
+
+# demozoo.org/groups/78569/, Amiga 1987 to 1988; 6 discs, 1987 to 1988.
+[[group]]
+name = "The Star Frontiers"
+platforms = ["amiga"]
+abbreviations = ["SF"]
+
+# demozoo.org/groups/11473/, Amiga 1989 to 1991; 1 disc, 1989.
+[[group]]
+name = "The Timecircle"
+platforms = ["amiga"]
+abbreviations = ["TTC"]
+
+# demozoo.org/groups/36729/, Amiga 1994; 2 discs, 1994.
+[[group]]
+name = "The Vikings"
+platforms = ["amiga"]
+abbreviations = ["TVK"]
+
+# demozoo.org/groups/53894/, Amiga 1988; 1 disc, 1989.
+[[group]]
+name = "The Wanderer Group"
+platforms = ["amiga"]
+abbreviations = ["TWG"]
+
+# demozoo.org/groups/3229/, Amiga 1987 to 1991; 1 disc, 1990.
+[[group]]
+name = "The Warfalcons"
+platforms = ["amiga"]
+abbreviations = ["TWF"]
+
+# demozoo.org/groups/2904/, Amiga 1992; 31 discs, 1991 to 1992.
+[[group]]
+name = "Thrill Kill Kult"
+platforms = ["amiga"]
+abbreviations = ["TKK"]
+
+# demozoo.org/groups/71628/, Amiga 1991 to 1992; 1 disc, 1992.
+[[group]]
+name = "Thunderloop Productions Inc."
+platforms = ["amiga"]
+abbreviations = ["TLPI"]
+
+# demozoo.org/groups/95792/, Amiga 1994 to 1995; 13 discs, 1994 to 1995.
+[[group]]
+name = "Traders Dream"
+platforms = ["amiga"]
+abbreviations = ["TRD"]
+
+# demozoo.org/groups/102230/, Amiga 1990; 1 disc, 1989.
+[[group]]
+name = "Union Satanik Amiga"
+platforms = ["amiga"]
+abbreviations = ["USA"]
+
+# demozoo.org/groups/156/, Amiga 1988 to 1995; 2 discs, 1990.
+[[group]]
+name = "Vision"
+platforms = ["amiga"]
+abbreviations = ["VSN"]
+
+# demozoo.org/groups/52784/, Amiga 1988; 1 disc, 1988.
+[[group]]
+name = "Warriors of Darkness"
+platforms = ["amiga"]
+abbreviations = ["WOD"]
+
+# demozoo.org/groups/692/, Amiga 1989 to 1995; 33 discs, 1988 to 1996.
+[[group]]
+name = "Zenith"
+platforms = ["amiga"]
+abbreviations = ["ZNT"]
+
+# demozoo.org/groups/3506/, Amiga 1990 to 1991; 1 disc, 1990.
+[[group]]
+name = "Zero Defects"
+platforms = ["amiga"]
+abbreviations = ["ZD"]
+
+# demozoo.org/groups/2145/, Atari ST 1989 to 1996; 4 discs, 1988 to 1990.
+[[group]]
+name = "ACF Design Team"
+platforms = ["atari-st"]
+abbreviations = ["ACF"]
+
+# demozoo.org/groups/37189/, Atari ST 1988; 6 discs, 1987 to 1989.
+[[group]]
+name = "Bavarian Cracking Service"
+platforms = ["atari-st"]
+abbreviations = ["BCS"]
+
+# demozoo.org/groups/31474/, Atari ST 1986 to 1987; 21 discs, 1985 to 1990.
+[[group]]
+name = "Copy Service Stuttgart"
+platforms = ["atari-st"]
+abbreviations = ["CSS"]
+
+# demozoo.org/groups/43813/, Atari ST 1988 to 1989; 4 discs, 1988 to 1989.
+[[group]]
+name = "Cracking Service Munich"
+platforms = ["atari-st"]
+abbreviations = ["CSM"]
+
+# demozoo.org/groups/38417/, Atari ST 1987; 7 discs, 1985 to 1987.
+[[group]]
+name = "Dutch Muggers Association"
+platforms = ["atari-st"]
+abbreviations = ["DMA"]
+
+# demozoo.org/groups/36023/, Atari ST 1993 to 2025; 4 discs, 2006.
+[[group]]
+name = "East Cracking Group"
+platforms = ["atari-st"]
+abbreviations = ["ECG"]
+
+# demozoo.org/groups/42430/, Atari ST 1994; 2 discs, 1993.
+[[group]]
+name = "Jacob's Cream Crackers"
+platforms = ["atari-st"]
+abbreviations = ["JCC"]
+
+# demozoo.org/groups/2227/, Atari ST 1990 to 2026; 1 disc, 1993.
+[[group]]
+name = "Psycho Hacking Force"
+platforms = ["atari-st"]
+abbreviations = ["PHF"]
+
+# demozoo.org/groups/113776/, Atari ST 1988; 3 discs, 1987 to 1989.
+[[group]]
+name = "The Alliance Crew"
+platforms = ["atari-st"]
+abbreviations = ["TAC"]
+
+# demozoo.org/groups/2050/, Atari ST 1988 to 1999; 1 disc, 1989.
+[[group]]
+name = "The Carebears"
+platforms = ["atari-st"]
+abbreviations = ["TCB"]
+
+# demozoo.org/groups/40268/, Atari ST 1988 to 1990; 17 discs, 1988 to 1991.
+[[group]]
+name = "The Deprotecting Association"
+platforms = ["atari-st"]
+abbreviations = ["TDA", "T.D.A."]
+
+# demozoo.org/groups/2265/, Atari ST 1987 to 2013; 4 discs, 1987 to 1989.
+[[group]]
+name = "The Exceptions"
+platforms = ["atari-st"]
+abbreviations = ["TEX"]
+
+# demozoo.org/groups/31563/, Atari ST 1989 to 1990; 69 discs, 1987 to 1993.
+[[group]]
+name = "The Marvellous V8"
+platforms = ["atari-st"]
+abbreviations = ["V8"]
+
+# demozoo.org/groups/31765/, Atari ST 1988 to 1994; 226 discs, 1986 to 1994.
+[[group]]
+name = "The Menacing Cracking Alliance"
+platforms = ["atari-st"]
+abbreviations = ["MCA"]
