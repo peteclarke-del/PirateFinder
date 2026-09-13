@@ -9,8 +9,11 @@ loses its PATH line produces a package that installs cleanly and then fails.
 from __future__ import annotations
 
 import configparser
+import glob
 import re
 import runpy
+import subprocess
+import tempfile
 import tomllib
 import unittest
 import xml.etree.ElementTree as ElementTree
@@ -22,16 +25,54 @@ ROOT = Path(__file__).resolve().parents[1]
 APP_ID = branding.APPLICATION_ID
 DESKTOP_FILE = ROOT / "data" / f"{APP_ID}.desktop"
 METAINFO_FILE = ROOT / "data" / f"{APP_ID}.metainfo.xml"
-ICONS = ROOT / "src" / "piratefinder" / "data" / "icons" / "hicolor"
+PACKAGE = ROOT / "src" / "piratefinder"
+ICONS = PACKAGE / "data" / "icons" / "hicolor"
 COLOUR_ICON = ICONS / "scalable" / "apps" / f"{APP_ID}.svg"
 SYMBOLIC_ICON = ICONS / "symbolic" / "apps" / f"{APP_ID}-symbolic.svg"
 PACKAGING = ROOT / "packaging"
 BUILD_DEB = PACKAGING / "build-deb.sh"
+INSTALL_TEST = PACKAGING / "install-test.sh"
+TARGETS = PACKAGING / "targets.sh"
+WORKFLOWS = ROOT / ".github" / "workflows"
 SVG = "{http://www.w3.org/2000/svg}"
 
 
 def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def target_table() -> dict[str, tuple[str, str, list[str]]]:
+    """The rows of packaging/targets.sh: distribution to image, Python and architectures."""
+    table = re.search(r"^target_table='\n(.*?)^'$", read(TARGETS), re.MULTILINE | re.DOTALL)
+    assert table is not None, "packaging/targets.sh has no target_table"
+    rows = {}
+    for line in table.group(1).splitlines():
+        distro, image, python, *architectures = line.split()
+        rows[distro] = (image, python, architectures)
+    return rows
+
+
+def run_script(*arguments: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["bash", *arguments], capture_output=True, text=True, timeout=60, check=False
+    )
+
+
+def running_target() -> tuple[str, str]:
+    """This machine's distribution token and architecture, as the scripts see them."""
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            '. /etc/os-release && echo "${ID}-${VERSION_ID}" && '
+            "(dpkg --print-architecture 2>/dev/null || echo none)",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    distro, arch = (result.stdout.split() + ["none", "none"])[:2]
+    return distro, arch
 
 
 class DesktopEntryTests(unittest.TestCase):
@@ -111,10 +152,25 @@ class IconTests(unittest.TestCase):
         colours = set(re.findall(r"#[0-9a-fA-F]{3,6}\b", read(SYMBOLIC_ICON)))
         self.assertEqual(colours, {"#2e3436"})
 
-    def test_the_icons_are_package_data(self) -> None:
+
+class PackageDataTests(unittest.TestCase):
+    def test_every_data_file_is_package_data(self) -> None:
+        """Icons, help pictures and virus tables are loaded from the installed package."""
         tool = tomllib.loads(read(ROOT / "pyproject.toml"))["tool"]
         patterns = tool["setuptools"]["package-data"]["piratefinder"]
-        self.assertIn("data/icons/hicolor/*/apps/*", patterns)
+        # setuptools expands each pattern with glob, relative to the package.
+        matched = {
+            name
+            for pattern in patterns
+            for name in glob.glob(pattern, root_dir=PACKAGE, recursive=True)
+        }
+        data = sorted(
+            path.relative_to(PACKAGE).as_posix()
+            for path in (PACKAGE / "data").rglob("*")
+            if path.is_file() and "__pycache__" not in path.parts
+        )
+        self.assertTrue(data)
+        self.assertEqual([name for name in data if name not in matched], [])
 
 
 class LauncherTests(unittest.TestCase):
@@ -198,19 +254,32 @@ class PackageBuilderTests(unittest.TestCase):
             if line.strip() and not line.startswith("#"):
                 self.assertRegex(line, r"^[A-Za-z0-9_.-]+==\S+$")
 
+    def test_the_example_device_reports_the_bundled_host_tools(self) -> None:
+        from piratefinder.ui.fake_backend import HOST_TOOLS, FakeBackend
+
+        version = read(PACKAGING / "greaseweazle-version.txt").strip()
+        self.assertEqual(HOST_TOOLS, version)
+        self.assertEqual(FakeBackend().probe().host_tools, version)
+
     def test_the_control_file_names_the_runtime_dependencies(self) -> None:
-        for dependency in (
-            "python3 (>= 3.12), python3 (<< 3.13)",
-            "python3-gi",
-            "gir1.2-gtk-4.0",
-            "gir1.2-adw-1",
-        ):
-            self.assertIn(dependency, self.builder)
+        depends = re.search(r"^Depends: (.*)$", self.builder, re.MULTILINE)
+        self.assertIsNotNone(depends)
+        self.assertEqual(
+            depends.group(1),
+            "python3 (>= ${target_python}), python3 (<< ${target_python_next}), "
+            "python3-gi, gir1.2-gtk-4.0, gir1.2-adw-1 (>= 1.5)",
+        )
+        self.assertIn("Architecture: ${arch}", self.builder)
         self.assertIn("Recommends: 7zip", self.builder)
         self.assertIn(f"Homepage: {branding.HOMEPAGE}", self.builder)
         self.assertIn(
-            "PirateFinder_${package_version}_ubuntu24.04_${architecture}.deb", self.builder
+            'artifact_name="PirateFinder_${package_version}_${distro}_${arch}.deb"', self.builder
         )
+
+    def test_compiled_modules_are_checked_where_they_are_built_and_installed(self) -> None:
+        modules = "bitarray._bitarray, crcmod._crcfunext, greaseweazle.optimised.optimised"
+        self.assertIn(modules, self.builder)
+        self.assertIn(modules, read(INSTALL_TEST))
 
     def test_documents_installed_by_the_package_exist(self) -> None:
         documents = re.search(r"for document in ([^;]+);", self.builder)
@@ -218,6 +287,96 @@ class PackageBuilderTests(unittest.TestCase):
         for name in documents.group(1).split():
             with self.subTest(document=name):
                 self.assertTrue((ROOT / name).is_file())
+
+
+class TargetTests(unittest.TestCase):
+    """packaging/targets.sh is the one list of distribution releases and architectures."""
+
+    def test_the_releases_python_versions_and_architectures(self) -> None:
+        self.assertEqual(
+            target_table(),
+            {
+                "ubuntu-24.04": ("ubuntu:24.04", "3.12", ["amd64", "arm64", "armhf"]),
+                "debian-13": ("debian:trixie", "3.13", ["amd64", "arm64", "armhf"]),
+            },
+        )
+
+    @staticmethod
+    def resolve(distro: str, arch: str) -> subprocess.CompletedProcess[str]:
+        script = (
+            'source "$1" && resolve_target "$2" "$3" && echo "${target_image}" '
+            '"${target_python}" "${target_python_next}" "${target_platform}"'
+        )
+        return run_script("-c", script, "bash", str(TARGETS), distro, arch)
+
+    def test_each_target_resolves_to_an_image_python_range_and_platform(self) -> None:
+        platforms = {"amd64": "linux/amd64", "arm64": "linux/arm64", "armhf": "linux/arm/v7"}
+        for distro, (image, python, architectures) in target_table().items():
+            major, minor = python.split(".")
+            for arch in architectures:
+                with self.subTest(distro=distro, arch=arch):
+                    result = self.resolve(distro, arch)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(
+                        result.stdout.split(),
+                        [image, python, f"{major}.{int(minor) + 1}", platforms[arch]],
+                    )
+
+    def test_an_unknown_target_is_refused(self) -> None:
+        for distro, arch in (("fedora-40", "amd64"), ("debian-13", "i386"), ("", "")):
+            with self.subTest(distro=distro, arch=arch):
+                result = self.resolve(distro, arch)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn("--distro ubuntu-24.04 --arch amd64|arm64|armhf", result.stderr)
+
+    def test_the_builder_needs_a_supported_distribution(self) -> None:
+        result = run_script(str(BUILD_DEB), "--no-catalogue")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--distro", result.stderr)
+        result = run_script(str(BUILD_DEB), "--distro", "ubuntu-22.04", "--arch", "amd64")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Unsupported target ubuntu-22.04 amd64", result.stderr)
+        result = run_script(str(BUILD_DEB), "--help")
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("--distro DISTRO [--arch ARCH] [--container]", result.stderr)
+
+    def test_a_native_build_refuses_another_release_or_architecture(self) -> None:
+        """Without --container the build stops before it downloads or writes anything."""
+        here = running_target()
+        distro, arch = next(
+            (distro, arch)
+            for distro, (_image, _python, architectures) in target_table().items()
+            for arch in architectures
+            if (distro, arch) != here
+        )
+        with tempfile.TemporaryDirectory() as output:
+            result = run_script(
+                str(BUILD_DEB), "--distro", distro, f"--arch={arch}", "--no-catalogue", output
+            )
+            self.assertEqual(list(Path(output).iterdir()), [])
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"not {distro} {arch}", result.stderr)
+        self.assertIn("--container", result.stderr)
+
+    def test_the_install_test_takes_the_target_from_the_file_name(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            for name, message in (
+                ("piratefinder_0.1.0_amd64.deb", "is not named"),
+                (f"PirateFinder_{__version__}_fedora-40_amd64.deb", "Unsupported target"),
+                (f"PirateFinder_{__version__}_debian-13_riscv64.deb", "Unsupported target"),
+            ):
+                with self.subTest(name=name):
+                    package = Path(folder) / name
+                    package.touch()
+                    result = run_script(str(INSTALL_TEST), str(package))
+                    self.assertEqual(result.returncode, 2)
+                    self.assertIn(message, result.stderr)
+        text = read(INSTALL_TEST)
+        self.assertIn(r"^PirateFinder_([^_]+)_([^_]+)_([^_]+)\.deb$", text)
+        self.assertIn('apt-get install -y -qq "${package}"', text)
+        self.assertIn("/usr/lib/piratefinder/bin/gw info --help", text)
+        self.assertIn("xvfb-run", text)
 
 
 class VersionTests(unittest.TestCase):
@@ -244,24 +403,82 @@ class VersionTests(unittest.TestCase):
 
 class WorkflowTests(unittest.TestCase):
     def test_the_release_workflow_verifies_and_smoke_tests_the_package(self) -> None:
-        workflow = read(ROOT / ".github" / "workflows" / "release.yml")
+        workflow = read(WORKFLOWS / "release.yml")
         for required in (
             "./packaging/check-release-tag.sh",
             "catalogue-",
             "sha256sum --check",
-            "/usr/lib/piratefinder/bin/gw info --help",
-            "SHA256SUMS",
+            "docker/setup-qemu-action@",
+            './packaging/build-deb.sh --container --distro "${DISTRO}" --arch "${ARCH}"',
+            "--catalogue build/catalogue.sqlite dist",
+            "./packaging/install-test.sh --require-catalogue dist/*.deb",
+            "sha256sum -- *.deb > SHA256SUMS",
             "--verify-tag",
+            "needs.catalogue.outputs.tag",
         ):
             self.assertIn(required, workflow)
+
+    def test_the_release_matrix_builds_every_target(self) -> None:
+        workflow = read(WORKFLOWS / "release.yml")
+        distros = re.search(r"^\s+distro: \[(.*)\]$", workflow, re.MULTILINE)
+        arches = re.search(r"^\s+arch: \[(.*)\]$", workflow, re.MULTILINE)
+        self.assertIsNotNone(distros)
+        self.assertIsNotNone(arches)
+        table = target_table()
+        self.assertEqual([name.strip() for name in distros.group(1).split(",")], list(table))
+        for distro, (_image, _python, architectures) in table.items():
+            with self.subTest(distro=distro):
+                self.assertEqual(
+                    [name.strip() for name in arches.group(1).split(",")], architectures
+                )
+        for arch in ("amd64", "arm64", "armhf"):
+            self.assertRegex(workflow, rf"- arch: {arch}\n\s+runner: ubuntu-24\.04")
+
+    def test_the_ci_packages_are_release_targets(self) -> None:
+        workflow = read(WORKFLOWS / "ci.yml")
+        builds = re.findall(r"- distro: (\S+)\n\s+arch: (\S+)\n", workflow)
+        self.assertIn(("ubuntu-24.04", "amd64"), builds)
+        table = target_table()
+        for distro, arch in builds:
+            with self.subTest(distro=distro, arch=arch):
+                self.assertIn(arch, table[distro][2])
+        self.assertIn("./packaging/build-deb.sh --container", workflow)
+        self.assertIn("./packaging/install-test.sh dist/*.deb", workflow)
+
+    def test_every_script_a_workflow_runs_exists(self) -> None:
+        for workflow in sorted(WORKFLOWS.glob("*.yml")):
+            for script in re.findall(r"\./((?:packaging|tools)/[\w.-]+)", read(workflow)):
+                with self.subTest(workflow=workflow.name, script=script):
+                    self.assertTrue((ROOT / script).is_file())
 
     def test_catalogue_releases_are_never_marked_latest(self) -> None:
         workflow = read(ROOT / ".github" / "workflows" / "catalogue.yml")
         self.assertIn("--latest=false", workflow)
         self.assertNotIn("--prerelease", workflow)
-        self.assertIn("catalogue.sqlite.gz.sha256", workflow)
         self.assertIn('tag="catalogue-$(date --utc +%F)"', workflow)
         self.assertIn("actions/cache@", workflow)
+
+    def test_both_workflows_name_the_catalogue_by_the_layout_the_application_reads(self) -> None:
+        from piratefinder.catalogue.schema import SCHEMA_VERSION
+        from piratefinder.catalogue.update import asset_name
+
+        layout = (
+            "layout=\"$(python3 -c 'from piratefinder.catalogue.schema import SCHEMA_VERSION; "
+            "print(SCHEMA_VERSION)')\""
+        )
+        pattern = 'asset="catalogue-layout${layout}.sqlite.gz"'
+        self.assertEqual(
+            pattern.split('"')[1].replace("${layout}", str(SCHEMA_VERSION)), asset_name()
+        )
+        for name in ("catalogue.yml", "release.yml"):
+            workflow = read(ROOT / ".github" / "workflows" / name)
+            with self.subTest(workflow=name):
+                self.assertIn(layout, workflow)
+                self.assertIn(pattern, workflow)
+                self.assertIn('"${asset}.sha256"', workflow)
+                self.assertNotIn("--pattern catalogue.sqlite.gz", workflow)
+        release = read(ROOT / ".github" / "workflows" / "release.yml")
+        self.assertIn('select(any(.assets[]; .name == \\"${asset}\\"))', release)
 
 
 if __name__ == "__main__":

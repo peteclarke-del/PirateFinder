@@ -1,4 +1,4 @@
-# How the amigascne.org importers recognise series in the archive's file names.
+# How the amigascne importers recognise series in the archive's file names.
 #
 # Patterns are matched, case-insensitively, against "<group folder>/<file
 # name>" without the extension and without dump flags such as "[b]", for

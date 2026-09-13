@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import dataclasses
+import datetime
+import hashlib
+import io
+import json
 import shutil
 import tempfile
 import unittest
 import urllib.parse
+import zipfile
 from pathlib import Path
 from unittest import mock
 
@@ -218,7 +224,188 @@ class CollectTest(unittest.TestCase):
         self.assertIn(
             "internet-archive: atari-st-collection/[Menus].7z: 8 locations", offline.messages
         )
-        self.assertEqual(offline.messages[-1], "internet-archive: 10 locations from 3 sets")
+        self.assertEqual(
+            offline.messages[-1],
+            "internet-archive: 10 locations from 3 sets; 0 with a hash from an old TOSEC DAT, "
+            "1 recognised by a series rule",
+        )
+
+
+# An old DAT in the clrmamepro text format of the 2012 packs.
+OLD_2012 = """clrmamepro (
+\tname "Atari ST - Compilations - Games - [ST]"
+\tdescription "Atari ST - Compilations - Games - [ST] (TOSEC-v2011-08-31)"
+)
+
+game (
+\tname "A-Ha Menu - Eliminator - Nebulus (A-Ha)"
+\trom ( name "A-HA Menu - Eliminator - Nebulus (A-Ha).st" size 737280 crc a23d118d md5 dc44467fdfcea70672c74fa7fb6f7191 sha1 87addd20a56faf4936a25bde29aad507972e165d )
+)
+
+game (
+\tname "Only A CRC (1990)(Crew)"
+\trom ( name "Only A CRC (1990)(Crew).st" size 368640 crc 0badf00d )
+)
+"""
+# A newer DAT, XML with a byte order mark, naming one image differently.
+OLD_2020 = (
+    '\ufeff<?xml version="1.0"?>\n<datafile><game name="x">'
+    '<rom name="A-HA Menu - Eliminator - Nebulus (A-Ha).st" size="737280" crc="11111111" '
+    'md5="22222222222222222222222222222222" sha1="3333333333333333333333333333333333333333"/>'
+    "</game></datafile>"
+)
+
+
+def old_dat(offline: Offline, dat_id: str, released: str, file_name: str, data: bytes):
+    """An OldDat served from the offline cache, with its SHA-1."""
+    url = f"https://dats.example/{urllib.parse.quote(file_name)}"
+    target = offline.ctx.cache_path(url, file_name)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(data)
+    return ia.OldDat(
+        dat_id,
+        datetime.date.fromisoformat(released),
+        url,
+        hashlib.sha1(data).hexdigest(),
+        (ia.re.compile("^Atari ST - Compilations - "),),
+    )
+
+
+def zipped(members: dict[str, str]) -> bytes:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for name, text in members.items():
+            archive.writestr(name, text.encode("utf-8"))
+    return buffer.getvalue()
+
+
+class OldNamesTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.offline = Offline(self)
+        self.dats = [
+            old_dat(
+                self.offline,
+                "2012",
+                "2012-09-15",
+                "pack-2012.zip",
+                zipped(
+                    {
+                        "TOSEC/Atari ST - Compilations - Games - [ST] (TOSEC-v2011-08-31_CM).dat": (
+                            OLD_2012
+                        ),
+                        "TOSEC/Atari ST - Coverdisks (TOSEC-v2011-08-31_CM).dat": OLD_2012.replace(
+                            "A-HA Menu", "Cover Disk"
+                        ),
+                    }
+                ),
+            ),
+            old_dat(
+                self.offline,
+                "2020",
+                "2020-07-29",
+                "Atari ST - Compilations - Games - [ST] (TOSEC-v2020-07-29_CM).dat",
+                OLD_2020.encode("utf-8"),
+            ),
+        ]
+        self.old = ia.OldNames.load(self.offline.ctx, self.dats)
+        self.name = "A-HA Menu - Eliminator - Nebulus (A-Ha).st"
+
+    def test_the_dat_nearest_the_upload_date_is_asked_first(self) -> None:
+        found = self.old.lookup(self.name, datetime.date(2013, 3, 6))
+        self.assertEqual(found, ia.ImageHash("sha1", "87addd20a56faf4936a25bde29aad507972e165d"))
+        found = self.old.lookup(self.name, datetime.date(2021, 11, 5))
+        self.assertEqual(found.value, "3333333333333333333333333333333333333333")
+        # Without an upload date the newest DAT is asked first.
+        self.assertEqual(self.old.lookup(self.name, None).value, found.value)
+
+    def test_only_the_wanted_dats_of_a_pack_are_read_and_names_keep_their_format(self) -> None:
+        self.assertIsNone(self.old.lookup("Cover Disk - Eliminator - Nebulus (A-Ha).st", None))
+        self.assertIsNone(self.old.lookup("A-HA Menu - Eliminator - Nebulus (A-Ha).msa", None))
+
+    def test_a_rom_with_only_a_crc_gives_the_crc_and_the_image_size(self) -> None:
+        found = self.old.lookup("Only A CRC (1990)(Crew).st", datetime.date(2012, 4, 23))
+        self.assertEqual(found, ia.ImageHash("crc32", "0badf00d", 368640))
+        record = ia.location_record(
+            url="https://ia/crc.zip",
+            name="Only A CRC (1990)(Crew).st",
+            platform="atari-st",
+            kind="",
+            item="item",
+            size=1234,
+            priority=25,
+            found=found,
+        )
+        [location] = record.locations
+        self.assertEqual((location.hash_kind, location.hash_value), ("crc32", "0badf00d"))
+        self.assertEqual(location.size, 368640)
+
+    def test_a_dat_with_the_wrong_sha1_is_left_out(self) -> None:
+        wrong = [dataclasses.replace(self.dats[0], sha1="0" * 40)]
+        old = ia.OldNames.load(self.offline.ctx, wrong)
+        self.assertEqual(old.indexes, [])
+        self.assertTrue(any("old DAT 2012 unavailable" in m for m in self.offline.messages))
+
+    def test_archive_members_carry_the_hash_of_their_old_name(self) -> None:
+        self.offline.seed_archive(MENUS, "menus-listing.html")
+        with tempfile.TemporaryDirectory() as folder:
+            metadata = Path(folder) / "menus.json"
+            metadata.write_text(json.dumps({"metadata": {"publicdate": "2019-03-02 10:00:00"}}))
+            self.offline.seed_item(MENUS.item, str(metadata))
+            records = list(ia.archive_records(self.offline.ctx, MENUS, self.old))
+        first = records[0].locations[0]
+        self.assertEqual(first.image_name, self.name)
+        # 2019 is nearer 2020 than 2012.
+        self.assertEqual((first.hash_kind, first.hash_value), ("sha1", "3" * 40))
+        self.assertEqual(records[1].locations[0].hash_value, "")
+
+
+class SeriesRuleTest(unittest.TestCase):
+    def test_a_short_menu_name_becomes_an_attach_only_keyed_record(self) -> None:
+        offline = Offline(self)
+        offline.seed_archive(MENUS, "menus-listing.html")
+        records = list(ia.archive_records(offline.ctx, MENUS))
+        [keyed] = [record for record in records if record.key is not None]
+        self.assertEqual(keyed.key, ("pompey-pirates", 54, "", ""))
+        self.assertTrue(keyed.attach_only)
+        [location] = keyed.locations
+        self.assertEqual((location.image_name, location.hash_value), ("", ""))
+        self.assertTrue(location.url.endswith("%2FPP_054.zip"))
+        self.assertEqual(location.page_url, "https://archive.org/details/atari-st-collection")
+
+    def test_rules_give_parts_and_versions(self) -> None:
+        ctx = Offline(self).ctx
+        cases = {
+            "[Menus]/Z/Zuul/ZUUL032A.zip": ("zuul", 32, "A", ""),
+            "[Menus]/Z/Zuul/ZUUL004vbis.zip": ("zuul", 4, "", "v2"),
+            "[Menus]/F/Fuzion/FUZ024V1.zip": ("fuzion", 24, "", ""),
+            "[Menus]/P/Pompey Pirates/PP_013_2.zip": ("pompey-pirates", 13, "B", ""),
+            "[Menus]/L/Lemmings/TLS02V3A.zip": ("lemmings", 2, "A", "v3"),
+            "[Menus]/W/World's Picture Collection/WPC048B.zip": (
+                "the-world-s-picture-collection",
+                48,
+                "B",
+                "",
+            ),
+        }
+        from catalogue_builder.merge import canonical_key
+
+        for path, key in cases.items():
+            record = ia.series_record(
+                ctx, path=path, url="u", platform="atari-st", item="i", size=None, priority=20
+            )
+            self.assertEqual(canonical_key(record), key, path)
+        # A TOSEC-named zip is left to be placed by its name.
+        self.assertIsNone(
+            ia.series_record(
+                ctx,
+                path="[Menus]/D/Dodgysoft/Dodgysoft Menu 034 (1991)(Dodgysoft).zip",
+                url="u",
+                platform="atari-st",
+                item="i",
+                size=None,
+                priority=20,
+            )
+        )
 
 
 if __name__ == "__main__":

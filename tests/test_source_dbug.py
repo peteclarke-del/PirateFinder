@@ -139,6 +139,38 @@ class DbugTest(unittest.TestCase):
         self.assertEqual(location.hash_value, "")
         self.assertEqual(part_a.links[0][0], "D-Bug")
 
+    def test_menu_screenshots_are_disc_pictures(self) -> None:
+        self.cache_group("Automation", "automation", "automation")
+        self.cache(
+            dbug.search_url("Automation", menu="206"), "automation-206.html", "automation-206.html"
+        )
+        self.cache(
+            dbug.search_url("Automation", menu="250"), "automation-250.html", "automation-250.html"
+        )
+        self.cache_group("D-Bug", "d-bug", "dbug")
+        records = self.records()
+        [picture] = records[("automation", 100, "", "")].media
+        self.assertEqual(picture.url, "https://d-bug.me/gfx/automenugfx/auto100.png")
+        self.assertEqual((picture.kind, picture.rank, picture.source), ("menu", 20, "d-bug"))
+        self.assertEqual(picture.credit, dbug.PICTURE_CREDIT)
+        self.assertEqual(picture.page_url, dbug.search_url("Automation", menu="100"))
+        self.assertEqual(picture.content_title, "")
+        [second] = records[("automation", 100, "", "v2")].media
+        self.assertTrue(second.url.endswith("/auto100v2.png"))
+        # Automation 206 is cut short on the credits page; its picture comes
+        # from the single menu page like its credits.
+        [cut] = records[("automation", 206, "", "")].media
+        self.assertTrue(cut.url.endswith("/auto206.png"))
+        [part_b] = records[("d-bug", 100, "B", "")].media
+        self.assertEqual(part_b.url, "https://d-bug.me/gfx/dbugmenugfx/dbug100b.png")
+
+    def test_a_block_without_a_picture_gives_none(self) -> None:
+        page = (FIXTURES / "dbug-credits.html").read_text(encoding="latin-1")
+        stripped = page.replace('<img src="gfx/dbugmenugfx/dbug101a.png"', "<img")
+        pictures = {entry.header: entry.picture for entry in dbug.parse_results(stripped)}
+        self.assertEqual(pictures["D-Bug CD 101 part A"], "")
+        self.assertEqual(pictures["D-Bug CD 100 part A"], "gfx/dbugmenugfx/dbug100a.png")
+
     def test_doc_entries_become_doc_contents(self) -> None:
         content = dbug._content(
             "<FONT COLOR='x'>Docs:- Simpsons,Utopia<a href=\"newsearch.php?comp=N/A\">"

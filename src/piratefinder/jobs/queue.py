@@ -19,7 +19,9 @@ from pathlib import Path
 from typing import Any
 
 from .. import paths
-from ..models import DiskDetail, LocalFile, Platform, QueueItem, SearchResult
+from ..images.inspect import local_platform
+from ..library.library import local_name
+from ..models import Disk, LocalFile, Platform, QueueItem
 
 QUEUE_FILE = "queue.json"
 MAX_COPIES = 99
@@ -32,54 +34,86 @@ def new_item_id() -> str:
     return uuid.uuid4().hex
 
 
-def item_from_result(result: SearchResult, copies: int = 1) -> QueueItem:
-    """A queue item for a search result: a catalogue disk or an unmatched file."""
-    if result.disk is not None:
-        disk = result.disk
-        return QueueItem(
-            id=new_item_id(),
-            label=disk.label,
-            platform=disk.platform,
-            disk_id=disk.id,
-            copies=max(1, copies),
-        )
-    assert result.local is not None
-    return item_from_local(result.local, copies=copies)
+def clamp_copies(value: int) -> int:
+    """How many floppies to write, from 1 to MAX_COPIES."""
+    return min(max(1, int(value)), MAX_COPIES)
 
 
-def item_from_detail(detail: DiskDetail, image_id: int | None = None, copies: int = 1) -> QueueItem:
-    """A queue item for a disk, optionally for one chosen dump of it."""
-    return QueueItem(
-        id=new_item_id(),
-        label=detail.disk.label,
-        platform=detail.disk.platform,
-        disk_id=detail.disk.id,
-        image_id=image_id,
-        copies=max(1, copies),
-    )
+def copy_labels(item: QueueItem) -> list[str]:
+    """What each floppy written for ``item`` is called: "Crew 1 (copy 2 of 3)" among several."""
+    copies = clamp_copies(item.copies)
+    if copies == 1:
+        return [item.label]
+    return [f"{item.label} (copy {number} of {copies})" for number in range(1, copies + 1)]
 
 
-def item_from_local(
-    local: LocalFile, platform: Platform | None = None, copies: int = 1
+def new_item(
+    label: str,
+    platform: Platform | None,
+    *,
+    disk_id: int | None = None,
+    image_id: int | None = None,
+    local: LocalFile | None = None,
+    copies: int = 1,
+    clean_virus: bool = True,
 ) -> QueueItem:
-    """A queue item for one local image file."""
-    if platform is None:
-        from ..finder import local_platform
-
-        platform = local_platform(local)
-    label = local.display_name or Path(local.member or local.path).name
+    """A new queue item with a fresh id and no outcome; the other builders use this."""
     return QueueItem(
         id=new_item_id(),
         label=label,
         platform=platform,
-        disk_id=local.disk_id,
-        image_id=local.image_id,
+        disk_id=disk_id,
+        image_id=image_id,
         local=local,
-        copies=max(1, copies),
+        copies=clamp_copies(copies),
+        clean_virus=clean_virus,
     )
 
 
-def _item_key(item: QueueItem) -> tuple[str, ...]:
+def item_from_disk(
+    disk: Disk, image_id: int | None = None, *, copies: int = 1, clean_virus: bool = True
+) -> QueueItem:
+    """A queue item for a catalogue disk: its best dump, or ``image_id`` when one is chosen."""
+    return new_item(
+        disk.label,
+        disk.platform,
+        disk_id=disk.id,
+        image_id=image_id,
+        copies=copies,
+        clean_virus=clean_virus,
+    )
+
+
+def item_from_local(local: LocalFile, copies: int = 1) -> QueueItem:
+    """A queue item for one local image file, with the platform its format says."""
+    return new_item(
+        local_name(local),
+        local_platform(local),
+        disk_id=local.disk_id,
+        image_id=local.image_id,
+        local=local,
+        copies=copies,
+    )
+
+
+def fresh_copy(item: QueueItem) -> QueueItem:
+    """The same disk or file as a new queue item with no outcome, for Retry Failed."""
+    return new_item(
+        item.label,
+        item.platform,
+        disk_id=item.disk_id,
+        image_id=item.image_id,
+        local=item.local,
+        copies=item.copies,
+        clean_virus=item.clean_virus,
+    )
+
+
+def queue_key(item: QueueItem) -> tuple[str, ...]:
+    """What makes two queue items the same entry: the disk, else the local file.
+
+    The queue holds each key once, whichever dump of the disk was chosen.
+    """
     if item.disk_id is not None:
         return ("disk", str(item.disk_id))
     if item.local is not None:
@@ -97,6 +131,7 @@ def item_to_dict(item: QueueItem) -> dict[str, Any]:
         "image_id": item.image_id,
         "local": _local_to_dict(item.local) if item.local is not None else None,
         "copies": item.copies,
+        "clean_virus": item.clean_virus,
         "notes": list(item.notes),
     }
 
@@ -108,7 +143,6 @@ def item_from_dict(data: dict[str, Any]) -> QueueItem | None:
         local = _local_from_dict(data["local"]) if data.get("local") else None
         disk_id = data.get("disk_id")
         image_id = data.get("image_id")
-        copies = int(data.get("copies", 1))
         item = QueueItem(
             id=str(data.get("id") or new_item_id()),
             label=str(data["label"]),
@@ -116,7 +150,8 @@ def item_from_dict(data: dict[str, Any]) -> QueueItem | None:
             disk_id=int(disk_id) if disk_id is not None else None,
             image_id=int(image_id) if image_id is not None else None,
             local=local,
-            copies=min(max(1, copies), MAX_COPIES),
+            copies=clamp_copies(data.get("copies", 1)),
+            clean_virus=bool(data.get("clean_virus", True)),
             notes=[str(note) for note in data.get("notes", [])],
         )
     except (KeyError, TypeError, ValueError):
@@ -167,8 +202,8 @@ class WriteQueue:
     def add(self, item: QueueItem) -> bool:
         """Append ``item`` unless its disk or file is already queued; True when added."""
         with self._lock:
-            key = _item_key(item)
-            if any(_item_key(existing) == key for existing in self._items):
+            key = queue_key(item)
+            if any(queue_key(existing) == key for existing in self._items):
                 return False
             self._items.append(item)
         self._changed()
@@ -178,9 +213,9 @@ class WriteQueue:
         """Append several items, skipping duplicates; return how many were added."""
         added = 0
         with self._lock:
-            keys = {_item_key(existing) for existing in self._items}
+            keys = {queue_key(existing) for existing in self._items}
             for item in items:
-                key = _item_key(item)
+                key = queue_key(item)
                 if key in keys:
                     continue
                 keys.add(key)
@@ -212,12 +247,12 @@ class WriteQueue:
         self._changed()
 
     def set_copies(self, item_id: str, copies: int) -> None:
-        """Set how many floppies to write for one item, from 1 to 99."""
+        """Set how many floppies to write for one item, from 1 to MAX_COPIES."""
         with self._lock:
             item = next((item for item in self._items if item.id == item_id), None)
             if item is None:
                 return
-            item.copies = min(max(1, int(copies)), MAX_COPIES)
+            item.copies = clamp_copies(copies)
         self._changed()
 
     def clear(self) -> None:
@@ -267,9 +302,9 @@ class WriteQueue:
         keys: set[tuple[str, ...]] = set()
         for record in records if isinstance(records, list) else []:
             item = item_from_dict(record) if isinstance(record, dict) else None
-            if item is None or _item_key(item) in keys:
+            if item is None or queue_key(item) in keys:
                 continue
-            keys.add(_item_key(item))
+            keys.add(queue_key(item))
             items.append(item)
         self._items = items
 

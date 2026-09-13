@@ -1,0 +1,85 @@
+# Atari ST boot sector virus signatures, read by piratefinder.images.virus.
+#
+# A signature is the SHA-1 of a stretch of the virus code: `length` bytes
+# starting at `offset` in the 512-byte boot sector. It never covers the whole
+# sector, because the branch, OEM text, serial number and disk parameters in
+# the first 30 bytes and the checksum word at the end differ from disk to
+# disk, and it leaves out the bytes a virus changes as it spreads.
+#
+# Only executable boot sectors (word sum 0x1234) are checked. A match makes
+# the sector removable when its disk parameters describe the image: the code
+# area is cleared and the sector made non-executable. A match on a sector
+# that is not executable, or whose opening branch lands on a return, is an
+# inactive copy and is reported as such.
+#
+# The windows were taken from the reference sectors in the freeware ST
+# anti-virus programs The Killer 2.0 (KILLER.DAT) and Xtermine 0.2 / The
+# Exorcist (EXORCIST.LIB), and from boot sectors kept with published ST
+# sources. Each is a fact about the virus code; no virus code is stored here.
+# Checked against 5,188 menu and compilation disk images: the Ghost window
+# finds every Ghost infection among them and no other sector, and no window
+# matches an immuniser or a TOS boot loader.
+
+[[signature]]
+name = "Ghost"
+offset = 0x1E
+length = 66
+sha1 = "0fe84e3489f1a5152858d45b297a645952634151"
+source = "Install code of the Ghost boot sector in GHOST.VIR (Gen&Wax Visual Assembler sources); the same in GhostKiller 1.0 (Rick ST, 1993), The Killer 2.0 and Xtermine 0.2"
+note = "Ghost stays in memory across a reset and copies itself to every disk inserted; after a number of copies it reverses the vertical mouse movement."
+
+[[signature]]
+name = "Signum/BPL"
+offset = 0x3A
+length = 140
+sha1 = "736ba024758efa0f64c6037e07ac76d1bbdcdd05"
+source = "Reference sector in The Killer 2.0 and Xtermine 0.2"
+note = "It hooks the hdv_bpb disk vector and writes itself to the boot sector of each disk the computer reads afterwards."
+
+[[signature]]
+name = "Kobold #2"
+offset = 0x34
+length = 194
+sha1 = "f357c5eac6deca6c264ce07acec093bba4a30911"
+source = "Reference sector in The Killer 2.0 and Xtermine 0.2"
+note = "It stays in memory across a reset and hooks the hdv_bpb disk vector to reach other disks."
+
+[[signature]]
+name = "OLI"
+offset = 0x3C
+length = 160
+sha1 = "4f4f39f41336fd08a865b552f0c9db25fb065269"
+source = "Reference sector in The Killer 2.0 and Xtermine 0.2"
+note = "It hooks the hdv_rw disk vector, through which every sector read and write passes."
+
+[[signature]]
+name = "Mad"
+offset = 0x1E
+length = 150
+sha1 = "32bada2dca3e8827513e4c29a4af065ae9403617"
+source = "Reference sector in The Killer 2.0 and Xtermine 0.2"
+note = "It hooks the hdv_rw disk vector and disturbs the screen display."
+
+[[signature]]
+name = "C'T"
+offset = 0x1E
+length = 146
+sha1 = "8e762ac7d6a843c07a9c0ffc9f9181badfe385a6"
+source = "Reference sector in The Killer 2.0 and Xtermine 0.2"
+note = "It hooks the hdv_bpb and hdv_mediach disk vectors and writes boot sectors through the BIOS."
+
+[[signature]]
+name = "Blot/Swiss/FAT"
+offset = 0x20
+length = 160
+sha1 = "96e2ab713311dce1eb1369a872a1493f5b2d7a27"
+source = "Reference sector in The Killer 2.0 and Xtermine 0.2"
+note = "It stays in memory across a reset and hooks the hdv_bpb disk vector to reach other disks."
+
+[[signature]]
+name = "Toubab"
+offset = 0x24
+length = 68
+sha1 = "034735d5795366fe75fc95b1c8da246565cc11ea"
+source = "Boot sector GREEN.VIR in the Gen&Wax Visual Assembler sources, signed by its author Toubab (1990)"
+note = "It stays in memory across a reset, hooks the hdv_bpb disk vector to copy itself to other disks, and swaps two screen colours after every 19 copies."

@@ -1,0 +1,93 @@
+# Atari ST boot sector virus markers, read by piratefinder.images.virus.
+#
+# A boot virus looks for a value of its own at a fixed place in a boot
+# sector to tell whether a disk is already infected; an immuniser writes the
+# same value there so the virus leaves the disk alone. These are those
+# values, as offset, size in bytes and value, from the recognition data in
+# appendix A of the Ultimate Virus Killer book by Richard Karsmakers. Only
+# the numbers are used; the book's text is not reproduced.
+#
+# A marker is secondary evidence. It flags a boot sector only when:
+#   - the sector is executable (word sum 0x1234), is not an immuniser or a
+#     TOS boot loader, and matches no virus signature;
+#   - every entry for the virus holds (a virus with two entries needs both);
+#   - no other virus's markers hold as well, since an immunised sector
+#     carries the markers of several viruses at once;
+#   - the code shows at least one of the code patterns in indicators.toml.
+# The report then says "probably" and the sector is never cleaned, because
+# the virus code itself has not been identified.
+#
+# `tier` must be "reliable" for an entry to be used. Markers of one byte or
+# a single word (such as 0.B $60, 0.W $6038 or 0.W $601C, which most
+# immunisers and many boot sectors start with) collide with ordinary boot
+# sectors and are left out. Each marker kept here was checked against the
+# 2,075 distinct executable boot sectors of 5,188 menu and compilation disk
+# images: under the rules above none of them is flagged. Goblin, P.M.S. and
+# Puke B each occur in 61 of them, all written by UVK immunisation, which
+# stores the three values together. Grim Reaper's word at 0x3A alone occurs
+# in 30, eight of them menu and demo boot sectors that use disk functions
+# (and one a Signum infection), so both of its words are required.
+
+[[marker]]
+name = "Goblin"
+offset = 0x1A2
+size = 4
+value = 0x27182818
+tier = "reliable"
+source = "UVK book appendix A, boot sector virus 19"
+
+[[marker]]
+name = "Evil"
+offset = 0x0
+size = 4
+value = 0x60380666
+tier = "reliable"
+source = "UVK book appendix A, boot sector virus 25"
+
+[[marker]]
+name = "P.M.S."
+offset = 0x1B4
+size = 4
+value = 0x2A2A2A20
+tier = "reliable"
+source = "UVK book appendix A, boot sector virus 26"
+
+[[marker]]
+name = "Puke B"
+offset = 0x19E
+size = 4
+value = 0x70756B65
+tier = "reliable"
+source = "UVK book appendix A, boot sector virus 35"
+
+[[marker]]
+name = "Grim Reaper"
+offset = 0x0
+size = 2
+value = 0x6A38
+tier = "reliable"
+source = "UVK book appendix A, boot sector virus 42 (first of two words, both required)"
+
+[[marker]]
+name = "Grim Reaper"
+offset = 0x3A
+size = 2
+value = 0x41FA
+tier = "reliable"
+source = "UVK book appendix A, boot sector virus 42 (second of two words, both required)"
+
+[[marker]]
+name = "Zoch"
+offset = 0x0
+size = 4
+value = 0x5A4F4348
+tier = "reliable"
+source = "UVK book appendix A, boot sector virus 68"
+
+[[marker]]
+name = "Macumba 5.2"
+offset = 0x0
+size = 4
+value = 0xEB909047
+tier = "reliable"
+source = "UVK book appendix A, boot sector virus 88"

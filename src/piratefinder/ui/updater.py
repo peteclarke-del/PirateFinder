@@ -76,7 +76,10 @@ class CatalogueUpdater:
                 on_offer(offer)
 
         def failed(error: BaseException) -> None:
-            self._set(UpdateState("failed", f"Could not check for updates: {error}"))
+            # Never "up to date": the check did not happen.
+            message = f"Could not check for a newer catalogue: {error}"
+            LOG.add("catalogue", message)
+            self._set(UpdateState("failed", message))
 
         run_in_thread(backend.check_for_update, found, failed, name="catalogue-check")
 

@@ -1,0 +1,460 @@
+# How the Internet Archive importer recognises menu disks by their file names.
+#
+# The "[Menus].7z" archive of the atari-st-collection item keeps many menu
+# disks as zips with short names, one folder per crew, for example
+# "[Menus]/P/Pompey Pirates/PP_054.zip". These names are not TOSEC names, so
+# the zips cannot be placed by name; a rule here gives the series, number,
+# part and version instead. The patterns are matched, without case, against
+# the member path without ".zip". A recognised zip only joins a disc another
+# source describes; it never makes a disc of its own.
+#
+# Suffixes follow the crews' own habits: a letter after the number is the
+# part ("ZUUL032A", "med_013a"), "V2" is the second version and "vbis" the
+# second edition ("ZUUL004vbis"); "V1" is the first edition, which the
+# catalogue leaves unversioned.
+#
+# Only crews whose series is declared in data/series are listed; the
+# other folders name series that the TOSEC importer finds by itself, and
+# their zips stay unplaced.
+
+[[match]]
+series = "zuul"
+source = "internet-archive"
+patterns = ['^\[Menus\]/Z/Zuul/ZUUL0*(?P<number>\d+)(?P<part>[A-Z])?(?:v(?P<version>bis))?$']
+
+[[match]]
+series = "flame-of-finland"
+source = "internet-archive"
+patterns = ['^\[Menus\]/F/Flame of Finland & Superior/FOF0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "superior"
+source = "internet-archive"
+patterns = ['^\[Menus\]/F/Flame of Finland & Superior/SUPE0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "fuzion"
+source = "internet-archive"
+patterns = ['^\[Menus\]/F/Fuzion/FUZ0*(?P<number>\d+)(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "pompey-pirates"
+source = "internet-archive"
+# "PP_013_2" is the second disk of menu 13.
+patterns = ['^\[Menus\]/P/Pompey Pirates/PP_0*(?P<number>\d+)_?(?P<part>[A-Z0-9])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "pompey-pirates-krappy-kompact"
+source = "internet-archive"
+patterns = ['^\[Menus\]/P/Pompey Pirates/PPKC_0*(?P<number>\d+)$']
+
+[[match]]
+series = "delicious"
+source = "internet-archive"
+# The Syndicate's Delicious Disks.
+patterns = ['^\[Menus\]/S/SyndiCate/DD0*(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "medway-boys"
+source = "internet-archive"
+patterns = ['^\[Menus\]/M/Medway Boys/med_0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "special-fx"
+source = "internet-archive"
+patterns = ['^\[Menus\]/S/Special FX/SFX0*(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "pure-energy"
+source = "internet-archive"
+patterns = ['^\[Menus\]/P/Pure Energy/PURE0*(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "serenade"
+source = "internet-archive"
+patterns = ['^\[Menus\]/S/Serenade/SERE0*(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "evil-force"
+source = "internet-archive"
+patterns = ['^\[Menus\]/E/Evil Force/EVIL0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "euroswap"
+source = "internet-archive"
+patterns = ['^\[Menus\]/E/Euroswap/EURO0*(?P<number>\d+)$']
+
+[[match]]
+series = "pulsion"
+source = "internet-archive"
+patterns = ['^\[Menus\]/P/Pulsion/PULS0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "supremacy"
+source = "internet-archive"
+patterns = ['^\[Menus\]/S/Supremacy/SUPR0*(?P<number>\d+)_?$']
+
+[[match]]
+series = "impact"
+source = "internet-archive"
+patterns = ['^\[Menus\]/I/Impact/IMPAC0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "lemmings"
+source = "internet-archive"
+# "TLS02V3A" is part A of the third version of menu 2.
+patterns = ['^\[Menus\]/L/Lemmings/TLS0*(?P<number>\d+)(?:V(?P<version>\d+))?(?P<part>[A-Z])?$']
+
+[[match]]
+series = "g-force"
+source = "internet-archive"
+patterns = ['^\[Menus\]/M/Mersey Pirates & G-Force/GFOR0*(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "federation-of-free-traders"
+source = "internet-archive"
+patterns = ['^\[Menus\]/F/Federation Of Free Traders/Federation Of Free Traders Menu Disk 0*(?P<number>\d+)(?P<part>[A-Z])?(?: v(?P<version>\d+))?(?: \([^()]*\))?$']
+
+[[match]]
+series = "awesome"
+source = "internet-archive"
+patterns = ['^\[Menus\]/A/Awesome & Elite/AWSM0*(?P<number>\d+)(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "new-order"
+source = "internet-archive"
+patterns = ['^\[Menus\]/N/New Order/NEWOR0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "reanimators"
+source = "internet-archive"
+patterns = ['^\[Menus\]/R/Reanimators/RAM0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "timewarp"
+source = "internet-archive"
+patterns = ['^\[Menus\]/T/Timewarp/TW0*(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "cheshire-cats"
+source = "internet-archive"
+patterns = ['^\[Menus\]/C/Cheshire Cats, The/TCC0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "neon-lights"
+source = "internet-archive"
+patterns = ['^\[Menus\]/N/Neon Lights/NEON0*(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "klapauzius"
+source = "internet-archive"
+patterns = ['^\[Menus\]/K/Klapauzius/KCD0*(?P<number>\d+)$']
+
+[[match]]
+series = "dodgysoft"
+source = "internet-archive"
+patterns = ['^\[Menus\]/D/Dodgysoft/Dodgysoft Menu 0*(?P<number>\d+)(?P<part>[A-Z])?(?: \([^()]*\))?$']
+
+[[match]]
+series = "eagles"
+source = "internet-archive"
+patterns = ['^\[Menus\]/E/Eagles/EAGLES0*(?P<number>\d+)$']
+
+[[match]]
+series = "timelords"
+source = "internet-archive"
+patterns = ['^\[Menus\]/T/TTC & Timelords/TIMLRD0*(?P<number>\d+)$']
+
+[[match]]
+series = "guardians-of-logik"
+source = "internet-archive"
+patterns = ['^\[Menus\]/G/Guardians of Logik/TGOL0*(?P<number>\d+)$']
+
+[[match]]
+series = "replicants"
+source = "internet-archive"
+patterns = ['^\[Menus\]/R/Replicants/REP0*(?P<number>\d+)(?:_(?P<part>[A-Z]))?$']
+
+[[match]]
+series = "section-one"
+source = "internet-archive"
+patterns = ['^\[Menus\]/S/Section One/SEC1_0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "tumult"
+source = "internet-archive"
+patterns = ['^\[Menus\]/T/Tumult/TUMLT0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "gravatics"
+source = "internet-archive"
+patterns = ['^\[Menus\]/G/Gravatics/GRAV0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "wild"
+source = "internet-archive"
+patterns = ['^\[Menus\]/W/Wild!/WILD0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "northside"
+source = "internet-archive"
+patterns = ['^\[Menus\]/N/Northside/NS0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "quartet"
+source = "internet-archive"
+patterns = ['^\[Menus\]/Q/Quartet/QUART0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "revolution"
+source = "internet-archive"
+patterns = ['^\[Menus\]/R/Revolution/REVOL0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "shaolin-masters"
+source = "internet-archive"
+patterns = ['^\[Menus\]/S/Shaolin Masters/SHAOMA0*(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "shaolin-temple"
+source = "internet-archive"
+patterns = ['^\[Menus\]/S/Shaolin Temple/SHAOTM0*(?P<number>\d+)$']
+
+[[match]]
+series = "dream-weavers"
+source = "internet-archive"
+patterns = ['^\[Menus\]/D/Dream Weavers/Dream Weavers Menu Disk 0*(?P<number>\d+)$']
+
+[[match]]
+series = "x-static"
+source = "internet-archive"
+patterns = ['^\[Menus\]/X/X-Static/XSTA0*(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "cynix"
+source = "internet-archive"
+patterns = ['^\[Menus\]/C/Cynix/Cynix Menu Disk 0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "orion"
+source = "internet-archive"
+patterns = ['^\[Menus\]/O/Orion/ORION0*(?P<number>\d+)$']
+
+[[match]]
+series = "nothing-personal"
+source = "internet-archive"
+patterns = ['^\[Menus\]/N/Nothing Personal/NP0*(?P<number>\d+)$']
+
+[[match]]
+series = "sigma"
+source = "internet-archive"
+patterns = ['^\[Menus\]/S/Sigma/SIGMA0*(?P<number>\d+)$']
+
+[[match]]
+series = "tommi-of-finland"
+source = "internet-archive"
+patterns = ['^\[Menus\]/T/Tommi of Finland/TOF0*(?P<number>\d+)(?:V(?P<version>\d+(?:\.\d+)?))?$']
+
+[[match]]
+series = "crack-connexion"
+source = "internet-archive"
+patterns = ['^\[Menus\]/C/Crack Connexion/CRACK0*(?P<number>\d+)$']
+
+[[match]]
+series = "ics"
+source = "internet-archive"
+patterns = ['^\[Menus\]/I/ICS/ICS 0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "safari"
+source = "internet-archive"
+patterns = ['^\[Menus\]/S/Safari/SAFARI0*(?P<number>\d+)$']
+
+[[match]]
+series = "ancient-celts"
+source = "internet-archive"
+patterns = ['^\[Menus\]/A/Ancient Celts/Ancient Celts Menu Disk 0*(?P<number>\d+)$']
+
+[[match]]
+series = "hotline"
+source = "internet-archive"
+patterns = ['^\[Menus\]/H/Hotline/HOTLIN0*(?P<number>\d+)$']
+
+[[match]]
+series = "scottish-cracking-crew"
+source = "internet-archive"
+patterns = ['^\[Menus\]/S/Scottish Cracking Crew/SCC0*(?P<number>\d+)$']
+
+[[match]]
+series = "crazy-boy"
+source = "internet-archive"
+patterns = ['^\[Menus\]/C/Crazy Boy/Crazy Boy 0*(?P<number>\d+)$']
+
+# Menu sets that the Atari Legend importer registers by their set name
+# (data/series/extra-atari-legend-sets.toml declares them for these rules).
+# "\x27" in a pattern is an apostrophe.
+
+[[match]]
+series = "the-world-s-picture-collection"
+source = "internet-archive"
+patterns = ['^\[Menus\]/W/World\x27s Picture Collection/WPC0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "the-midland-boyz"
+source = "internet-archive"
+patterns = ['^\[Menus\]/M/Midland Boyz/MBZ0*(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "tripple-h"
+source = "internet-archive"
+patterns = ['^\[Menus\]/T/Tripple H/TRIP0*(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "eone-less-than-zero"
+source = "internet-archive"
+patterns = ['^\[Menus\]/E/Eone Less Than Zero/EONE0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "now-5"
+source = "internet-archive"
+patterns = ['^\[Menus\]/N/Now 5/NOW5_0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "the-deliverance"
+source = "internet-archive"
+patterns = ['^\[Menus\]/D/Deliverance/THEDEL0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "the-radical-bandits"
+source = "internet-archive"
+patterns = ['^\[Menus\]/R/Radical Bandits/TRB0*(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "floppy-copy-crew"
+source = "internet-archive"
+patterns = ['^\[Menus\]/F/Floppy Copy Crew/FCC0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "mars-disc"
+source = "internet-archive"
+patterns = ['^\[Menus\]/M/Mars Disc/MARS0*(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "lowlife"
+source = "internet-archive"
+patterns = ['^\[Menus\]/L/Lowlife/LOW0*(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "ecg-s-fake-orgasm"
+source = "internet-archive"
+patterns = ['^\[Menus\]/E/ECG\x27s Fake Orgasm/FAKE0*(?P<number>\d+)$']
+
+[[match]]
+series = "the-public-enemies"
+source = "internet-archive"
+patterns = ['^\[Menus\]/P/Public Enemies/TPS0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "the-fallen-angels"
+source = "internet-archive"
+patterns = ['^\[Menus\]/F/Fallen Angels/TFA0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "the-biker"
+source = "internet-archive"
+patterns = ['^\[Menus\]/B/Biker/THEBIK0*(?P<number>\d+)$']
+
+[[match]]
+series = "chaos-krew"
+source = "internet-archive"
+patterns = ['^\[Menus\]/C/Chaos Krew/Chaos Krew 0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "supremacy-of-omni"
+source = "internet-archive"
+patterns = ['^\[Menus\]/S/Supremacy of Omni/SUPO0*(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "fanatics"
+source = "internet-archive"
+patterns = ['^\[Menus\]/F/Fanatics/FNT0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "cobra"
+source = "internet-archive"
+patterns = ['^\[Menus\]/C/Cobra/Cobra Compil 0*(?P<number>\d+)$']
+
+[[match]]
+series = "atomic"
+source = "internet-archive"
+patterns = ['^\[Menus\]/A/Atomic/Atomic Disk 0*(?P<number>\d+)$']
+
+[[match]]
+series = "blues-brothers"
+source = "internet-archive"
+patterns = ['^\[Menus\]/B/Blues Brothers/Blues Bros 0*(?P<number>\d+)(?P<part>[A-Z])?(?:V(?P<version>\d+))?$']
+
+[[match]]
+series = "dirty-tricks-brigade"
+source = "internet-archive"
+patterns = ['^\[Menus\]/D/Dirty Tricks Brigade/Dirty Tricks Brigade 0*(?P<number>\d+)$']
+
+[[match]]
+series = "insanity"
+source = "internet-archive"
+patterns = ['^\[Menus\]/I/Insanity/INSAN0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "syncro-systems"
+source = "internet-archive"
+patterns = ['^\[Menus\]/S/Syncro Systems/SYNCRO0*(?P<number>\d+)$']
+
+[[match]]
+series = "the-mockingbird"
+source = "internet-archive"
+patterns = ['^\[Menus\]/M/Mockingbird/TMBIRD0*(?P<number>\d+)$']
+
+[[match]]
+series = "mysterons"
+source = "internet-archive"
+patterns = ['^\[Menus\]/M/Mysterons/MYSTR0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "out-of-order"
+source = "internet-archive"
+patterns = ['^\[Menus\]/O/Out of Order/OUTOF0*(?P<number>\d+)$']
+
+[[match]]
+series = "electric-blue"
+source = "internet-archive"
+patterns = ['^\[Menus\]/E/Electric Blue/Electric Blue 0*(?P<number>\d+)$']
+
+[[match]]
+series = "mantronix"
+source = "internet-archive"
+patterns = ['^\[Menus\]/M/Mantronix/MANTR0*(?P<number>\d+)$']
+
+[[match]]
+series = "factory"
+source = "internet-archive"
+patterns = ['^\[Menus\]/F/Factory/FACTORY0*(?P<number>\d+)$']
+
+[[match]]
+series = "the-next-generation"
+source = "internet-archive"
+patterns = ['^\[Menus\]/N/Next Generation/TNG0*(?P<number>\d+)(?P<part>[A-Z])?$']
+
+[[match]]
+series = "arakis-zuul"
+source = "internet-archive"
+patterns = ['^\[Menus\]/A/Arakis & Zuul/ARAKIS0*(?P<number>\d+)$']
+
+[[match]]
+series = "share-wares"
+source = "internet-archive"
+patterns = ['^\[Menus\]/S/Share Wares/SHARE0*(?P<number>\d+)$']
+
+[[match]]
+series = "pulse"
+source = "internet-archive"
+patterns = ['^\[Menus\]/P/Pulse/PULSE0*(?P<number>\d+)$']

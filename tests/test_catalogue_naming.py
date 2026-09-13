@@ -10,8 +10,10 @@ from piratefinder.catalogue.naming import (
     normalise,
     parse_tosec_name,
     sort_key,
+    sort_title,
     split_combined,
     tidy_label,
+    title_key,
 )
 
 
@@ -92,6 +94,51 @@ class ParseTosecNameTest(unittest.TestCase):
         )
 
 
+class VirusFlagTest(unittest.TestCase):
+    def test_a_v_flag_names_the_virus(self) -> None:
+        name = parse_tosec_name("Menu 12 (1990)(Crew)[v Saddam 1].adf")
+        self.assertEqual(name.virus, "Saddam 1")
+        self.assertFalse(name.virus_damage)
+        self.assertEqual(parse_tosec_name("Menu 12 (1990)(Crew)[v2 Lamer 2].adf").virus, "Lamer 2")
+        self.assertEqual(parse_tosec_name("Menu 12 (1990)(Crew)[v].adf").virus, "unknown")
+        both = parse_tosec_name("Menu 12 (1990)(Crew)[v Butonic v3.00 - Saddam 1][a].adf")
+        self.assertEqual(both.virus, "Butonic v3.00 - Saddam 1")
+
+    def test_flags_that_only_start_with_v_are_not_viruses(self) -> None:
+        for flag in ("very hard levels", "virus removed", "Vuk & Co.", "Virus only"):
+            with self.subTest(flag=flag):
+                self.assertEqual(parse_tosec_name(f"Game (1990)(Crew)[{flag}].st").virus, "")
+
+    def test_virus_damage_keeps_the_dump_bad(self) -> None:
+        for flag in ("b virus damage", "b corrupt file - virus damage", "b2 virus damage"):
+            with self.subTest(flag=flag):
+                name = parse_tosec_name(f"Game (1990)(Crew)[{flag}].st")
+                self.assertTrue(name.virus_damage)
+                self.assertTrue(name.bad)
+        modified = parse_tosec_name("Game (1990)(Crew)[m virus damage].st")
+        self.assertTrue(modified.virus_damage)
+        self.assertEqual(modified.antivirus, "")
+
+    def test_an_installed_anti_virus_or_protector_is_named(self) -> None:
+        cases = {
+            "m The Medway Boys Protector IV": "The Medway Boys Protector IV",
+            "m Sagrotan antivirus": "Sagrotan antivirus",
+            "a Floppyshop anti-virus": "Floppyshop anti-virus",
+            "m Example Virus Free Boot": "Example Virus Free Boot",
+            "h Virus Free PD": "",  # a hack by a group of that name
+            "m LGD": "",
+        }
+        for flag, expected in cases.items():
+            with self.subTest(flag=flag):
+                self.assertEqual(
+                    parse_tosec_name(f"Game (1990)(Crew)[{flag}].st").antivirus, expected
+                )
+
+    def test_combined_entries_keep_the_flags(self) -> None:
+        name = parse_tosec_name("A (1990)(X)[v SCA] & B (1991)(Y)[m Sagrotan antivirus]")
+        self.assertEqual((name.virus, name.antivirus), ("SCA", "Sagrotan antivirus"))
+
+
 class TextTest(unittest.TestCase):
     def test_normalise(self) -> None:
         self.assertEqual(normalise("Nigel Mansell's Grand Prix"), "nigel mansells grand prix")
@@ -103,6 +150,24 @@ class TextTest(unittest.TestCase):
         self.assertEqual(
             sorted(labels, key=sort_key), ["Automation 9", "Automation 10", "Automation 100"]
         )
+
+    def test_sort_title_ignores_articles_case_and_number_width(self) -> None:
+        self.assertEqual(sort_title("The Chaos Engine"), "chaos engine")
+        self.assertEqual(sort_title("Chaos Engine, The"), "chaos engine")
+        self.assertEqual(sort_title("An American Tail"), "american tail")
+        self.assertEqual(sort_title("A-Ha Menu"), "a ha menu")  # a hyphen is not a space
+        self.assertEqual(sort_title("The"), "the")
+        titles = ["the Zany Disk 10", "Zany disk 9", "apple", "The Apple 2"]
+        self.assertEqual(
+            sorted(titles, key=sort_title),
+            ["apple", "The Apple 2", "Zany disk 9", "the Zany Disk 10"],
+        )
+
+    def test_title_key_leaves_out_brackets_versions_and_the_article_position(self) -> None:
+        self.assertEqual(title_key("Chaos Engine, The (Europe)"), "the chaos engine")
+        self.assertEqual(title_key("The Chaos Engine"), "the chaos engine")
+        self.assertEqual(title_key("Rick Dangerous v1.1 [cr SR]"), "rick dangerous")
+        self.assertEqual(title_key("Spy vs Spy 1 _ 2"), "spy vs spy 1 and 2")
 
     def test_display_title_moves_the_article(self) -> None:
         self.assertEqual(display_title("Chaos Engine, The"), "The Chaos Engine")

@@ -1,0 +1,47 @@
+# The SPS Decoder Library (CAPSImg, libcapsimage) that PirateFinder offers to
+# download for IPF support. It is not shipped with PirateFinder: its licence
+# (CAPSImg-LICENCE.txt beside this file) allows only non-commercial use.
+#
+# The builds are FS-UAE's, made by Frode Solheim from the SPS 5.1 source
+# (https://github.com/FrodeSolheim/capsimg), and published on fs-uae.net. The
+# plugins page (https://fs-uae.net/plugins/) links the 5.1.3 x86-64 archive;
+# the ARM archive of the same release sits beside it in
+# https://fs-uae.net/files/CAPSImg/Stable/5.1.3/. No Linux build exists for
+# 64-bit ARM (aarch64): the archive named ARMv8 holds a 32-bit ARM hard-float
+# library built for ARMv8 processors.
+#
+# Checked on 2026-09-13: each archive was downloaded from the URL below, its
+# SHA-256 and size compared with a copy fetched earlier, and the library inside
+# inspected with readelf (ELF class and machine, soname libcapsimage.so.5).
+# The GitHub release v5.1.2 has the same libraries byte for byte.
+#
+# ``machines`` are the values platform.machine() gives on computers that can
+# run the build; a 32-bit Python on a 64-bit ARM kernel counts as armv8l
+# (greaseweazle/caps.py, machine()). ``member`` is the library's path inside
+# the archive, and ``library_sha256`` and ``library_size`` describe it.
+
+name = "SPS Decoder Library"
+version = "5.1.3"
+licence = "CAPSImg-LICENCE.txt"
+home = "https://fs-uae.net/plugins/"
+source = "https://github.com/FrodeSolheim/capsimg"
+
+[[build]]
+machines = ["x86_64"]
+description = "64-bit PC (x86-64)"
+url = "https://fs-uae.net/files/CAPSImg/Stable/5.1.3/CAPSImg_5.1.3_Linux_x86-64.tar.xz"
+size = 38628
+sha256 = "27b8a150ac4cf2eacf7073d1781a5dc244bbf003cd55a2c34badbf6c7ee99fcb"
+member = "CAPSImg/Linux/x86-64/capsimg.so"
+library_size = 91928
+library_sha256 = "2525d75efcc58a85618f92c6f27d00409c9cbb8bc96b01412534faadfef1275b"
+
+[[build]]
+machines = ["armv7l", "armv8l"]
+description = "32-bit ARM, hard-float, for ARMv8 processors"
+url = "https://fs-uae.net/files/CAPSImg/Stable/5.1.3/CAPSImg_5.1.3_Linux_ARMv8.tar.xz"
+size = 29336
+sha256 = "a1d805589a110453b70d716924ff5185e755445f750a5cec88a90954aef0baad"
+member = "CAPSImg/Linux/ARMv8/capsimg.so"
+library_size = 70848
+library_sha256 = "119bda79344fb3b81a838d3f84e97734c690c155d8ba84e008a987265a0918d8"

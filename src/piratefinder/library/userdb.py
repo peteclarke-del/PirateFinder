@@ -16,12 +16,12 @@ import re
 import sqlite3
 import threading
 import time
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ..models import LocalFile
+from ..models import LocalFile, VirusStatus
 
 
 class UserDatabaseError(RuntimeError):
@@ -116,9 +116,81 @@ MIGRATIONS: tuple[str, ...] = (
         PRIMARY KEY (disk_id, field)
     );
     """,
+    # Version 2: what each image's boot block holds, and files PirateFinder
+    # wrote by removing a boot block virus, which keep the disk they were
+    # made from when they match no catalogue dump.
+    """
+    ALTER TABLE library_files ADD COLUMN boot_status TEXT NOT NULL DEFAULT '';
+    ALTER TABLE library_files ADD COLUMN boot_name TEXT NOT NULL DEFAULT '';
+    CREATE INDEX library_boot ON library_files(boot_status);
+
+    CREATE TABLE cleaned_files (
+        path TEXT PRIMARY KEY,
+        sha1 TEXT NOT NULL,
+        disk_id INTEGER NOT NULL,
+        source_path TEXT NOT NULL DEFAULT '',
+        source_member TEXT NOT NULL DEFAULT '',
+        virus TEXT NOT NULL DEFAULT '',
+        cleaned REAL NOT NULL DEFAULT 0
+    );
+
+    -- Files indexed before boot blocks were checked are read again by the next scan.
+    UPDATE scanned_files SET mtime = -1;
+    """,
+    # Version 3: the notes made while writing each disk (conversions, a virus
+    # removed, a download that could not be checked), as a JSON list.
+    """
+    ALTER TABLE session_items ADD COLUMN notes TEXT NOT NULL DEFAULT '[]';
+    """,
+    # Version 4: corrections belong to a disc identified in any catalogue build
+    # (library/corrections.py). The first corrections table was keyed by the
+    # catalogue's disc ids, which change with every build, and nothing wrote to it.
+    """
+    DROP TABLE corrections;
+
+    CREATE TABLE corrected_discs (
+        id INTEGER PRIMARY KEY,
+        series_id TEXT,
+        number INTEGER,
+        part TEXT NOT NULL DEFAULT '',
+        version TEXT NOT NULL DEFAULT '',
+        platform TEXT NOT NULL DEFAULT '',
+        title TEXT NOT NULL DEFAULT '',
+        hashes TEXT NOT NULL DEFAULT '[]',
+        disk_id INTEGER,
+        catalogue TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX corrected_discs_disk ON corrected_discs(disk_id, catalogue);
+
+    CREATE TABLE corrections (
+        disc INTEGER NOT NULL REFERENCES corrected_discs(id) ON DELETE CASCADE,
+        field TEXT NOT NULL,
+        value TEXT NOT NULL,
+        PRIMARY KEY (disc, field)
+    );
+
+    CREATE TABLE title_corrections (
+        disc INTEGER NOT NULL REFERENCES corrected_discs(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        occurrence INTEGER NOT NULL,
+        value TEXT NOT NULL,
+        PRIMARY KEY (disc, title, occurrence)
+    );
+    """,
+    # Version 5: what the application keeps about the database itself, such as
+    # the fingerprint of the virus data the boot blocks were last checked with
+    # (library.library.BOOT_FINGERPRINT). A database that has none yet gets its
+    # boot blocks checked again, since they were checked with older data.
+    """
+    CREATE TABLE meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    );
+    """,
 )
 
 SCHEMA_VERSION = len(MIGRATIONS)
+VIRUS_STATUS = VirusStatus.VIRUS.value
 
 _ENTRY_COLUMNS = (
     "id",
@@ -142,6 +214,8 @@ _ENTRY_COLUMNS = (
     "display_name",
     "parsed",
     "error",
+    "boot_status",
+    "boot_name",
 )
 _SELECT_ENTRIES = f"SELECT {', '.join(_ENTRY_COLUMNS)} FROM library_files"
 
@@ -152,6 +226,8 @@ class LibraryEntry:
 
     ``crc32``, ``md5``, ``sha1`` and ``sha512`` are hashes of the image as it
     is stored; the ``raw_`` hashes are of the decoded sector image.
+    ``boot_status`` is a ``VirusStatus`` value ("" when the boot block was not
+    checked) and ``boot_name`` the virus, loader or anti-virus it names.
     """
 
     path: str
@@ -174,6 +250,8 @@ class LibraryEntry:
     display_name: str = ""
     parsed: dict[str, Any] = field(default_factory=dict)
     error: str = ""
+    boot_status: str = ""
+    boot_name: str = ""
     id: int | None = None
 
     def to_local(self) -> LocalFile:
@@ -197,7 +275,30 @@ class LibraryEntry:
             volume_label=self.volume_label,
             listing=self.listing,
             display_name=self.display_name,
+            virus=self.boot_name if self.boot_status == VIRUS_STATUS else "",
         )
+
+
+@dataclass(frozen=True, slots=True)
+class CorrectedDisc:
+    """A disc the user corrected, and how to find it in any catalogue build.
+
+    ``series_id``, ``number``, ``part`` and ``version`` name a numbered disc;
+    ``hashes`` holds the ``match_image`` arguments of its dumps, best first.
+    ``disk_id`` is its id in the catalogue named by ``catalogue`` (see
+    ``corrections.catalogue_stamp``), None when that catalogue has no such disc.
+    """
+
+    series_id: str | None = None
+    number: int | None = None
+    part: str = ""
+    version: str = ""
+    platform: str = ""
+    title: str = ""
+    hashes: tuple[dict[str, Any], ...] = ()
+    disk_id: int | None = None
+    catalogue: str = ""
+    id: int | None = None
 
 
 def _entry_from_row(row: Sequence[Any]) -> LibraryEntry:
@@ -338,8 +439,9 @@ class UserDatabase:
             db.executemany(
                 """INSERT INTO library_files(path, member, size, mtime, format, crc32, md5,
                        sha1, sha512, raw_crc32, raw_md5, raw_sha1, raw_size, image_id, disk_id,
-                       volume_label, listing, display_name, parsed, last_seen, error)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       volume_label, listing, display_name, parsed, last_seen, error,
+                       boot_status, boot_name)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 [
                     (
                         path,
@@ -363,6 +465,8 @@ class UserDatabase:
                         json.dumps(entry.parsed, sort_keys=True),
                         now,
                         entry.error,
+                        entry.boot_status,
+                        entry.boot_name,
                     )
                     for entry in entries
                 ],
@@ -393,6 +497,7 @@ class UserDatabase:
             for path in paths:
                 removed += db.execute("DELETE FROM library_files WHERE path = ?", (path,)).rowcount
                 db.execute("DELETE FROM scanned_files WHERE path = ?", (path,))
+                db.execute("DELETE FROM cleaned_files WHERE path = ?", (path,))
         return removed
 
     def entries(
@@ -466,6 +571,105 @@ class UserDatabase:
             )
         return found
 
+    def local_disk_ids(self) -> set[int]:
+        """Every catalogue disk that has at least one local image."""
+        rows = self.connection().execute(
+            "SELECT DISTINCT disk_id FROM library_files WHERE disk_id IS NOT NULL"
+        )
+        return {disk_id for (disk_id,) in rows}
+
+    def infected_count(self) -> int:
+        """How many indexed images carry a boot block virus."""
+        row = (
+            self.connection()
+            .execute("SELECT COUNT(*) FROM library_files WHERE boot_status = ?", (VIRUS_STATUS,))
+            .fetchone()
+        )
+        return int(row[0])
+
+    def infected_entries(self, limit: int = 200) -> list[LibraryEntry]:
+        """Indexed images whose boot block held a virus when it was last checked, by name."""
+        rows = self.connection().execute(
+            f"{_SELECT_ENTRIES} WHERE boot_status = ? ORDER BY display_name, path, member LIMIT ?",
+            (VIRUS_STATUS, limit),
+        )
+        return [_entry_from_row(row) for row in rows]
+
+    def checked_boot_blocks(self) -> list[LibraryEntry]:
+        """Every indexed image whose boot block was checked when it was scanned."""
+        rows = self.connection().execute(
+            f"{_SELECT_ENTRIES} WHERE boot_status != '' ORDER BY path, member"
+        )
+        return [_entry_from_row(row) for row in rows]
+
+    def set_boot_statuses(self, changes: Iterable[tuple[int, str, str]]) -> None:
+        """Store what boot blocks hold now: (entry id, ``VirusStatus`` value, name)."""
+        with self.transaction() as db:
+            db.executemany(
+                "UPDATE library_files SET boot_status = ?, boot_name = ? WHERE id = ?",
+                [(status, name, entry_id) for entry_id, status, name in changes],
+            )
+
+    def read_again(self, paths: Iterable[str]) -> None:
+        """Have the next scan read these files again, whatever their size and time say."""
+        with self.transaction() as db:
+            db.executemany(
+                "UPDATE scanned_files SET mtime = -1 WHERE path = ?", [(path,) for path in paths]
+            )
+
+    # Meta ------------------------------------------------------------------
+
+    def meta(self, key: str) -> str:
+        """A value kept about the database, "" when there is none."""
+        row = self.connection().execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+        return str(row[0]) if row else ""
+
+    def set_meta(self, key: str, value: str) -> None:
+        with self.transaction() as db:
+            db.execute(
+                "INSERT INTO meta(key, value) VALUES (?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (key, value),
+            )
+
+    # Cleaned files ---------------------------------------------------------
+
+    def record_cleaned(
+        self,
+        path: str,
+        sha1: str,
+        disk_id: int,
+        *,
+        source_path: str = "",
+        source_member: str = "",
+        virus: str = "",
+    ) -> None:
+        """Remember that ``path`` (raw SHA-1 ``sha1``) is a cleaned copy of a disk."""
+        with self.transaction() as db:
+            db.execute(
+                """INSERT INTO cleaned_files(path, sha1, disk_id, source_path, source_member,
+                       virus, cleaned) VALUES (?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(path) DO UPDATE SET sha1 = excluded.sha1,
+                       disk_id = excluded.disk_id, source_path = excluded.source_path,
+                       source_member = excluded.source_member, virus = excluded.virus,
+                       cleaned = excluded.cleaned""",
+                (path, sha1.lower(), disk_id, source_path, source_member, virus, time.time()),
+            )
+
+    def cleaned_origins(self) -> dict[str, tuple[str, int]]:
+        """Cleaned copies: path -> (raw SHA-1, disk id they were made from)."""
+        rows = self.connection().execute("SELECT path, sha1, disk_id FROM cleaned_files")
+        return {path: (sha1, disk_id) for path, sha1, disk_id in rows}
+
+    def cleaned_origin(self, path: str) -> tuple[str, int] | None:
+        """(raw SHA-1, disk id) when ``path`` is a cleaned copy, else None."""
+        row = (
+            self.connection()
+            .execute("SELECT sha1, disk_id FROM cleaned_files WHERE path = ?", (path,))
+            .fetchone()
+        )
+        return (row[0], row[1]) if row else None
+
     def search_unmatched(self, text: str, limit: int = 200) -> list[LibraryEntry]:
         """Unmatched entries whose name, volume label or file listing match ``text``."""
         query = fts_query(text)
@@ -511,40 +715,162 @@ class UserDatabase:
             "unmatched": images - matched,
             "duplicates": images - distinct,
             "folders": len(folders),
+            "infected": self.infected_count(),
         }
 
     # Corrections -----------------------------------------------------------
 
-    def set_correction(self, disk_id: int, field_name: str, value: str) -> None:
-        """Override one field of a catalogue disk with the user's own value."""
+    def corrected_discs(self) -> list[CorrectedDisc]:
+        """Every disc the user corrected."""
+        rows = self.connection().execute(
+            """SELECT id, series_id, number, part, version, platform, title, hashes, disk_id,
+                      catalogue FROM corrected_discs ORDER BY id"""
+        )
+        discs = []
+        for row in rows:
+            try:
+                hashes = tuple(
+                    item for item in json.loads(row[7] or "[]") if isinstance(item, dict)
+                )
+            except (ValueError, TypeError):
+                hashes = ()
+            discs.append(
+                CorrectedDisc(
+                    series_id=row[1],
+                    number=row[2],
+                    part=row[3],
+                    version=row[4],
+                    platform=row[5],
+                    title=row[6],
+                    hashes=hashes,
+                    disk_id=row[8],
+                    catalogue=row[9],
+                    id=row[0],
+                )
+            )
+        return discs
+
+    def relink_corrected_discs(self, changes: Iterable[tuple[int, int | None, str]]) -> None:
+        """Record where corrected discs are in a catalogue: (row id, disk id or None, stamp)."""
         with self.transaction() as db:
-            db.execute(
-                """INSERT INTO corrections(disk_id, field, value) VALUES (?, ?, ?)
-                   ON CONFLICT(disk_id, field) DO UPDATE SET value = excluded.value""",
-                (disk_id, field_name, value),
+            db.executemany(
+                "UPDATE corrected_discs SET disk_id = ?, catalogue = ? WHERE id = ?",
+                [(disk_id, stamp, row_id) for row_id, disk_id, stamp in changes],
             )
 
-    def remove_correction(self, disk_id: int, field_name: str) -> None:
-        """Drop a user correction so the catalogue value shows again."""
-        with self.transaction() as db:
-            db.execute(
-                "DELETE FROM corrections WHERE disk_id = ? AND field = ?", (disk_id, field_name)
-            )
+    def corrections(
+        self, disk_ids: Iterable[int], catalogue: str
+    ) -> dict[int, tuple[dict[str, str], dict[tuple[str, int], str]]]:
+        """Corrections of these discs of one catalogue: disk id -> (fields, titles).
 
-    def corrections(self, disk_ids: Iterable[int]) -> dict[int, dict[str, str]]:
-        """User corrections for the given disks: disk id -> field -> value."""
+        ``fields`` maps a field name to its value and ``titles`` a (catalogue
+        title, occurrence) key to the corrected title.
+        """
         ids = list(dict.fromkeys(disk_ids))
-        result: dict[int, dict[str, str]] = {}
+        result: dict[int, tuple[dict[str, str], dict[tuple[str, int], str]]] = {}
         connection = self.connection()
         for start in range(0, len(ids), 500):
             chunk = ids[start : start + 500]
             marks = ", ".join("?" * len(chunk))
-            for disk_id, field_name, value in connection.execute(
-                f"SELECT disk_id, field, value FROM corrections WHERE disk_id IN ({marks})",
+            owners = dict(
+                connection.execute(
+                    f"SELECT id, disk_id FROM corrected_discs "
+                    f"WHERE catalogue = ? AND disk_id IN ({marks})",
+                    (catalogue, *chunk),
+                ).fetchall()
+            )
+            self._read_corrections(owners, result)
+        return result
+
+    def every_correction(
+        self, catalogue: str
+    ) -> dict[int, tuple[dict[str, str], dict[tuple[str, int], str]]]:
+        """Every correction of the discs one catalogue has, as ``corrections`` gives them."""
+        owners = dict(
+            self.connection()
+            .execute(
+                "SELECT id, disk_id FROM corrected_discs "
+                "WHERE catalogue = ? AND disk_id IS NOT NULL",
+                (catalogue,),
+            )
+            .fetchall()
+        )
+        result: dict[int, tuple[dict[str, str], dict[tuple[str, int], str]]] = {}
+        self._read_corrections(owners, result)
+        return result
+
+    def _read_corrections(
+        self,
+        owners: dict[int, int],
+        result: dict[int, tuple[dict[str, str], dict[tuple[str, int], str]]],
+    ) -> None:
+        """Add the fields and titles of the corrected discs ``owners`` (row id -> disk id)."""
+        if not owners:
+            return
+        connection = self.connection()
+        rows = list(owners)
+        for start in range(0, len(rows), 500):
+            chunk = rows[start : start + 500]
+            marks = ", ".join("?" * len(chunk))
+            for disc, name, value in connection.execute(
+                f"SELECT disc, field, value FROM corrections WHERE disc IN ({marks})", chunk
+            ):
+                result.setdefault(owners[disc], ({}, {}))[0][name] = value
+            for disc, title, occurrence, value in connection.execute(
+                "SELECT disc, title, occurrence, value FROM title_corrections "
+                f"WHERE disc IN ({marks})",
                 chunk,
             ):
-                result.setdefault(disk_id, {})[field_name] = value
-        return result
+                result.setdefault(owners[disc], ({}, {}))[1][(title, occurrence)] = value
+
+    def store_corrections(
+        self,
+        disc: CorrectedDisc,
+        fields: Mapping[str, str],
+        titles: Mapping[tuple[str, int], str],
+    ) -> None:
+        """Replace the corrections of the disc ``disc`` names (by its disk id and catalogue)."""
+        with self.transaction() as db:
+            # One row per disc; two discs a newer catalogue merged become one again here.
+            db.execute(
+                "DELETE FROM corrected_discs WHERE disk_id = ? AND catalogue = ?",
+                (disc.disk_id, disc.catalogue),
+            )
+            cursor = db.execute(
+                """INSERT INTO corrected_discs(series_id, number, part, version, platform,
+                       title, hashes, disk_id, catalogue) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    disc.series_id,
+                    disc.number,
+                    disc.part,
+                    disc.version,
+                    disc.platform,
+                    disc.title,
+                    json.dumps(list(disc.hashes)),
+                    disc.disk_id,
+                    disc.catalogue,
+                ),
+            )
+            row_id = int(cursor.lastrowid or 0)
+            db.executemany(
+                "INSERT INTO corrections(disc, field, value) VALUES (?, ?, ?)",
+                [(row_id, name, value) for name, value in fields.items()],
+            )
+            db.executemany(
+                "INSERT INTO title_corrections(disc, title, occurrence, value) VALUES (?, ?, ?, ?)",
+                [
+                    (row_id, title, occurrence, value)
+                    for (title, occurrence), value in titles.items()
+                ],
+            )
+
+    def delete_corrections(self, disk_id: int, catalogue: str) -> None:
+        """Forget every correction of one disc of one catalogue."""
+        with self.transaction() as db:
+            db.execute(
+                "DELETE FROM corrected_discs WHERE disk_id = ? AND catalogue = ?",
+                (disk_id, catalogue),
+            )
 
     # History ---------------------------------------------------------------
 
@@ -554,7 +880,7 @@ class UserDatabase:
         """Store one write session.
 
         Each item is (label, status, summary, diagnostic, retries,
-        failed_tracks, seconds, source).
+        failed_tracks, seconds, source, notes).
         """
         with self.transaction() as db:
             cursor = db.execute(
@@ -564,8 +890,8 @@ class UserDatabase:
             session_id = int(cursor.lastrowid or 0)
             db.executemany(
                 """INSERT INTO session_items(session_id, position, label, status, summary,
-                       diagnostic, retries, failed_tracks, seconds, source)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       diagnostic, retries, failed_tracks, seconds, source, notes)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 [
                     (
                         session_id,
@@ -578,6 +904,7 @@ class UserDatabase:
                         json.dumps(list(failed_tracks)),
                         seconds,
                         source,
+                        json.dumps(list(notes)),
                     )
                     for position, (
                         label,
@@ -588,6 +915,7 @@ class UserDatabase:
                         failed_tracks,
                         seconds,
                         source,
+                        notes,
                     ) in enumerate(items)
                 ],
             )
@@ -605,7 +933,7 @@ class UserDatabase:
         for session_id, started, finished, drive in sessions:
             items = connection.execute(
                 """SELECT label, status, summary, diagnostic, retries, failed_tracks, seconds,
-                          source
+                          source, notes
                    FROM session_items WHERE session_id = ? ORDER BY position""",
                 (session_id,),
             ).fetchall()

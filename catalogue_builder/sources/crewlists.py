@@ -38,7 +38,14 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 
 from ..context import BuildContext
-from ..records import ContentRecord, DiskRecord, LocationRecord, SourceInfo, normalise_version
+from ..records import (
+    NO_LICENCE_STATED,
+    ContentRecord,
+    DiskRecord,
+    LocationRecord,
+    SourceInfo,
+    normalise_version,
+)
 from ..series import normalise
 
 ITEM = "atari-st-collection-1997-cdr-alien-pompey-pirates"
@@ -48,7 +55,7 @@ INFO = SourceInfo(
     id="crew-lists",
     name="Crew lists on the Pompey Pirates Atari ST CD-R (1997)",
     url=f"https://archive.org/details/{ITEM}",
-    licence="",
+    licence=NO_LICENCE_STATED,
 )
 CONTENT_PRIORITY = 50
 
@@ -66,7 +73,6 @@ LISTS = (
 COMPLETE = "MENUS/COMPLETE.TXT"
 DOC_LIST = "DOCS/SEWER/LIST.DOC"
 LOCATION_PRIORITY = 30
-MIN_INTERVAL = 1.5
 MAX_AGE_DAYS = 30.0
 
 _CODE_LINE = re.compile(r"^(?P<code>CD\d+[0-9A-Z-]*)\s+(?P<title>\S.*)$", re.IGNORECASE)
@@ -407,9 +413,7 @@ class Builder:
 
 def _fetch(ctx: BuildContext, url: str, name: str) -> str | None:
     try:
-        return ctx.fetch_text(
-            url, encoding="latin-1", name=name, min_interval=MIN_INTERVAL, max_age_days=MAX_AGE_DAYS
-        )
+        return ctx.fetch_text(url, encoding="latin-1", name=name, max_age_days=MAX_AGE_DAYS)
     except (OSError, RuntimeError) as error:  # network errors and OfflineError
         ctx.log(f"crew-lists: could not fetch {url}: {error}")
         return None

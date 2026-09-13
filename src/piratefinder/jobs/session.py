@@ -6,7 +6,12 @@ downloaded into the download folder and added to the library. The first
 image that prepares cleanly is written after the user confirms that a floppy
 is in the drive. A write-protected disk or an empty drive leads back to the
 prompt with the reason. While one disk is being written, the next one is
-downloaded in the background when it is only available online.
+downloaded in the background when it is only available online. A boot block
+virus that can be removed is removed from the written copy when the item asks
+for it (``QueueItem.clean_virus``, the default). The notes made on the way
+(conversions, a virus removed, a download that could not be checked) go into
+each result (``WriteOutcome.notes``), and so into the summary, the history and
+the report.
 
 ``run`` blocks and is meant for a worker thread. Every event callback is
 called on that thread; ``ask_insert`` blocks until the user answers.
@@ -26,6 +31,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from ..archive_layout import DEFAULT_FOLDERS
+from ..images.archives import image_file_name
 from ..models import (
     ImageSource,
     PreparedImage,
@@ -37,6 +43,7 @@ from ..models import (
 )
 from ..online.http import DownloadCancelled
 from .cancellation import Cancellation
+from .queue import copy_labels
 
 STAGE_RESOLVE = "resolve"
 STAGE_DOWNLOAD = "download"
@@ -96,6 +103,11 @@ class QuietEvents:
         """Ignore a finished item."""
 
 
+def with_notes(outcome: WriteOutcome, notes: Sequence[str]) -> WriteOutcome:
+    """``outcome`` carrying the notes made for its disk, when it has none of its own."""
+    return replace(outcome, notes=tuple(notes)) if notes and not outcome.notes else outcome
+
+
 def _default_writer() -> Callable[..., WriteOutcome]:
     from ..greaseweazle.client import write
 
@@ -135,10 +147,8 @@ def _archive_folders(finder: Any, item: QueueItem) -> tuple[str, str]:
 
 
 def _source_name(source: ImageSource) -> str:
-    if source.local is not None:
-        member = source.local.member
-        return Path(member.rsplit("::", 1)[-1] if member else source.local.path).name
-    return ""
+    local = source.local
+    return image_file_name(local.path, local.member) if local is not None else ""
 
 
 def fetch_source(
@@ -154,7 +164,13 @@ def fetch_source(
     cancel: object | None = None,
     notes: list[str] | None = None,
 ) -> Path:
-    """Download one online source into the download folder and add it to the library."""
+    """Download one online source into the download folder and add it to the library.
+
+    The fetcher checks the download against the location's checksum, its dump,
+    or else every dump of the disc (``source.dumps``); a download that fails
+    raises FetchError, so ``download_for_item`` and the session try the next
+    source.
+    """
     assert source.location is not None
     fetch = fetcher or _default_fetcher()
     path = Path(
@@ -168,6 +184,7 @@ def fetch_source(
             progress=progress,
             cancel=cancel,
             notes=notes,
+            dumps=source.dumps,
         )
     )
     with contextlib.suppress(Exception):  # a failure to index must not lose the download
@@ -296,6 +313,7 @@ class WriteSession:
         total = len(self.items)
         try:
             for index, item in enumerate(self.items):
+                item.notes = []  # notes describe this session's attempt only
                 if self._stopped or self._cancel.cancelled:
                     reason = (
                         "The session was cancelled before this disk."
@@ -338,9 +356,7 @@ class WriteSession:
             for note in [*ready.notes, *ready.prepared.notes]:
                 if note not in item.notes:
                     item.notes.append(note)
-            copies = max(1, item.copies)
-            for copy in range(copies):
-                label = item.label if copies == 1 else f"{item.label} (copy {copy + 1} of {copies})"
+            for label in copy_labels(item):
                 outcome = self._write_copy(item, index, total, ready)
                 self._finish(item, outcome, ready.source.label, results, label)
                 if self._stopped or self._cancel.cancelled:
@@ -356,6 +372,7 @@ class WriteSession:
         results: list[tuple[str, WriteOutcome, str]],
         label: str | None = None,
     ) -> None:
+        outcome = with_notes(outcome, item.notes)
         item.outcome = outcome
         results.append((label or item.label, outcome, source))
         self.events.on_item_finished(item, outcome)
@@ -466,7 +483,12 @@ class WriteSession:
         preparer = self._preparer or _default_preparer()
         try:
             prepared = preparer(
-                data, name, workdir, label=item.label, platform=item.platform or source.platform
+                data,
+                name,
+                workdir,
+                label=item.label,
+                platform=item.platform or source.platform,
+                clean_virus=item.clean_virus,
             )
         except Exception as error:  # PrepareError carries a sentence for the user
             problems.append(f"{source.label}: {error}")

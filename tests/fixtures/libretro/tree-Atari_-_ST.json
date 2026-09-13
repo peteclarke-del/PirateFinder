@@ -1,0 +1,96 @@
+{
+ "sha": "ffffffffffffffffffffffffffffffffffffffff",
+ "url": "https://api.github.com/example",
+ "tree": [
+  {
+   "path": "Named_Snaps",
+   "mode": "040000",
+   "type": "tree",
+   "sha": "0000000000000000000000000000000000000000"
+  },
+  {
+   "path": "Named_Titles",
+   "mode": "040000",
+   "type": "tree",
+   "sha": "0000000000000000000000000000000000000000"
+  },
+  {
+   "path": ".gitignore",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Snaps/Rick Dangerous (1989)(Core Design - Firebird)[cr Medway Boys][t].png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Titles/Rick Dangerous (1989)(Core Design - Firebird)[cr Medway Boys][t].png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Boxarts/Rick Dangerous (1989)(Core Design - Firebird)[cr Medway Boys][t].png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Snaps/Dungeons _ Dragons (1990)(SSI)[cr Elite].png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Snaps/Zynaps.PNG",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Snaps/Black _ White.png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Logos/Rick Dangerous (1989)(Core Design - Firebird)[cr Medway Boys][t].png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Snaps/Xenon 2 - Megablast (1989)(Image Works)[cr #1].png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Snaps/notes.txt",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Snaps/old/Zynaps (1987)(Hewson).png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  }
+ ],
+ "truncated": false
+}

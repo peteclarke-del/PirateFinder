@@ -1,10 +1,12 @@
 name: Catalogue
 
 # Rebuilds the catalogue from its public sources once a week and publishes it
-# as a release asset. The application checks the repository releases for the
-# newest one carrying catalogue.sqlite.gz, and application releases bundle the
-# newest catalogue, so these releases are never marked as the latest release
-# (that stays with the newest application release).
+# as a release asset named by its layout, catalogue-layout<N>.sqlite.gz, where
+# N is SCHEMA_VERSION in src/piratefinder/catalogue/schema.py. The application
+# checks the repository releases for the newest one carrying the layout it
+# reads, and application releases bundle the newest catalogue of their own
+# layout, so these releases are never marked as the latest release (that stays
+# with the newest application release).
 
 on:
   schedule:
@@ -65,12 +67,18 @@ jobs:
               raise SystemExit('The catalogue contains no disks.')
           "
 
-      - name: Check the compressed catalogue and its checksum
+      # The builder's checksum is checked, then the file is published under the
+      # name of its layout with a checksum file that names it.
+      - name: Name the catalogue by its layout and check it
         run: |
+          layout="$(python3 -c 'from piratefinder.catalogue.schema import SCHEMA_VERSION; print(SCHEMA_VERSION)')"
+          asset="catalogue-layout${layout}.sqlite.gz"
+          (cd build && sha256sum --check catalogue.sqlite.gz.sha256)
           mkdir -p build/publish
-          cp build/catalogue.sqlite.gz build/catalogue.sqlite.gz.sha256 build/publish/
-          (cd build/publish && sha256sum --check catalogue.sqlite.gz.sha256)
-          gunzip --stdout build/publish/catalogue.sqlite.gz | cmp - build/catalogue.sqlite
+          cp build/catalogue.sqlite.gz "build/publish/${asset}"
+          (cd build/publish && sha256sum "${asset}" > "${asset}.sha256" && sha256sum --check "${asset}.sha256")
+          gunzip --stdout "build/publish/${asset}" | cmp - build/catalogue.sqlite
+          echo "CATALOGUE_ASSET=${asset}" >> "${GITHUB_ENV}"
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7
@@ -87,11 +95,11 @@ jobs:
         run: |
           tag="catalogue-$(date --utc +%F)"
           if gh release view "${tag}" >/dev/null 2>&1; then
-            gh release upload "${tag}" build/publish/catalogue.sqlite.gz \
-              build/publish/catalogue.sqlite.gz.sha256 --clobber
+            gh release upload "${tag}" "build/publish/${CATALOGUE_ASSET}" \
+              "build/publish/${CATALOGUE_ASSET}.sha256" --clobber
           else
-            gh release create "${tag}" build/publish/catalogue.sqlite.gz \
-              build/publish/catalogue.sqlite.gz.sha256 \
+            gh release create "${tag}" "build/publish/${CATALOGUE_ASSET}" \
+              "build/publish/${CATALOGUE_ASSET}.sha256" \
               --target "${GITHUB_SHA}" \
               --latest=false \
               --title "Catalogue $(date --utc +%F)" \

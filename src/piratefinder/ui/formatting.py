@@ -4,23 +4,32 @@ from __future__ import annotations
 
 import html
 import re
-import uuid
 from collections.abc import Iterable, Sequence
 from datetime import datetime
 from pathlib import Path
 
 from ..catalogue.naming import display_title
+from ..images.archives import base_name
+from ..images.inspect import local_platform, suffix_of
+from ..library.library import clean_names, local_name
 from ..models import (
     Availability,
+    BootRecheck,
     Content,
     ContentKind,
     Disk,
     DiskKind,
     LocalFile,
+    MediaItem,
     Platform,
-    QueueItem,
+    ResultMode,
+    ResultPage,
     ScanSummary,
     SessionSummary,
+    SortOrder,
+    TriviaItem,
+    VirusReport,
+    VirusStatus,
     WriteOutcome,
     WriteProgress,
     WriteStatus,
@@ -28,13 +37,54 @@ from ..models import (
 
 PLATFORM_NAMES = {Platform.AMIGA: "Amiga", Platform.ATARI_ST: "Atari ST"}
 
-# Filter toggles on the Find page, in display order.
+# Disc kinds on the Find page, in display order.
 KIND_FILTERS = (
     (DiskKind.MENU, "Menu Disks", "Numbered crew menu disks and game compacts"),
     (DiskKind.PACK, "Packs", "Demo, music, utility and trainer packs"),
     (DiskKind.SINGLE, "Single Disks", "One release per disk, usually a single crack"),
     (DiskKind.COMPILATION, "Compilations", "Commercial and other compilations"),
 )
+
+# The Sort drop-down on the Find page, in display order.
+SORT_CHOICES = (
+    (SortOrder.RELEVANCE, "Relevance"),
+    (SortOrder.TITLE, "Title A to Z"),
+    (SortOrder.TITLE_DESC, "Title Z to A"),
+    (SortOrder.YEAR, "Year, Oldest First"),
+    (SortOrder.YEAR_DESC, "Year, Newest First"),
+    (SortOrder.DISC, "Disc Number"),
+    (SortOrder.CREW, "Crew"),
+    (SortOrder.PLATFORM, "Platform"),
+)
+PAGE_SIZES = (50, 100, 200, 500)
+MONTHS = (
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+)
+MEDIA_KIND_NAMES = {
+    "menu": "Menu screen",
+    "intro": "Intro screen",
+    "snap": "Screenshot",
+    "title": "Title screen",
+    "boxart": "Box art",
+    "demo": "Demo screen",
+}
+VIRUS_KIND_NAMES = {
+    "boot": "a boot block virus",
+    "file": "a file virus",
+    "link": "a link virus",
+    "system": "a system virus",
+}
 KIND_NAMES = {
     DiskKind.MENU: "Menu disk",
     DiskKind.PACK: "Pack",
@@ -216,8 +266,9 @@ def summary_markup(summary: str, matched: Sequence[str]) -> str:
 
 
 def disk_subtitle(disk: Disk) -> str:
-    """ "Automation, 1990, Atari ST, Menu disk" style line under a disk title."""
-    parts = [disk.series_name, disk.date, platform_name(disk.platform), KIND_NAMES.get(disk.kind)]
+    """ "Automation • June 1991 • Atari ST • Menu disk" under a disk title."""
+    date = disk_release(disk) if disk.year else ""
+    parts = [disk.series_name, date, platform_name(disk.platform), KIND_NAMES.get(disk.kind)]
     return " • ".join(part for part in parts if part)
 
 
@@ -260,21 +311,16 @@ def sticker_text(label: str, contents: Iterable[Content], max_chars: int = 60) -
     return text
 
 
-def local_file_name(local: LocalFile) -> str:
-    if local.display_name:
-        return local.display_name
-    if local.member:
-        return Path(local.member).name
-    return Path(local.path).name
-
-
 def local_file_location(local: LocalFile) -> str:
     return f"{local.path} › {local.member}" if local.member else local.path
 
 
 def provider_name(provider: str, names: dict[str, str] | None = None) -> str:
+    """The display name of a provider or source id; a name already spelt out is kept."""
     if names and provider in names:
         return names[provider]
+    if provider != provider.lower():
+        return provider  # "TOSEC", "Amiga Bootblock Reader"
     return " ".join(word.capitalize() for word in re.split(r"[-_ ]+", provider) if word)
 
 
@@ -328,6 +374,12 @@ def outcome_details(outcome: WriteOutcome, source: str) -> str:
     return " • ".join(parts)
 
 
+def outcome_subtitle(outcome: WriteOutcome, source: str) -> str:
+    """The lines under a disk in a summary: the result, the details, then each note."""
+    lines = [outcome_text(outcome), outcome_details(outcome, source), *outcome.notes]
+    return "\n".join(line for line in lines if line)
+
+
 def session_headline(summary: SessionSummary) -> str:
     """ "4 of 5 disks written and verified"."""
     total = len(summary.items)
@@ -366,22 +418,27 @@ def failed_labels(summary: SessionSummary) -> list[str]:
     ]
 
 
-def report_text(summary: SessionSummary) -> str:
-    """A plain text report, used when the history module offers none."""
-    lines = [
-        "PirateFinder write report",
-        f"Started: {format_timestamp(summary.started)}",
-        f"Finished: {format_timestamp(summary.finished)}",
-        f"Drive: {summary.drive}",
-        session_headline(summary),
-        "",
-    ]
-    for label, outcome, source in summary.items:
-        lines.append(f"{label}: {outcome_text(outcome)}")
-        details = outcome_details(outcome, source)
-        if details:
-            lines.append(f"    {details}")
-    return "\n".join(lines) + "\n"
+def boot_recheck_text(result: BootRecheck) -> str:
+    """What the window says after the library's boot blocks were checked again.
+
+    "The virus data changed, so 1,234 boot blocks were checked again. The
+    result changed for 3 images."
+    """
+    if result.cancelled:
+        return (
+            f"The boot block check stopped after {plural(result.checked, 'image')}. It starts "
+            "again when PirateFinder next starts."
+        )
+    were = "was" if result.checked == 1 else "were"
+    text = (
+        f"The virus data changed, so {plural(result.checked, 'boot block')} {were} checked "
+        f"again. The result changed for {plural(result.changed, 'image')}."
+    )
+    if result.unreadable:
+        text += (
+            f" {plural(result.unreadable, 'image')} could not be read; the next scan reads them."
+        )
+    return text
 
 
 def scan_toast(summary: ScanSummary) -> str:
@@ -421,42 +478,225 @@ def catalogue_stats_text(stats: dict[str, int], built_at: str) -> str:
     return text
 
 
-def new_queue_item(
-    label: str,
-    platform: Platform | None,
-    *,
-    disk_id: int | None = None,
-    image_id: int | None = None,
-    local: LocalFile | None = None,
-    copies: int = 1,
-) -> QueueItem:
-    return QueueItem(
-        id=uuid.uuid4().hex,
-        label=label,
-        platform=platform,
-        disk_id=disk_id,
-        image_id=image_id,
-        local=local,
-        copies=max(1, copies),
-    )
+# The Find screen
 
 
-def queue_key(item: QueueItem) -> tuple[str, ...]:
-    """What makes two queue items the same disk, as ``jobs.queue.WriteQueue`` sees it."""
-    if item.disk_id is not None:
-        return ("disk", str(item.disk_id))
-    if item.local is not None:
-        return ("file", item.local.path, item.local.member)
-    return ("item", item.id)
+def query_words(text: str) -> list[str]:
+    """The words of a search, lower case, as the catalogue matches them."""
+    return [word for word in re.findall(r"\w+", (text or "").lower()) if word]
 
 
-def fresh_copy(item: QueueItem) -> QueueItem:
-    """The same disk as a new queue entry with no outcome, for Retry Failed."""
-    return new_queue_item(
-        item.label,
-        item.platform,
-        disk_id=item.disk_id,
-        image_id=item.image_id,
-        local=item.local,
-        copies=item.copies,
+def highlight_markup(text: str, words: Sequence[str]) -> str:
+    """Pango markup for ``text`` with every word that starts with a query word in bold.
+
+    The catalogue matches each query word as a prefix of a word in the row,
+    so "rick" makes "Rick" bold in "Rick Dangerous" but not in "Brick".
+    """
+    text = text or ""
+    spans: list[tuple[int, int]] = []
+    if words:
+        for match in re.finditer(r"\w+", text):
+            token = match.group(0).lower()
+            best = max((len(word) for word in words if token.startswith(word)), default=0)
+            if best:
+                spans.append((match.start(), match.start() + best))
+    parts: list[str] = []
+    position = 0
+    for start, end in spans:
+        parts.append(escape(text[position:start]))
+        parts.append(f"<b>{escape(text[start:end])}</b>")
+        position = end
+    parts.append(escape(text[position:]))
+    return "".join(parts)
+
+
+def range_text(page: ResultPage) -> str:
+    """ "101 to 200 of 1,234 titles" for the pager."""
+    noun = "title" if page.query.mode == ResultMode.TITLES else "disc"
+    if page.total == 0:
+        return f"No {noun}s"
+    first = page.query.page * page.query.page_size + 1
+    last = min(page.total, first + len(page.rows) - 1)
+    if first > page.total or not page.rows:
+        return plural(page.total, noun)
+    if first == 1 and last == page.total:
+        return plural(page.total, noun)
+    return f"{first:,} to {last:,} of {plural(page.total, noun)}"
+
+
+def selection_text(rows: int, discs: int, pages: int) -> str:
+    """ "3 selected", "3 titles selected on 2 discs", "... across 2 pages"."""
+    if rows != discs:
+        text = f"{plural(rows, 'title')} selected on {plural(discs, 'disc')}"
+    else:
+        text = f"{rows:,} selected"
+    if pages > 1:
+        text += f" across {pages:,} pages"
+    return text
+
+
+def release_text(year: int | None, month: int | None = None, day: int | None = None) -> str:
+    """ "17 June 1989", "June 1989", "1989" or "Unknown"."""
+    if not year:
+        return "Unknown"
+    if month and 1 <= month <= 12:
+        name = MONTHS[month - 1]
+        if day and 1 <= day <= 31:
+            return f"{day} {name} {year}"
+        return f"{name} {year}"
+    return str(year)
+
+
+def disk_release(disk: Disk) -> str:
+    """The release date of a disc as precisely as the catalogue knows it."""
+    return release_text(disk.year, disk.month, disk.day)
+
+
+def disk_year(disk: Disk) -> str:
+    return str(disk.year) if disk.year else ""
+
+
+def media_caption(item: MediaItem, index: int, count: int, subject: str = "") -> str:
+    """ "Menu screen of Automation 250, 1 of 3"."""
+    kind = MEDIA_KIND_NAMES.get(item.kind, item.kind.capitalize() or "Picture")
+    text = f"{kind} of {subject}" if subject else kind
+    if count > 1:
+        text += f", {index + 1} of {count}"
+    return text
+
+
+def media_credit(item: MediaItem, names: dict[str, str] | None = None) -> str:
+    """The credit line under a picture, naming its source once."""
+    source = provider_name(item.source, names) if item.source else ""
+    if item.credit and source and source.casefold() not in item.credit.casefold():
+        return f"{item.credit}, {source}"
+    return item.credit or source
+
+
+def trivia_credit(item: TriviaItem, names: dict[str, str] | None = None) -> str:
+    """ "From Wikipedia, Rick Dangerous, CC BY-SA 4.0" or "Source: Atari Legend"."""
+    source = provider_name(item.source, names) if item.source else ""
+    if item.kind == "summary":
+        parts = [f"From {source or 'Wikipedia'}"]
+        if item.title:
+            parts.append(item.title)
+        if item.licence:
+            parts.append(item.licence)
+        return ", ".join(parts)
+    text = f"Source: {source}" if source else ""
+    if item.licence:
+        text = f"{text}, {item.licence}" if text else item.licence
+    return text
+
+
+# A boot block that is not a virus, shown for information in the details pane.
+BOOT_BLOCK_TEXT = {
+    VirusStatus.ANTIVIRUS: "{name}, an anti-virus boot block. It is not a virus.",
+    VirusStatus.KNOWN_BOOT: "{name}. It is not a virus.",
+    VirusStatus.UNKNOWN_BOOT: (
+        "Boot code PirateFinder cannot identify. Many games and crews booted their own code, "
+        "so this is not a sign of a virus by itself."
+    ),
+}
+
+
+def boot_block_text(report: VirusReport | None) -> str:
+    """What a boot block that is not a virus holds; "" for a clean or infected one."""
+    if report is None or report.status not in BOOT_BLOCK_TEXT:
+        return ""
+    if report.explanation.strip():
+        return report.explanation.strip()
+    return BOOT_BLOCK_TEXT[report.status].format(name=report.name or "A named boot block")
+
+
+_DRAWN = re.compile(r"[^A-Za-z0-9\s]{4,}")  # ----, ====, ___/__ and the like
+_SPACED = re.compile(r"\S {3,}\S|^ {3,}\S")  # words placed with runs of spaces
+
+
+def laid_out(text: str) -> bool:
+    """Whether ``text`` is laid out in columns or drawn with symbols (a menu screen, ASCII
+    art), so that it reads right only in a fixed-width font with its lines kept."""
+    lines = [line for line in text.splitlines() if line.strip()]
+    return sum(1 for line in lines if _DRAWN.search(line) or _SPACED.search(line)) >= 2
+
+
+def virus_heading(report: VirusReport) -> str:
+    name = report.name or "an unnamed virus"
+    if report.status == VirusStatus.FLAGGED:
+        return f"Dump Flagged with {name}"
+    return f"Virus Found: {name}"
+
+
+def virus_body(report: VirusReport, names: dict[str, str] | None = None) -> str:
+    """What the virus is and what can be done: the detector's own words when it gives them."""
+    if report.explanation.strip():
+        return report.explanation.strip()
+    sentences = []
+    kind = VIRUS_KIND_NAMES.get(report.kind, "")
+    source = provider_name(report.source, names) if report.source else ""
+    if report.status == VirusStatus.FLAGGED:
+        where = f"{source} lists" if source else "The catalogue lists"
+        sentences.append(
+            f"{where} this dump as carrying {report.name or 'a virus'}"
+            + (f", {kind}." if kind else ".")
+        )
+    elif kind:
+        sentences.append(f"{report.name or 'This'} is {kind}.")
+    if report.removable:
+        sentences.append(
+            "Removing it writes a standard boot block in its place. The files on the disc "
+            "are not touched."
+        )
+    elif report.kind in ("file", "link") or report.status == VirusStatus.FLAGGED:
+        sentences.append(
+            "It lives in the files on the disc, not in the boot block, so PirateFinder "
+            "cannot remove it. Write a clean dump instead when there is one."
+        )
+    else:
+        sentences.append("PirateFinder cannot remove it safely from this disc.")
+    return " ".join(sentences)
+
+
+def virus_source(report: VirusReport, names: dict[str, str] | None = None) -> str:
+    """ "Identified by Amiga Bootblock Reader", "Listed by TOSEC"."""
+    if not report.source:
+        return ""
+    if report.source == "built-in":
+        return "Identified by PirateFinder's built-in signatures"
+    name = provider_name(report.source, names)
+    verb = "Listed" if report.status == VirusStatus.FLAGGED else "Identified"
+    return f"{verb} by {name}"
+
+
+def cleaned_text(original: LocalFile, cleaned: LocalFile) -> str:
+    """What a finished clean did: rewritten with a backup, or saved as a new copy."""
+    if (cleaned.path, cleaned.member) == (original.path, original.member):
+        return f"Cleaned {local_name(cleaned)}. The original was kept as a .bak file beside it."
+    return f"Saved a cleaned copy as {local_name(cleaned)}. The original is unchanged."
+
+
+def clean_explanation(local: LocalFile, virus: str, platform: Platform | None = None) -> str:
+    """What cleaning a library file does to it, for the confirmation dialog.
+
+    A new file is named for the platform its format says, or ``platform``
+    (the disc's) when the format does not say.
+    """
+    what = f"the {virus} virus" if virus else "the virus"
+    if local.member:
+        return (
+            f"{base_name(local.member)} is inside {Path(local.path).name}, which is not changed. "
+            f"PirateFinder removes {what} and saves the cleaned disk as a new file in your "
+            "download folder."
+        )
+    name = Path(local.path).name
+    image_format = local.format or suffix_of(name).lstrip(".")
+    names = clean_names(local, image_format, local_platform(local) or platform)
+    if names.backup:
+        return (
+            f"PirateFinder writes a standard boot block over {what} in {name}. The original "
+            f"file is kept beside it as {names.backup}, so nothing is lost."
+        )
+    return (
+        f"PirateFinder removes {what} and saves the cleaned disk beside {name} as "
+        f"{names.cleaned}. The original file is not changed."
     )
