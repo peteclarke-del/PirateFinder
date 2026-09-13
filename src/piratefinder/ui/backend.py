@@ -15,6 +15,8 @@ from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Any, Protocol
 
+from .. import app_update
+from ..app_update import AppRelease, PackageTarget
 from ..greaseweazle.caps import CapsStatus
 from ..jobs.queue import clamp_copies
 from ..models import (
@@ -200,6 +202,24 @@ class Backend:
     def install_update(self, offer: UpdateOffer, progress: ProgressCallback, cancel) -> None:
         """Download and install ``offer``, then reopen the catalogue."""
         raise NotImplementedError
+
+    # Application updates, the same for every backend but the fake
+
+    def app_update_target(self) -> PackageTarget | None:
+        """The system this package was built for, or None when run from the source tree."""
+        return app_update.installed_target()
+
+    def check_app_update(self) -> AppRelease | None:
+        """A newer PirateFinder release, or None when this is the newest."""
+        return app_update.check(self.app_update_target())
+
+    def download_app_update(self, release: AppRelease, progress: ProgressCallback, cancel) -> Path:
+        """Download the release's package for this system and check its checksum."""
+        return app_update.download(release, progress, cancel)
+
+    def install_app_update(self, package: Path) -> None:
+        """Install the downloaded package; the system asks for the user's password."""
+        app_update.install(package)
 
     # Library
 

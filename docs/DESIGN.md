@@ -32,6 +32,7 @@ src/piratefinder/            the application
   paths.py                   XDG locations and catalogue lookup order
   settings.py                user settings (JSON under ~/.config/piratefinder)
   finder.py                  facade the interface talks to: search, detail, sources
+  app_update.py              check for, download and install a newer PirateFinder package
   catalogue/
     schema.py                catalogue database layout
     store.py                 read-only access to catalogue.sqlite
@@ -56,6 +57,7 @@ src/piratefinder/            the application
     library.py               matching, availability and unmatched-file search
   online/
     http.py                  throttled downloads with retry and resume
+    releases.py              the repository's GitHub releases, for both updates
     fetch.py                 fetch a catalogue location into the download folder
     media.py                 cached pictures and Wikipedia summaries
   jobs/
@@ -621,6 +623,30 @@ the asset of its own layout. When the list cannot be fetched or read it raises
 catalogue:" and the reason; "up to date" means the check worked. A catalogue
 of another layout is refused with "made for a different PirateFinder version
 (layout X; this version reads layout Y)" (`store.layout_problem`).
+
+The application updates itself only when the user presses Check for
+Application Updates in the About window (`app_update.py`, driven by
+`ui/app_updater.py`). The check reads `releases/latest`, which is always the
+newest application release because catalogue releases are published with
+`--latest=false`, and compares its `vX.Y.Z` tag with `__version__`; a latest
+release with any other tag is reported as a publishing mistake, never read as
+"newest". `build-deb.sh` writes `/usr/lib/piratefinder/package-target` with
+the package's distribution token and architecture, so the update downloads
+`PirateFinder_<version>_<distro>_<arch>.deb` from the release, checks it
+against the release's `SHA256SUMS`, and runs `pkexec apt-get install --yes`
+on it. pkexec's status 126 (prompt dismissed) leaves the update offered; any
+other failure gives the `sudo apt install` command to run by hand. A copy run
+from the source tree has no `package-target` and is sent to the release page.
+After the install, Restart PirateFinder sets `restart_requested` on the
+application, and `__main__.main()` replaces the process with
+`python3 -m piratefinder` once the window has closed, keeping the launcher's
+environment. Neither an install nor a restart is allowed while disks are
+being written, because the package replaces the bundled `gw`. `Adw.AboutDialog`
+has no place for extra widgets, so `attach_to_about` finds the version button
+by its `app-version` style class and adds the controls after it; a window
+test fails if a libadwaita release moves it. Both updates share
+`online/releases.py`, which turns every failure into `UpdateError` with the
+reason.
 
 Downloads are filed for archiving as
 `<download folder>/<platform>/<type>/<crew>/<image>`, decided in

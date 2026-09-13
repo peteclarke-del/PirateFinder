@@ -23,7 +23,6 @@ import os
 import re
 import sqlite3
 import tempfile
-import urllib.parse
 import zlib
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -31,26 +30,20 @@ from pathlib import Path
 from typing import Any
 
 from .. import paths
+from ..branding import RELEASES_API
 from ..jobs.cancellation import is_cancelled
 from ..online.http import DownloadCancelled, Downloader, DownloadError
+from ..online.releases import UpdateCancelled, UpdateError, release_list
 from . import schema
 from .store import layout_problem
 
-DEFAULT_FEED_URL = "https://api.github.com/repos/peteclarke-del/PirateFinder/releases"
+DEFAULT_FEED_URL = RELEASES_API
 # A catalogue is tens of megabytes; this refuses a decompression bomb.
 MAX_CATALOGUE_BYTES = 2 * 1024 * 1024 * 1024
 _DATE = re.compile(r"(\d{4}-\d{2}-\d{2})")
 _SHA256 = re.compile(r"\b([0-9a-fA-F]{64})\b")
 
 Progress = Callable[[int, int | None], None]
-
-
-class UpdateError(RuntimeError):
-    """The update could not be checked or installed; the message is for the user."""
-
-
-class UpdateCancelled(UpdateError):
-    """The user cancelled the update."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,16 +124,7 @@ def check_for_update(
     cannot be fetched or read.
     """
     downloader = downloader or Downloader(timeout=timeout, retries=1)
-    try:
-        releases = downloader.get_json(feed_url, headers={"Accept": "application/vnd.github+json"})
-    except DownloadError as error:
-        raise UpdateError(str(error)) from error
-    if not isinstance(releases, list):
-        message = releases.get("message") if isinstance(releases, dict) else None
-        host = urllib.parse.urlsplit(feed_url).netloc or feed_url
-        reason = f"{host} did not send a list of releases"
-        raise UpdateError(f"{reason}: {message}." if message else f"{reason}.")
-    return newest_release(releases, current_built_at)
+    return newest_release(release_list(feed_url, downloader), current_built_at)
 
 
 def _published_sha256(text: str, asset_name: str) -> str:

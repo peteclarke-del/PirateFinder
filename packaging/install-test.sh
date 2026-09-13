@@ -141,8 +141,12 @@ import gi
 gi.require_version('Adw', '1')
 from gi.repository import Adw
 import greaseweazle, piratefinder
+from piratefinder import app_update
 print('PirateFinder', piratefinder.__version__, 'with Greaseweazle', greaseweazle.__version__,
       'and libadwaita', f'{Adw.MAJOR_VERSION}.{Adw.MINOR_VERSION}.{Adw.MICRO_VERSION}')
+target = app_update.installed_target()
+if target != app_update.PackageTarget('${distro}', '${arch}'):
+    raise SystemExit(f'The package says it was built for {target}, not ${distro} ${arch}.')
 "
 if [[ -f /usr/share/piratefinder/catalogue.sqlite ]]; then
     PYTHONPATH=/usr/lib/piratefinder /usr/bin/python3 -c "
