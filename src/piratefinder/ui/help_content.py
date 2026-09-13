@@ -1550,9 +1550,11 @@ HELP_TOPICS = (
                 "While it runs",
                 (
                     "Closing the About window does not stop a download, and reopening it shows "
-                    "how far it has got. Cancel stops the download. While discs are being "
-                    "written, an update cannot be installed and PirateFinder cannot restart; "
-                    "wait until the session is over.",
+                    "how far it has got. Cancel stops the download. Installing waits for as "
+                    "long as the password prompt is open; once you answer it, apt runs to the "
+                    "end and cannot be cancelled. While discs are being written, an update "
+                    "cannot be installed and PirateFinder cannot restart; wait until the "
+                    "session is over.",
                 ),
             ),
             HelpSection(
