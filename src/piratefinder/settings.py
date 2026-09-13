@@ -43,6 +43,9 @@ class Settings:
     check_catalogue_updates: bool = True
     catalogue_feed_url: str = DEFAULT_FEED_URL
     prompt_between_disks: bool = True
+    # "Download screenshots and background information": pictures and
+    # Wikipedia summaries for the details pane, fetched only when shown.
+    fetch_media: bool = True
     path: Path | None = field(default=None, repr=False, compare=False)
     extra: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
 

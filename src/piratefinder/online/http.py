@@ -4,7 +4,9 @@ Every request names the application in its User-Agent. Requests to one host
 are at least a second apart across the whole process. A 429 or 5xx response
 is retried with exponential backoff, honouring ``Retry-After``. A download is
 written to ``<target>.part`` first and resumed with a Range request when that
-file is already there, then renamed into place.
+file is already there, then renamed into place. ``get_reply`` makes
+conditional requests for caches: it returns 304 and 404 replies instead of
+raising.
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -29,6 +32,8 @@ from ..jobs.cancellation import is_cancelled, sleep_unless_cancelled
 
 USER_AGENT = f"PirateFinder/{__version__} (+{HOMEPAGE})"
 RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+# Replies get_reply hands back rather than raising: not modified, gone.
+REPLY_STATUSES = frozenset({304, 404, 410})
 CHUNK_SIZE = 64 * 1024
 # A server that asks for a longer pause than this is treated as unavailable.
 MAX_RETRY_AFTER = 120.0
@@ -42,6 +47,28 @@ class DownloadError(RuntimeError):
 
 class DownloadCancelled(DownloadError):
     """The user cancelled a download."""
+
+
+class ReplyTooLarge(DownloadError):
+    """A reply was larger than the caller allowed."""
+
+
+@dataclass(frozen=True, slots=True)
+class HttpReply:
+    """A reply to ``Downloader.get_reply``: the status, the body and the headers."""
+
+    status: int
+    data: bytes = b""
+    headers: dict[str, str] = field(default_factory=dict)  # names in lower case
+
+    def header(self, name: str) -> str:
+        return self.headers.get(name.lower(), "")
+
+
+def _header_dict(headers: Any) -> dict[str, str]:
+    if headers is None:
+        return {}
+    return {str(name).lower(): str(value) for name, value in headers.items()}
 
 
 class HostThrottle:
@@ -201,6 +228,48 @@ class Downloader:
                 return data
             except urllib.error.HTTPError as error:
                 error.close()
+                if error.code not in RETRY_STATUSES or attempt == self.retries:
+                    raise DownloadError(_http_message(url, error.code)) from error
+                wait = self._retry_wait(error, delay)
+            except DownloadError:
+                raise
+            except (OSError, http.client.HTTPException) as error:
+                if attempt == self.retries:
+                    raise DownloadError(_network_message(url, error)) from error
+                wait = delay
+            self._pause(wait, cancel)
+            delay *= 2
+        raise DownloadError(f"The request to {_host(url)} failed.")
+
+    def get_reply(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        max_bytes: int = 16 * 1024 * 1024,
+        cancel: object | None = None,
+    ) -> HttpReply:
+        """Fetch a small document, returning 304, 404 and 410 replies instead of raising.
+
+        Other failures raise DownloadError after the usual retries, and a body
+        larger than ``max_bytes`` raises DownloadError.
+        """
+        delay = self.backoff
+        for attempt in range(self.retries + 1):
+            if is_cancelled(cancel):
+                raise DownloadCancelled("The download was cancelled.")
+            try:
+                with self._open(url, headers or {}, cancel) as response:
+                    data = response.read(max_bytes + 1)
+                    status = getattr(response, "status", 200)
+                    reply_headers = _header_dict(response.headers)
+                if len(data) > max_bytes:
+                    raise ReplyTooLarge(f"The reply from {_host(url)} was larger than expected.")
+                return HttpReply(status, data, reply_headers)
+            except urllib.error.HTTPError as error:
+                error.close()
+                if error.code in REPLY_STATUSES:
+                    return HttpReply(error.code, b"", _header_dict(error.headers))
                 if error.code not in RETRY_STATUSES or attempt == self.retries:
                     raise DownloadError(_http_message(url, error.code)) from error
                 wait = self._retry_wait(error, delay)

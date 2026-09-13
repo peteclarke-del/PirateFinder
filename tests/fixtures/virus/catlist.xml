@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Category names in the Amiga Bootblock Reader layout, for the tests. -->
+<Categories xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<Category>
+		<Name>Boot loader</Name>
+		<abbrev>bl</abbrev>
+		<Colour>Orange</Colour>
+	</Category>
+	<Category>
+		<Name>Old Anti-Virus</Name>
+		<abbrev>oldav</abbrev>
+		<Colour>Green</Colour>
+	</Category>
+	<Category>
+		<Name>Virus</Name>
+		<abbrev>v</abbrev>
+		<Colour>Red</Colour>
+	</Category>
+</Categories>

@@ -3,9 +3,10 @@ from __future__ import annotations
 import shutil
 import tempfile
 import unittest
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from pathlib import Path
 
+from piratefinder.catalogue.search import CataloguePage, CatalogueRow
 from piratefinder.finder import Finder, contents_summary, result_summary
 from piratefinder.images import archives
 from piratefinder.library.library import Library
@@ -17,8 +18,9 @@ from piratefinder.models import (
     Disk,
     DiskKind,
     Platform,
+    Query,
     QueueItem,
-    SearchFilters,
+    ResultMode,
 )
 from piratefinder.settings import Settings
 from tests.test_library_helpers import (
@@ -28,25 +30,6 @@ from tests.test_library_helpers import (
     make_st_image,
     store_module_available,
 )
-
-
-@dataclass(frozen=True)
-class Hit:
-    disk_id: int
-    score: float
-    matched: tuple[str, ...] = ()
-
-
-class FakeSearch:
-    """Returns fixed hits and records the arguments."""
-
-    def __init__(self, hits: list[Hit]) -> None:
-        self.hits = hits
-        self.calls: list[tuple[str, SearchFilters, int]] = []
-
-    def __call__(self, catalogue, text: str, filters: SearchFilters, limit: int = 500):
-        self.calls.append((text, filters, limit))
-        return self.hits
 
 
 class SummaryTests(unittest.TestCase):
@@ -121,8 +104,7 @@ class FinderTests(unittest.TestCase):
         self.addCleanup(self.db.close)
         self.library = Library(self.db, self.catalogue, archives=archives)
         self.settings = Settings()
-        self.search = FakeSearch([Hit(3, 5.0), Hit(2, 5.0), Hit(1, 5.0, ("Alpha",)), Hit(4, 1.0)])
-        self.finder = Finder(self.catalogue, self.library, self.settings, search=self.search)
+        self.finder = Finder(self.catalogue, self.library, self.settings)
 
     def test_providers_come_from_the_catalogue(self) -> None:
         self.assertEqual(self.finder.providers(), ["fast-host", "slow-host"])
@@ -131,63 +113,6 @@ class FinderTests(unittest.TestCase):
         )
         self.settings.providers = {"slow-host": False}
         self.assertEqual(self.finder.enabled_providers(), ["fast-host"])
-
-    def test_search_orders_by_score_with_local_first_on_ties(self) -> None:
-        (self.files / "one.st").write_bytes(self.raw1)
-        self.library.scan([self.files])
-        results = self.finder.search("alpha", SearchFilters())
-        self.assertEqual(
-            [(r.disk.id, r.availability) for r in results if r.disk],
-            [
-                (1, Availability.LOCAL),
-                (2, Availability.ONLINE),
-                (3, Availability.MISSING),
-                (4, Availability.MISSING),
-            ],
-        )
-        first = results[0]
-        self.assertEqual(first.matched, ("Alpha",))
-        self.assertEqual(first.summary, "Alpha, Beta")
-        self.assertEqual(first.disk.series_name, "Crew")
-
-    def test_available_only_and_disabled_providers(self) -> None:
-        results = self.finder.search("alpha", SearchFilters(available_only=True))
-        self.assertEqual([r.disk.id for r in results], [2, 1])
-        self.assertEqual(self.search.calls[-1][2], 2000)
-        self.settings.online_enabled = False
-        self.assertEqual(self.finder.search("alpha", SearchFilters(available_only=True)), [])
-
-    def test_unmatched_files_join_the_results(self) -> None:
-        (self.files / "Mystery.st").write_bytes(make_st_image("m", files=("ALPHAONE.PRG",)))
-        self.library.scan([self.files])
-        results = self.finder.search("alphaone", SearchFilters())
-        local = [r for r in results if r.local is not None]
-        self.assertEqual(len(local), 1)
-        self.assertEqual(local[0].availability, Availability.LOCAL)
-        self.assertEqual(local[0].key, f"file:{self.files / 'Mystery.st'}::")
-        self.assertEqual(results[-1], local[0])
-        self.assertEqual(
-            [
-                r
-                for r in self.finder.search("alphaone", SearchFilters(platform=Platform.AMIGA))
-                if r.local
-            ],
-            [],
-        )
-        self.assertEqual(
-            [
-                r
-                for r in self.finder.search(
-                    "alphaone", SearchFilters(kinds=frozenset({DiskKind.MENU}))
-                )
-                if r.local
-            ],
-            [],
-        )
-
-    def test_result_cap(self) -> None:
-        self.search.hits = [Hit(1, float(n)) for n in range(700)]
-        self.assertEqual(len(self.finder.search("x", SearchFilters())), 500)
 
     def test_detail(self) -> None:
         detail = self.finder.detail(1)
@@ -199,12 +124,16 @@ class FinderTests(unittest.TestCase):
             self.finder.detail(99)
 
     def test_corrections_apply(self) -> None:
-        self.db.set_correction(1, "label", "Crew 1 (corrected)")
-        self.db.set_correction(1, "platform", "amiga")  # not a text field; ignored
+        self.finder.save_details(1, {"label": "Crew 1 (corrected)", "platform": "amiga"})
+        # The platform is not a field the user may correct, so it is left alone.
         self.assertEqual(self.finder.detail(1).disk.label, "Crew 1 (corrected)")
         self.assertEqual(self.finder.detail(1).disk.platform, Platform.ATARI_ST)
-        results = self.finder.search("x", SearchFilters())
-        self.assertIn("Crew 1 (corrected)", [r.disk.label for r in results])
+        page = CataloguePage([CatalogueRow(1, None, "", None, 0.0)], 1)
+        finder = Finder(
+            self.catalogue, self.library, self.settings, search_page=lambda *_a, **_k: page
+        )
+        (row,) = finder.search_page(Query(text="crew", mode=ResultMode.DISCS)).rows
+        self.assertEqual(row.disk.label, "Crew 1 (corrected)")
 
     def test_sources_prefer_good_dumps_and_writable_formats(self) -> None:
         (self.files / "a.st").write_bytes(self.raw1)
@@ -239,6 +168,12 @@ class FinderTests(unittest.TestCase):
         self.assertTrue(all(s.platform is Platform.ATARI_ST for s in sources))
         whole_disk = QueueItem(id="r", label="Crew 2", platform=None, disk_id=2)
         self.assertEqual([s.location.id for s in self.finder.sources_for(whole_disk)], [3, 2, 1])
+
+    def test_downloads_carry_every_dump_of_the_disc(self) -> None:
+        # A download is checked against these when it has no checksum of its own.
+        item = QueueItem(id="q", label="Crew 1", platform=None, disk_id=1)
+        (download,) = self.finder.sources_for(item)
+        self.assertEqual(sorted(dump.id for dump in download.dumps), [10, 11, 12])
 
     def test_sources_honour_provider_settings(self) -> None:
         item = QueueItem(id="q", label="Crew 2", platform=None, disk_id=2)
@@ -282,7 +217,8 @@ class RealSearchTests(unittest.TestCase):
         db = UserDatabase.open(folder / "user.sqlite")
         self.addCleanup(db.close)
         finder = Finder(catalogue, Library(db, catalogue), Settings())
-        results = {r.disk.id: r for r in finder.search("zany", SearchFilters())}
+        page = finder.search_page(Query(text="zany", mode=ResultMode.DISCS))
+        results = {r.disk.id: r for r in page.rows}
         self.assertEqual(sorted(results), [1, 2])
         self.assertEqual((results[1].matched, results[1].summary), (("Zany Golf",), "Zany Golf"))
         # The single disk's row names its credits, with no title to put back in front.

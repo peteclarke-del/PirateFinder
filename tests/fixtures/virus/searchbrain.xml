@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Synthetic byte-string entries in the Amiga Bootblock Reader layout.
+     Recog is base64 of "SYNTHETIC BYTE STRING VIRUS". -->
+<SBBootblocks>
+  <Bootblock>
+    <Name>Synthetic Byte String Virus</Name>
+    <Recog>U1lOVEhFVElDIEJZVEUgU1RSSU5HIFZJUlVT</Recog>
+    <Class>v</Class>
+    <KS>KS1.3</KS>
+    <Bootable>True</Bootable>
+    <Data>False</Data>
+    <CRC>---</CRC>
+  </Bootblock>
+</SBBootblocks>

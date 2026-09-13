@@ -167,7 +167,14 @@ class LibraryTests(unittest.TestCase):
         self.assertEqual(self.library.search_unmatched("alpha"), [])
         self.assertEqual(
             self.library.stats(),
-            {"images": 3, "matched": 2, "unmatched": 1, "duplicates": 1, "folders": 1},
+            {
+                "images": 3,
+                "matched": 2,
+                "unmatched": 1,
+                "duplicates": 1,
+                "folders": 1,
+                "infected": 0,
+            },
         )
 
     def test_add_file_indexes_at_once(self) -> None:

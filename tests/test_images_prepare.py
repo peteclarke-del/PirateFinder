@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import contextlib
+import os
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from piratefinder.images import prepare as prepare_module
+from piratefinder.greaseweazle import caps
 from piratefinder.images.prepare import PrepareError, prepare
 from piratefinder.models import Geometry, Platform
 from tests.test_images_synthetic import (
@@ -21,6 +23,25 @@ from tests.test_images_synthetic import (
     st_image,
     stx_archive,
 )
+
+
+@contextlib.contextmanager
+def caps_library(installed: bool, machine: str | None = None):
+    """A data folder with or without the SPS Decoder Library PirateFinder installs.
+
+    The library is a stand-in file, which is all prepare() looks for; a copy
+    on this computer is kept out of the way.
+    """
+    with (
+        tempfile.TemporaryDirectory() as data,
+        mock.patch.dict(os.environ, {"XDG_DATA_HOME": data}),
+        mock.patch.object(caps, "system_library", return_value=None),
+        mock.patch.object(caps, "machine", return_value=machine or caps.machine()),
+    ):
+        if installed:
+            caps.folder().mkdir(parents=True)
+            (caps.folder() / caps.LIBRARY_NAME).write_bytes(b"\x7fELF stand-in")
+        yield
 
 
 class PrepareTestCase(unittest.TestCase):
@@ -205,23 +226,41 @@ class FluxTests(PrepareTestCase):
         for data, name, tracks in cases:
             with self.subTest(name=name, tracks=tracks):
                 self.assertEqual(self.run_prepare(data, name).tracks, tracks)
-        with mock.patch.object(prepare_module, "caps_library", return_value="libcapsimage.so.5"):
+        with caps_library(installed=True):
             self.assertEqual(self.run_prepare(ipf_header(cylinders=84), "x.ipf").tracks, "c=0-83")
 
     def test_ipf_without_the_caps_library_is_refused(self) -> None:
+        with caps_library(installed=False), self.assertRaises(PrepareError) as caught:
+            self.run_prepare(ipf_header(), "game.ipf")
+        self.assertEqual(
+            caught.exception.message,
+            "Writing an IPF image needs the SPS Decoder Library (libcapsimage), which is not "
+            "installed. Install it with IPF Support in Preferences, on the Greaseweazle page, "
+            "or choose another dump of this disk.",
+        )
+
+    def test_ipf_on_a_processor_without_a_build_is_refused(self) -> None:
         with (
-            mock.patch.object(prepare_module, "caps_library", return_value=None),
-            self.assertRaisesRegex(PrepareError, "softpres.org"),
+            caps_library(installed=False, machine="aarch64"),
+            self.assertRaisesRegex(PrepareError, r"no build of it for .* \(aarch64\)"),
         ):
             self.run_prepare(ipf_header(), "game.ipf")
 
     def test_ipf_with_the_caps_library_is_written_directly(self) -> None:
         data = ipf_header(platform=1)
-        with mock.patch.object(prepare_module, "caps_library", return_value="libcapsimage.so.5"):
+        with caps_library(installed=True):
             prepared = self.run_prepare(data, "game.ipf")
         self.assert_written(prepared, data, ".ipf")
         self.assertTrue(prepared.verifiable)
         self.assertEqual(prepared.platform, Platform.AMIGA)
+
+    def test_ipf_with_a_library_on_the_system_is_written(self) -> None:
+        with (
+            caps_library(installed=False),
+            mock.patch.object(caps, "system_library", return_value="libcapsimage.so.5"),
+        ):
+            prepared = self.run_prepare(ipf_header(), "game.ipf")
+        self.assertTrue(prepared.write_path.endswith(".ipf"))
 
     def test_unknown_flux_platform_falls_back_with_a_note(self) -> None:
         prepared = self.run_prepare(scp_header(disk_type=0x80), "x.scp")

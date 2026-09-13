@@ -228,5 +228,32 @@ class MissingSevenZipTests(ArchiveTestCase):
                 archives.read_member(path, "a.st")
 
 
+class MemberNameTests(unittest.TestCase):
+    def test_a_member_is_named_without_folders_or_its_outer_archive(self) -> None:
+        self.assertEqual(archives.base_name("set/inner.zip::menus\\Game.ST"), "Game.ST")
+        self.assertEqual(archives.base_name("menus/game.st"), "game.st")
+        self.assertEqual(archives.image_file_name("/nas/set.7z", "inner.zip::b.adf"), "b.adf")
+        self.assertEqual(archives.image_file_name("/nas/c.st"), "c.st")
+
+    def test_suffixes_are_those_of_the_member_itself(self) -> None:
+        self.assertTrue(archives.is_disk_image_name("set.zip::menus/B.ADF"))
+        self.assertFalse(archives.is_disk_image_name("game.st::readme.txt"))
+        self.assertTrue(archives.is_archive_name("set/inner.7z"))
+        self.assertFalse(archives.is_archive_name("inner.zip::game.st"))
+
+    def test_the_scanner_and_downloads_share_these_names_and_suffixes(self) -> None:
+        from piratefinder.images import inspect
+        from piratefinder.library import scanner
+        from piratefinder.online import fetch
+
+        self.assertIs(scanner.base_name, archives.base_name)
+        self.assertIs(scanner.is_disk_image_name, archives.is_disk_image_name)
+        self.assertIs(scanner.IMAGE_SUFFIXES, inspect.IMAGE_SUFFIXES)
+        self.assertIs(scanner.ARCHIVE_SUFFIXES, archives.ARCHIVE_SUFFIXES)
+        self.assertIs(fetch.base_name, archives.base_name)
+        self.assertIs(fetch.is_disk_image_name, archives.is_disk_image_name)
+        self.assertIs(fetch.is_archive_name, archives.is_archive_name)
+
+
 if __name__ == "__main__":
     unittest.main()
