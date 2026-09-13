@@ -196,6 +196,17 @@ def plural(count: int, singular: str, many: str | None = None) -> str:
     return f"{count:,} {word}"
 
 
+def duration_text(seconds: float) -> str:
+    """ "about 12 hours", "about 40 minutes" or "under a minute", for an estimate."""
+    if seconds < 60:
+        return "under a minute"
+    minutes = round(seconds / 60)
+    if minutes < 90:
+        return f"about {minutes} minute{'s' if minutes != 1 else ''}"
+    # From an hour and a half up, whole hours; never "1 hours".
+    return f"about {max(2, round(seconds / 3600))} hours"
+
+
 def human_size(size: int | None) -> str:
     if size is None:
         return ""

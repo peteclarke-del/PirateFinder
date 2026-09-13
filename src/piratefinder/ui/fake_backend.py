@@ -71,6 +71,7 @@ from ..models import (
     WriteProgress,
     WriteStatus,
 )
+from ..online.prefetch import PictureCount, PictureProgress, PictureSummary
 from ..online.releases import UpdateCancelled, UpdateError
 from ..settings import Settings
 from .backend import (
@@ -888,6 +889,11 @@ class FakeBackend(Backend):
         self.app_install_dismissed = False
         self.app_checks = 0
         self.app_installed: list[Path] = []
+        # Download All Pictures: pictures listed and cached per platform, and each run's platforms.
+        self.picture_totals = {Platform.ATARI_ST: 60, Platform.AMIGA: 40}
+        self.pictures_cached = {Platform.ATARI_ST: 10, Platform.AMIGA: 0}
+        self.pictures_unavailable = 0  # of each run, reported as no longer on their sites
+        self.picture_runs: list[tuple[Platform, ...]] = []
         self.search_delay = 0.0
         self.probe_delay = 0.0
         self.media_delay = 0.0
@@ -1255,6 +1261,39 @@ class FakeBackend(Backend):
             time.sleep(self.script.track_delay)
         self.built_at = offer.built_at
         self.update_offer = None
+
+    # Download All Pictures
+
+    def _picture_platforms(self, platforms) -> tuple[Platform, ...]:
+        return tuple(platforms) or tuple(self.picture_totals)
+
+    def picture_count(self, platforms=()) -> PictureCount:
+        chosen = self._picture_platforms(platforms)
+        total = sum(self.picture_totals[platform] for platform in chosen)
+        cached = sum(self.pictures_cached[platform] for platform in chosen)
+        remaining = {"demozoo.org": total - cached} if total > cached else {}
+        return PictureCount(total, cached, cached * 20_000, remaining)
+
+    def download_pictures(self, platforms, progress, cancel) -> PictureSummary:
+        chosen = self._picture_platforms(platforms)
+        self.picture_runs.append(tuple(platforms))
+        total = sum(self.picture_totals[platform] for platform in chosen)
+        already = sum(self.pictures_cached[platform] for platform in chosen)
+        fetched = unavailable = 0
+        for platform in chosen:
+            while self.pictures_cached[platform] < self.picture_totals[platform]:
+                if getattr(cancel, "cancelled", False) or not self.media_enabled:
+                    return PictureSummary(total, already, fetched, unavailable, stopped=True)
+                time.sleep(self.script.track_delay)
+                self.pictures_cached[platform] += 1
+                if unavailable < self.pictures_unavailable:
+                    unavailable += 1
+                else:
+                    fetched += 1
+                progress(
+                    PictureProgress(already + fetched + unavailable, total, fetched, unavailable)
+                )
+        return PictureSummary(total, already, fetched, unavailable)
 
     # Application updates
 

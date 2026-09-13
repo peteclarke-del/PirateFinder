@@ -56,6 +56,7 @@ from .models import (
     LocalFile,
     Location,
     MediaItem,
+    Platform,
     Query,
     QueueItem,
     ResultMode,
@@ -444,6 +445,21 @@ class Finder:
     def media_file(self, item: MediaItem) -> Path | None:
         """The cached picture for ``item``, downloaded when needed; None when unavailable."""
         return self.media_cache().fetch(item)
+
+    def picture_count(self, platforms: Sequence[Platform] = ()) -> Any:
+        """How many of the catalogue's pictures of ``platforms`` are cached (Download All Pictures)."""
+        from .online import prefetch
+
+        return prefetch.count(self.media_cache(), self.catalogue.picture_addresses(platforms))
+
+    def download_pictures(
+        self, platforms: Sequence[Platform], progress=None, cancel: object | None = None
+    ) -> Any:
+        """Fetch every picture of ``platforms`` into the details pane's cache."""
+        from .online import prefetch
+
+        addresses = self.catalogue.picture_addresses(platforms)
+        return prefetch.download(self.media_cache(), addresses, progress, cancel)
 
     def media_cache(self) -> Any:
         """The picture and summary cache, created on first use."""
