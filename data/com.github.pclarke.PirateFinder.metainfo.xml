@@ -49,6 +49,15 @@
     <keyword>compact</keyword>
   </keywords>
   <releases>
+    <release version="0.2.1" date="2026-09-13">
+      <description>
+        <p>Pictures ahead of time, and a steadier application update.</p>
+        <ul>
+          <li>Download All Pictures in Preferences fetches every picture the catalogue lists for the Atari ST, the Amiga or both, so the details pane never waits for one</li>
+          <li>Installing an application update waits for the password prompt however long it stays open</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-09-13">
       <description>
         <p>A new Find screen and a details pane.</p>

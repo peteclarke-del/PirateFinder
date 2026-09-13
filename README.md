@@ -195,8 +195,9 @@ Information is off in Preferences.
 Download All Pictures, in Preferences under Details Pane, fetches every picture
 the catalogue lists for the Atari ST, the Amiga or both ahead of time, into the
 same cache. It keeps to the pane's pace of one request a second to each site,
-so all 78,000 or so pictures take about 12 hours; it carries on in the
-background, and the next run starts from what is already there.
+so all 78,000 or so pictures take about 12 hours and about 3 GB of space in
+`~/.cache/piratefinder/media`; it carries on in the background, and the next
+run starts from what is already there.
 
 When the catalogue is wrong about a disc, Edit Details in the pane's menu
 corrects its label, catalogue name, crew, release date (`YYYY`, `YYYY-MM` or
@@ -525,9 +526,10 @@ new catalogue sources.
 
 ## Status and roadmap
 
-Version 0.2.0 is the current release. It brought the paged Find screen with
-its filters, the pictures, crew histories and trivia in the details pane, and
-virus detection. No write to a real floppy has been tested yet: writing has been checked against the real
+Version 0.2.1 is the current release. Version 0.2.0 brought the paged Find
+screen with its filters, the pictures, crew histories and trivia in the
+details pane, virus detection and Check for Application Updates; 0.2.1 adds
+Download All Pictures. No write to a real floppy has been tested yet: writing has been checked against the real
 `gw` tool without a Greaseweazle attached. [Current status](docs/CURRENT_STATUS.md)
 lists what works and what is unfinished, and the [Roadmap](ROADMAP.md) the
 planned catalogue, library, writing and distribution work.
