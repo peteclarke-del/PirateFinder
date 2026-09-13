@@ -11,6 +11,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gtk, Pango  # noqa: E402
 
+from ..jobs.queue import MAX_COPIES, fresh_copy  # noqa: E402
 from ..models import (  # noqa: E402
     QueueItem,
     SessionSummary,
@@ -32,8 +33,6 @@ from .widgets import (  # noqa: E402
     text_button,
     toast,
 )
-
-MAX_COPIES = 20
 
 
 def drive_index(code: str) -> int:
@@ -242,6 +241,8 @@ class QueuePage(Gtk.Stack):
             parts.append("chosen dump")
         else:
             parts.append("best available dump")
+        if not item.clean_virus:
+            parts.append("boot block virus left in place")
         return " • ".join(part for part in parts if part)
 
     def refresh(self) -> None:
@@ -524,11 +525,8 @@ class QueuePage(Gtk.Stack):
             self.summary_list.remove(child)
             child = following
         for label, outcome, source in summary.items:
-            row = plain_row(title=label, subtitle=fmt.outcome_text(outcome))
-            row.set_subtitle_lines(3)
-            details = fmt.outcome_details(outcome, source)
-            if details:
-                row.set_subtitle(f"{fmt.outcome_text(outcome)}\n{details}")
+            row = plain_row(title=label, subtitle=fmt.outcome_subtitle(outcome, source))
+            row.set_subtitle_lines(0)  # every note, however many
             row.add_prefix(
                 status_icon(
                     fmt.STATUS_ICONS.get(outcome.status, "dialog-question-symbolic"),
@@ -550,7 +548,7 @@ class QueuePage(Gtk.Stack):
         return failed
 
     def _on_retry_failed(self, _button) -> None:
-        failed = [fmt.fresh_copy(item) for item in self._failed_items()]
+        failed = [fresh_copy(item) for item in self._failed_items()]
         if not failed:
             return
         from_queue = self._from_queue
