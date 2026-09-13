@@ -781,6 +781,38 @@ class Shots:
         settle(300)
         return dialog.force_close
 
+    def about_update(self):
+        """The About window after Check for Application Updates found a newer version."""
+        from ..app_update import AppRelease
+        from .app_updater import AppUpdater
+
+        window = self.window
+        self.reset_find()
+        version = "0.3.0"
+        package = f"PirateFinder_{version}_ubuntu-24.04_amd64.deb"
+        window.backend.app_release = AppRelease(
+            version,
+            f"v{version}",
+            f"PirateFinder {version}",
+            f"https://github.com/peteclarke-del/PirateFinder/releases/tag/v{version}",
+            package_name=package,
+            package_url=f"https://github.com/peteclarke-del/PirateFinder/releases/download/v{version}/{package}",
+            package_size=24_000_000,
+            sums_url="https://github.com/peteclarke-del/PirateFinder/releases/download/v0.3.0/SHA256SUMS",
+        )
+        window.show_about()
+        window.app_updater.check()
+        settle(500)
+
+        def close() -> None:
+            if window.about_dialog is not None:
+                window.about_dialog.force_close()
+            window.backend.app_release = None
+            window.app_updater = AppUpdater(window)
+            settle(200)
+
+        return close
+
     def preferences_greaseweazle(self):
         return self.preferences("greaseweazle")
 
@@ -911,6 +943,7 @@ def run(out: Path, copy_help: bool) -> int:
             shots.capture("preferences-virus", shots.preferences_virus)
             shots.capture("preferences-ipf", shots.preferences_ipf)
             shots.capture("no-catalogue", shots.no_catalogue)
+            shots.capture("about-update", shots.about_update)
             shots.capture_narrow("find-narrow", shots.find, NARROW_WIDTH, NARROW_HEIGHT)
             shots.capture(
                 "help",

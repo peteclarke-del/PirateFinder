@@ -1510,6 +1510,78 @@ HELP_TOPICS = (
         ),
     ),
     HelpTopic(
+        "updates",
+        "Updating PirateFinder",
+        "Checking for a newer version of PirateFinder from the About window, and installing it.",
+        "about-update.png",
+        "The About window after Check for Application Updates found a newer version",
+        (
+            HelpSection(
+                "Checking for a newer version",
+                (
+                    "Open About PirateFinder from the main menu and press Check for Application "
+                    "Updates. PirateFinder asks GitHub for the newest release of the application "
+                    "and compares it with the version shown above the button. It checks only "
+                    "when you press the button; nothing is sent when PirateFinder starts.",
+                    "The answer shows under the button: that this is the newest version, or the "
+                    "newer version and the one you have. When GitHub cannot be reached or its "
+                    "answer cannot be read, it says Could not check for a newer version, with "
+                    "the reason, and never that this is the newest version.",
+                ),
+            ),
+            HelpSection(
+                "Installing it",
+                (),
+                steps=(
+                    "Press Update to, followed by the new version number. A question says "
+                    "which package will be installed and shows the release notes.",
+                    "Press Download and Install. The package made for your system, such as "
+                    "Ubuntu 24.04 on amd64, is downloaded from GitHub and checked against the "
+                    "SHA256SUMS file published with it. A package that does not match is "
+                    "deleted and nothing is installed.",
+                    "The system asks for your password, and apt installs the package over the "
+                    "old one. Your settings, library, queue, history and downloaded images are "
+                    "kept.",
+                    "Press Restart PirateFinder, or Restart in the notification, to start the "
+                    "new version.",
+                ),
+            ),
+            HelpSection(
+                "While it runs",
+                (
+                    "Closing the About window does not stop a download, and reopening it shows "
+                    "how far it has got. Cancel stops the download. While discs are being "
+                    "written, an update cannot be installed and PirateFinder cannot restart; "
+                    "wait until the session is over.",
+                ),
+            ),
+            HelpSection(
+                "When it cannot install",
+                (),
+                bullets=(
+                    "Dismissing the password prompt installs nothing and leaves the update "
+                    "offered.",
+                    "Without pkexec, or when the system does not allow the installation, the "
+                    "message gives a command to run in a terminal instead: sudo apt install "
+                    "followed by the downloaded package, which is kept in "
+                    "`~/.cache/piratefinder/updates`.",
+                    "A copy run from its source tree cannot update itself. The button then "
+                    "opens the release page; update the source tree instead.",
+                    "When the release has no package for your system, the button opens the "
+                    "release page, which lists the packages it has.",
+                ),
+            ),
+            HelpSection(
+                "The catalogue",
+                (
+                    "The catalogue is updated on its own, with Update Catalogue in the main "
+                    "menu, as Updating the Catalogue describes. Each new version of "
+                    "PirateFinder brings the newest catalogue with it.",
+                ),
+            ),
+        ),
+    ),
+    HelpTopic(
         "formats",
         "Image Formats and Conversions",
         "Which image files can be written, and how each one is prepared.",
@@ -1716,6 +1788,16 @@ HELP_TOPICS = (
                     "reads. Install the current package, or build a "
                     "catalogue from the same source tree. If `PIRATEFINDER_CATALOGUE` is set, "
                     "check that it names a current file.",
+                ),
+            ),
+            HelpSection(
+                "Check for Application Updates cannot check or install",
+                (
+                    "Could not check for a newer version, followed by a reason, means GitHub "
+                    "could not be reached or its answer could not be read; try again later. The "
+                    "update failed, followed by a reason, comes from the download or from apt, "
+                    "and gives the command to install the downloaded package in a terminal. "
+                    "Updating PirateFinder has the details.",
                 ),
             ),
             HelpSection(
@@ -1971,8 +2053,17 @@ HELP_TOPICS = (
                         "published.",
                     ),
                     (
-                        "When you install an update",
+                        "When you install a catalogue update",
                         "The catalogue file for this version's layout and its checksum, from "
+                        "github.com.",
+                    ),
+                    (
+                        "When you press Check for Application Updates",
+                        "One request to api.github.com for the latest PirateFinder release.",
+                    ),
+                    (
+                        "When you install a new version of PirateFinder",
+                        "The package for your system and the release's SHA256SUMS file, from "
                         "github.com.",
                     ),
                     (

@@ -277,6 +277,10 @@ rm -rf -- "${application_lib:?}/bin"
 install -d "${application_lib}/bin"
 install -m 0755 "${project_dir}/packaging/gw" "${application_lib}/bin/gw"
 install -m 0644 "${project_dir}/packaging/gw_entry.py" "${application_lib}/gw_entry.py"
+# The in-application update reads this to take the package made for the same
+# system (piratefinder.app_update.PACKAGE_TARGET).
+printf 'distro=%s\narch=%s\n' "${distro}" "${arch}" > "${application_lib}/package-target"
+chmod 0644 "${application_lib}/package-target"
 install -m 0755 "${project_dir}/packaging/piratefinder" "${package_root}/usr/bin/piratefinder"
 install -m 0644 "${project_dir}/data/${application_id}.desktop" \
     "${package_root}/usr/share/applications/${application_id}.desktop"

@@ -19,8 +19,9 @@ from pathlib import Path
 from typing import Any
 
 from . import paths
+from .branding import RELEASES_API
 
-DEFAULT_FEED_URL = "https://api.github.com/repos/peteclarke-del/PirateFinder/releases"
+DEFAULT_FEED_URL = RELEASES_API
 FILE_MODE = 0o600
 
 

@@ -10,9 +10,7 @@ Each release has a native package for each of these systems:
 | Debian 13 (trixie) | amd64, arm64, armhf | `PirateFinder_<version>_debian-13_<arch>.deb` |
 
 Every package is installed and started on its own release and architecture by
-the release workflow before it is published. Version 0.1.0 predates these
-names: it has one package, `PirateFinder_0.1.0_ubuntu24.04_amd64.deb`, for
-Ubuntu 24.04 amd64.
+the release workflow before it is published.
 
 Each package contains:
 
@@ -182,6 +180,7 @@ again.
 | SPS Decoder Library for IPF, when installed | `~/.local/share/piratefinder/caps/` |
 | Pictures and Wikipedia summaries | `~/.cache/piratefinder/media/` |
 | Downloads waiting to be checked | `~/.cache/piratefinder/downloads/` |
+| A new PirateFinder package, until it is installed | `~/.cache/piratefinder/updates/` |
 | Downloaded disk images (default) | `~/Floppy Images/PirateFinder` |
 
 The locations follow `XDG_CONFIG_HOME`, `XDG_DATA_HOME` and `XDG_CACHE_HOME`
@@ -217,8 +216,17 @@ much quicker than a scan.
 
 ## Upgrading
 
-Download the newer `.deb`, verify its checksum, and install it with the same
-`apt install ./FILE.deb` command. Settings, the library index, the queue, the
+Open **About PirateFinder** from the main menu and press **Check for
+Application Updates**. When a newer release is published, **Update to**
+downloads the package for the system this one was built for (the package
+records its distribution and architecture in
+`/usr/lib/piratefinder/package-target`), checks it against the release's
+`SHA256SUMS`, and installs it with `pkexec apt-get install`, which asks for
+your password. **Restart PirateFinder** then starts the new version. The check
+is made only when you press the button.
+
+To upgrade by hand instead, download the newer `.deb`, verify its checksum, and
+install it with the same `apt install ./FILE.deb` command. Settings, the library index, the queue, the
 history and downloaded images are outside the package and are kept. A
 catalogue installed by an in-app update is kept too; PirateFinder uses
 whichever catalogue is newer.
