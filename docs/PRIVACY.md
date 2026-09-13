@@ -19,6 +19,7 @@ keeps.
 | When you write, or choose Download Only for, a disc that is not in your library | The disk image, from the location the catalogue gives | The provider: `archive.org`, `atarilegend.com`, `d-bug.me`, `exxosforum.co.uk` or `ftp.scene.org` (the mirror of the amigascne archive) | Online Downloads, or the provider's own switch, in Preferences, General |
 | During a writing session | The next disc in the session, in the background, when it is only available online | As above | As above |
 | When the details pane shows a disc | Each picture as it is shown, not the ones behind the arrows until you step to them | `atarilegend.com`, `d-bug.me`, `media.demozoo.org` or `raw.githubusercontent.com` | Download Screenshots and Background Information, or Online Downloads |
+| When you choose Download under Download All Pictures, in Preferences, General | Every picture the catalogue lists for the platforms you chose that is not on this computer yet, one a second to each site | The same sites as the details pane | Only made when you ask; Stop ends it, and so do Download Screenshots and Background Information or Online Downloads switched off |
 | When the details pane shows a disc | The Wikipedia summaries of the title shown, the disc and the crew, when the catalogue names an article | `en.wikipedia.org` | As above |
 | When you choose Download Brainfile or Update Brainfile | The latest Amiga Bootblock Reader release and its zip file | `api.github.com` and `github.com` | Only made when you ask |
 | When you accept the licence under IPF Support, in Preferences, Greaseweazle | The SPS Decoder Library archive for your processor, such as `CAPSImg_5.1.3_Linux_x86-64.tar.xz` | `fs-uae.net` | Only made when you ask |
@@ -111,7 +112,7 @@ Stored Image, which rewrites or adds an image file and keeps the original. See
 
 - Online Downloads off stops every disk image, picture and summary download.
 - Download Screenshots and Background Information off stops pictures and
-  summaries only.
+  summaries only, Download All Pictures included.
 - Each provider has its own switch.
 - Check for Updates at Start off stops the check at start.
 - The catalogue update, the application update, the brainfile and the SPS

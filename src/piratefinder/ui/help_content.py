@@ -697,6 +697,24 @@ HELP_TOPICS = (
                 screenshot="details-pictures-off.png",
                 screenshot_alt="The picture area of the details pane when pictures are off",
             ),
+            HelpSection(
+                "Downloading every picture",
+                (
+                    "The details pane fetches a disc's pictures when it first shows the disc. "
+                    "To have them all at once, for example before going offline, use Download "
+                    "All Pictures in Preferences, under Details Pane. Choose Atari ST and Amiga, "
+                    "Atari ST or Amiga, then Download. The row says how many of the pictures "
+                    "are already on this computer, and how long the rest take.",
+                    "Pictures are fetched one a second from each site, as the details pane "
+                    "fetches them, so every picture the catalogue lists, about 78,000, takes "
+                    "about 12 hours, most of it for Demozoo's. They go into the same cache "
+                    "folder and are refreshed the same way. The download carries on with "
+                    "Preferences closed, Stop ends it, and closing PirateFinder stops it too. "
+                    "The next Download carries on from the pictures already there and asks "
+                    "nothing of a site for them. A picture a site no longer has is counted and "
+                    "left out.",
+                ),
+            ),
         ),
     ),
     HelpTopic(
@@ -1334,6 +1352,12 @@ HELP_TOPICS = (
                         "Fetches pictures and Wikipedia summaries for the disc in the details "
                         "pane, when it is shown. On to start with. Greyed out while Online "
                         "Downloads is off.",
+                    ),
+                    (
+                        "Download All Pictures",
+                        "Fetches every picture the catalogue lists for the platforms you choose, "
+                        "ahead of time, into the details pane's cache. Only while both switches "
+                        "above are on.",
                     ),
                     (
                         "Providers",
@@ -2080,6 +2104,11 @@ HELP_TOPICS = (
                         "summaries of the title, the disc and the crew, from en.wikipedia.org.",
                     ),
                     (
+                        "When you choose Download under Download All Pictures",
+                        "Every picture the catalogue lists for the platforms you chose that is not "
+                        "on this computer yet, one a second from each of the same sites.",
+                    ),
+                    (
                         "When you choose Download Brainfile",
                         "The latest Amiga Bootblock Reader release, from api.github.com and "
                         "github.com.",
@@ -2115,7 +2144,8 @@ HELP_TOPICS = (
                 (
                     "Online Downloads off stops disk image, picture and summary downloads. "
                     "Download Screenshots and Background Information off stops pictures and "
-                    "summaries only. Check for Updates at Start off stops the check at start. "
+                    "summaries only, Download All Pictures included. Check for Updates at "
+                    "Start off stops the check at start. "
                     "The brainfile and the SPS Decoder Library are fetched only when you ask for "
                     "them. Online Downloads off also stops the Greaseweazle host tool's "
                     "firmware check, which otherwise happens only when `gw info` identifies a "

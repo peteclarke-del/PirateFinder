@@ -290,9 +290,10 @@ than a local build.
 ## Sources the application reads
 
 The catalogue holds addresses and article titles, not pictures or article
-text. The application fetches these while it runs, only when the details pane
-shows a disc and only while Download Screenshots and Background Information
-and Online Downloads are both on. [Privacy](PRIVACY.md) lists every request.
+text. The application fetches these while it runs, when the details pane shows
+a disc or when the user chooses Download All Pictures in Preferences, and only
+while Download Screenshots and Background Information and Online Downloads are
+both on. [Privacy](PRIVACY.md) lists every request.
 
 ### Pictures
 

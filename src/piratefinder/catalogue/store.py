@@ -348,6 +348,25 @@ class Catalogue:
 
     # -- details pane ----------------------------------------------------------
 
+    def picture_addresses(self, platforms: Iterable[str] = ()) -> list[tuple[str, str]]:
+        """Every picture address the catalogue lists, once, with its source.
+
+        Only discs of ``platforms`` (Platform values) count, or every disc
+        when none is given. The order is the discs' order in the catalogue, so
+        a download that stops part way has covered whole discs.
+        """
+        wanted = [getattr(platform, "value", platform) for platform in platforms]
+        where = f"WHERE d.platform IN ({', '.join('?' * len(wanted))}) " if wanted else ""
+        rows = self.query(
+            "SELECT u.text || m.url, MIN(c.source) FROM media m "
+            "JOIN address_prefix u ON u.id = m.url_prefix "
+            "JOIN media_credit c ON c.id = m.credit_id "
+            f"JOIN disks d ON d.id = m.disk_id {where}"
+            "GROUP BY u.text || m.url ORDER BY MIN(m.disk_id), MIN(m.id)",
+            tuple(wanted),
+        )
+        return [(url, source) for url, source in rows]
+
     def media(self, disk_id: int) -> list[MediaItem]:
         """Pictures of a disk and of the titles on it, lowest rank first.
 

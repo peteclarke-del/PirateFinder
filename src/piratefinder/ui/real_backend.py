@@ -25,6 +25,7 @@ from ..models import (
     ImageRecord,
     LocalFile,
     MediaItem,
+    Platform,
     Query,
     QueueItem,
     ResultPage,
@@ -33,6 +34,7 @@ from ..models import (
     TriviaItem,
     VirusReport,
 )
+from ..online.prefetch import PictureCount, PictureProgress, PictureSummary
 from ..settings import Settings
 from . import formatting as fmt
 from .backend import (
@@ -290,6 +292,21 @@ class RealBackend(Backend):
             return None
         path = self.finder.media_file(item)
         return Path(path) if path else None
+
+    def picture_count(self, platforms: Sequence[Platform] = ()) -> PictureCount:
+        if self.catalogue is None:
+            return PictureCount(0, 0, 0)
+        return self.finder.picture_count(platforms)
+
+    def download_pictures(
+        self,
+        platforms: Sequence[Platform],
+        progress: Callable[[PictureProgress], None],
+        cancel,
+    ) -> PictureSummary:
+        if self.catalogue is None or not self.media_enabled:
+            return PictureSummary(0, 0, 0, 0, stopped=True)
+        return self.finder.download_pictures(platforms, progress, cancel)
 
     def clean_alternates(self, disk_id: int) -> list[ImageRecord]:
         if self.catalogue is None:
