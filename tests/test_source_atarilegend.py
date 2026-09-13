@@ -278,6 +278,201 @@ class RuleNumberTest(unittest.TestCase):
         self.assertEqual(keys, [("later", 5, "", ""), ("old-set", 7, "", "")])
 
 
+class DetailsTest(unittest.TestCase):
+    """Pictures, facts, notes, dates and reference ids for the details pane."""
+
+    def setUp(self) -> None:
+        self.messages: list[str] = []
+        self.registry = SeriesRegistry.load()
+        tables = al.load_tables(DUMP)
+        records = al.build_records(
+            tables, self.registry, log=self.messages.append, articles={"2": "Rick Dangerous"}
+        )
+        self.by_disk = {record.links[0][1].rsplit("-", 1)[-1]: record for record in records}
+
+    def test_menu_screenshots_are_disc_pictures(self) -> None:
+        record = self.by_disk["3219"]
+        menus = [item for item in record.media if item.kind == "menu"]
+        self.assertEqual(
+            [(item.url, item.rank) for item in menus],
+            [
+                (f"{al.SITE}/storage/images/menu_screenshots/1886.png", 10),
+                (f"{al.SITE}/storage/images/menu_screenshots/1887.bmp", 11),
+            ],
+        )
+        first = menus[0]
+        self.assertEqual((first.source, first.content_title), ("atari-legend", ""))
+        self.assertEqual(first.page_url, f"{al.SITE}/menusets/155#menudisk-3219")
+        self.assertIn("Atari Legend", first.credit)
+        self.assertIn("CC BY-NC-SA 4.0", first.credit)
+
+    def test_a_file_that_is_not_a_picture_is_left_out(self) -> None:
+        self.assertEqual(self.by_disk["3220"].media, [])  # its only screenshot is a zip
+
+    def test_game_screenshots_are_title_pictures_three_at_most(self) -> None:
+        record = self.by_disk["3219"]
+        rick = [item for item in record.media if item.content_title == "Rick Dangerous"]
+        self.assertEqual(
+            [item.url.rsplit("/", 1)[-1] for item in rick], ["319.png", "320.png", "321.jpg"]
+        )
+        self.assertEqual({(item.kind, item.rank) for item in rick}, {("snap", 30)})
+        self.assertEqual(rick[0].page_url, f"{al.SITE}/games/rick-dangerous")
+
+    def test_a_game_listed_twice_on_a_disk_gets_its_pictures_once(self) -> None:
+        # The New Zealand Story is on disk 3219 as a game and as a cheat.
+        record = self.by_disk["3219"]
+        story = [m for m in record.media if m.content_title == "New Zealand Story, The"]
+        self.assertEqual(len(story), 1)
+
+    def test_facts_are_plain_text_title_trivia(self) -> None:
+        facts = [note for note in self.by_disk["3219"].trivia if note.kind == "fact"]
+        self.assertEqual(
+            [note.text for note in facts],
+            [
+                "A re-release of Westphaser.",
+                "See the story (https://example.org/rick) and https://example.org/.\n\n"
+                "Cheat: type POOKIE",
+            ],
+        )
+        self.assertEqual({note.content_title for note in facts}, {"Rick Dangerous"})
+        self.assertEqual({note.licence for note in facts}, {"CC BY-NC-SA 4.0"})
+        self.assertEqual(facts[0].url, f"{al.SITE}/games/rick-dangerous")
+
+    def test_disk_notes_are_disc_trivia(self) -> None:
+        [note] = self.by_disk["3220"].trivia
+        self.assertEqual((note.kind, note.text, note.content_title), ("note", "Needs\nfixing", ""))
+        self.assertEqual(note.source, "atari-legend")
+
+    def test_wikipedia_article_by_game_id(self) -> None:
+        record = self.by_disk["3219"]
+        [article] = [note for note in record.trivia if note.kind == "wikipedia"]
+        self.assertEqual(
+            (article.text, article.content_title), ("Rick Dangerous", "Rick Dangerous")
+        )
+        self.assertEqual(article.url, "https://en.wikipedia.org/wiki/Rick_Dangerous")
+        self.assertEqual(article.licence, "CC BY-SA 4.0")
+        rick = next(c for c in record.contents if c.title == "Rick Dangerous")
+        self.assertEqual(rick.links, [("atari-legend-game", "2"), ("wikipedia", "Rick Dangerous")])
+
+    def test_reference_ids_of_titles(self) -> None:
+        links = {c.title: c.links for c in self.by_disk["3219"].contents}
+        self.assertEqual(links["Stack Up"], [("atari-legend-game", "3")])
+        self.assertEqual(links["Synth Dream"], [("demozoo", "69534")])
+        self.assertEqual(links["Ripper"], [])
+
+    def test_release_date_from_the_menu_date(self) -> None:
+        self.assertEqual(self.by_disk["1744"].release_date, "1991-01-26")
+        self.assertEqual(self.by_disk["1745"].release_date, "")
+        self.assertEqual(al.release_date("1990-00-00"), "1990")
+        self.assertEqual(al.release_date("1990-07-00"), "1990-07")
+        self.assertEqual(al.release_date("0000-00-00"), "")
+        self.assertEqual(al.release_date(None), "")
+
+    def test_counts_are_logged(self) -> None:
+        self.assertTrue(any("2 menu screenshots, 4 game screenshots" in m for m in self.messages))
+
+    def test_without_the_wikidata_answer_the_dump_still_reads(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            messages: list[str] = []
+            ctx = BuildContext(
+                cache_dir=Path(folder),
+                series=SeriesRegistry.load(),
+                offline=True,
+                inputs={al.INFO.id: DUMP},
+                log=messages.append,
+            )
+            records = list(al.collect(ctx))
+        self.assertEqual(len(records), 12)
+        self.assertFalse(any(n.kind == "wikipedia" for r in records for n in r.trivia))
+        self.assertTrue(any("no Wikipedia articles" in message for message in messages))
+
+
+class PlainTextTest(unittest.TestCase):
+    def test_bbcode(self) -> None:
+        self.assertEqual(al.plain_text("[url=http://x.org]x.org[/url]"), "x.org (http://x.org)")
+        self.assertEqual(al.plain_text("[url]http://x.org[/url]"), "http://x.org")
+        self.assertEqual(al.plain_text("[code]A\r\n  B[/code]"), "A\n  B")
+        self.assertEqual(al.plain_text("[u][b]Hi[/b][/u] [list][*]one[/list]"), "Hi one")
+        self.assertEqual(al.plain_text(None), "")
+
+
+class CrewTest(unittest.TestCase):
+    def test_crews_from_the_dump(self) -> None:
+        messages: list[str] = []
+        crews = list(
+            al.crew_records(al.load_tables(DUMP), SeriesRegistry.load(), log=messages.append)
+        )
+        by_name = {crew.name: crew for crew in crews}
+        self.assertEqual(sorted(by_name), ["Pompey Pirates", "The Lonely Crew"])
+        pompey = by_name["Pompey Pirates"]
+        self.assertEqual(pompey.notes, "Founded in Portsmouth.\nIt's true.")
+        self.assertEqual(pompey.members, ["Marcer", "Alien (Big Al)"])  # once each
+        self.assertEqual(pompey.url, f"{al.SITE}/menusets/155")
+        self.assertEqual(pompey.source, "atari-legend")
+        # The site's crew id, and eight menu disks and one game release on the ST.
+        self.assertEqual((pompey.id, pompey.platforms), ("7", {"atari-st": 9}))
+        self.assertEqual(by_name["The Lonely Crew"].url, "")
+        # The site covers the ST only, so a crew it credits with nothing is
+        # still an ST crew.
+        self.assertEqual(by_name["The Lonely Crew"].platforms, {"atari-st": 0})
+        self.assertTrue(any("2 crews, 2 with a history" in message for message in messages))
+
+    def test_a_crew_is_named_as_its_menus_series_group(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            (Path(folder) / "series.toml").write_text(
+                '[[series]]\nid = "medway-boys"\nname = "Medway Boys"\nplatform = "atari-st"\n'
+                'kind = "menu"\ngroup = "Medway Boys"\naliases = ["the medway boys"]\n'
+                '[[series]]\nid = "other"\nname = "Other"\nplatform = "atari-st"\n'
+                'kind = "menu"\ngroup = "Wild Copiers"\n'
+            )
+            registry = SeriesRegistry.load(Path(folder))
+        tables = {
+            "menu_sets": [{"id": 1, "name": "The Medway Boys", "menus_sort": "asc"}],
+            "menus": [{"id": 1, "number": 1, "issue": None, "version": None, "menu_set_id": 1}],
+            "menu_disks": [{"id": 10, "menu_id": 1}],
+            "crews": [
+                {"id": 5, "name": "The Medway Boys", "history": "From Kent."},
+                {"id": 6, "name": "The Wild Copiers", "history": "No menus here."},
+                {"id": 7, "name": "Nobody", "history": None},
+                {"id": 8, "name": "Medway Boys", "history": "Another crew of the name."},
+            ],
+            "crew_menu_set": [{"crew_id": 5, "menu_set_id": 1}],
+        }
+        crews = [(crew.name, crew.id, crew.notes) for crew in al.crew_records(tables, registry)]
+        # Two crews of one name stay two records: the merge tells them apart
+        # by the crew ids the menu disks list.
+        self.assertEqual(
+            crews,
+            [
+                ("Medway Boys", "5", "From Kent."),
+                ("Wild Copiers", "6", "No menus here."),
+                ("Medway Boys", "8", "Another crew of the name."),
+            ],
+        )
+        [medway] = [crew for crew in al.crew_records(tables, registry) if crew.id == "5"]
+        self.assertEqual(medway.url, f"{al.SITE}/menusets/1")
+        [record] = al.build_records(tables, registry)
+        self.assertEqual(record.crew_ids, ["5"])
+
+    def test_collect_crews_reads_the_dump(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            ctx = BuildContext(
+                cache_dir=Path(folder),
+                series=SeriesRegistry.load(),
+                offline=True,
+                inputs={al.INFO.id: DUMP},
+                log=lambda m: None,
+            )
+            self.assertEqual(len(list(al.collect_crews(ctx))), 2)
+
+    def test_menu_disks_list_the_crews_of_their_set(self) -> None:
+        records = list(al.build_records(al.load_tables(DUMP), SeriesRegistry.load()))
+        by_set = {record.links[0][1].split("#")[0]: record.crew_ids for record in records}
+        self.assertEqual(by_set[al.set_url(155)], ["7"])
+        self.assertEqual(by_set[al.set_url(89)], ["8", "9"])
+        self.assertEqual(by_set[al.set_url(13)], [])
+
+
 class CollectTest(unittest.TestCase):
     def test_newest_dump_is_taken_from_the_listing(self) -> None:
         with tempfile.TemporaryDirectory() as folder:

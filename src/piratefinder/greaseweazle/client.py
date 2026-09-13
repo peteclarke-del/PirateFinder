@@ -21,25 +21,52 @@ first match wins:
 
 The message strings are those of Greaseweazle 1.23 (``usb.py`` Ack strings,
 ``tools/write.py`` and ``cli.py``).
+
+Whether a Greaseweazle is plugged in is judged from files alone
+(``device_present``): no gw run and no network request, so the window can
+follow the device every few seconds. ``gw info`` is run only to identify a
+device, because each run that finds one also asks the GitHub API for the
+newest firmware (``tools/info.py``, ``latest_firmware``). gw 1.23 has no
+option to skip that request; ``--bootloader`` avoids it only by switching the
+device into its bootloader, which is not wanted here. While online use is
+switched off, ``probe`` gives gw an HTTPS proxy on this computer that refuses
+every connection (``refusing_proxy``), so the lookup fails at once and no
+request leaves the computer; gw then ends with a fatal error after printing
+the device, which ``parse_info`` reads as connected.
+
+Every gw run gets its environment from ``gw_environment``, which adds the
+folder of the SPS Decoder Library PirateFinder installed to
+``LD_LIBRARY_PATH`` (see ``caps``).
 """
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import shutil
+import socket
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..models import DeviceStatus, Geometry, PreparedImage, WriteOutcome, WriteProgress, WriteStatus
-from .runner import OperationController, ProcessResult, run_streaming
+from . import caps
+from .runner import OperationController, ProcessResult, minimal_environment, run_streaming
 
 #: Where the Debian package keeps its private copy of the host tools.
 PACKAGED_GW = Path("/usr/lib/piratefinder/bin/gw")
 DRIVES = ("A", "B", "0", "1", "2", "3")
 DIAGNOSTIC_LINES = 60
+NOT_CONNECTED = "No Greaseweazle is connected."
+#: The Greaseweazle's own USB id, assigned by pid.codes: vendor 1209, product 4d69.
+USB_ID = ("1209", "4d69")
+#: Words in a USB product string, or a by-id serial name, that gw also accepts
+#: (``tools/util.py``, ``score_port``): its own name and "Greaseweazle compatible".
+DEVICE_WORDS = ("greaseweazle", "gw-compat")
+SYSFS_USB_DEVICES = Path("/sys/bus/usb/devices")
+DEVICE_FOLDER = Path("/dev")
 
 _TRACK = re.compile(r"^T(\d+)\.(\d+)(?:\s*->\s*Drive\s+\d+\.\d+)?:\s*(.*)$")
 _RETRY = re.compile(r"Retry #(\d+)")
@@ -69,10 +96,88 @@ def find_gw() -> str | None:
     return None
 
 
-def probe(timeout: float = 20, *, device: str = "", executable: str | None = None) -> DeviceStatus:
+def gw_environment() -> dict[str, str]:
+    """The environment every gw run gets: the runner's minimal one, and the library path.
+
+    gw loads the SPS Decoder Library by its soname, so the dynamic loader of
+    the gw process must find it, and the loader reads ``LD_LIBRARY_PATH`` only
+    when the process starts. The folder PirateFinder installed the library in
+    comes first; the ``LD_LIBRARY_PATH`` PirateFinder was started with
+    follows, so a library found through it is found by gw as well.
+    """
+    environment = minimal_environment()
+    search = caps.library_path(os.environ.get("LD_LIBRARY_PATH", ""))
+    if search:
+        environment["LD_LIBRARY_PATH"] = search
+    return environment
+
+
+def device_present(
+    device: str = "", *, sysfs: Path = SYSFS_USB_DEVICES, dev: Path = DEVICE_FOLDER
+) -> bool:
+    """Whether a Greaseweazle looks plugged in, read from files: no gw, no network.
+
+    ``device`` is the serial port chosen in Preferences; when it is set, the
+    answer is whether that port exists. Otherwise: a USB device in sysfs with
+    the Greaseweazle's id or product name, the ``greaseweazle`` link the udev
+    rule makes, or a serial port whose ``by-id`` name is a Greaseweazle's.
+    """
+    if device:
+        path = Path(device)
+        return (path if path.is_absolute() else dev / path).exists()
+    try:
+        entries = sorted(sysfs.iterdir())
+    except OSError:
+        entries = []
+    for entry in entries:
+        if (_read_attribute(entry / "idVendor"), _read_attribute(entry / "idProduct")) == USB_ID:
+            return True
+        if _names_device(_read_attribute(entry / "product")):
+            return True
+    if (dev / "greaseweazle").exists():
+        return True
+    try:
+        return any(_names_device(path.name) for path in (dev / "serial" / "by-id").iterdir())
+    except OSError:
+        return False
+
+
+def _names_device(text: str) -> bool:
+    folded = text.casefold()
+    return any(word in folded for word in DEVICE_WORDS)
+
+
+def _read_attribute(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8", errors="replace").strip().lower()
+    except OSError:
+        return ""
+
+
+@contextlib.contextmanager
+def refusing_proxy() -> Iterator[str]:
+    """A proxy address on this computer that refuses every connection, while the block runs.
+
+    The port is bound and never listened on, so a connection to it is refused
+    at once, and no other program can take the port while it is held.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as reserved:
+        reserved.bind(("127.0.0.1", 0))
+        yield f"http://127.0.0.1:{reserved.getsockname()[1]}"
+
+
+def probe(
+    timeout: float = 20,
+    *,
+    device: str = "",
+    executable: str | None = None,
+    online: bool = True,
+) -> DeviceStatus:
     """Ask ``gw info`` whether a Greaseweazle is connected, and which one.
 
     ``device`` is the serial port chosen in Preferences; "" lets gw search.
+    ``online`` False keeps gw's firmware lookup from reaching the network,
+    and so from reporting newer firmware.
     """
     command = executable or find_gw()
     if command is None:
@@ -80,10 +185,18 @@ def probe(timeout: float = 20, *, device: str = "", executable: str | None = Non
     if not _valid_device(device):
         return DeviceStatus(False, "The Greaseweazle device name is not valid.")
     arguments = [command, "info"] + ([f"--device={device}"] if device else [])
-    try:
-        result = run_streaming(arguments, timeout=timeout)
-    except OSError as error:
-        return DeviceStatus(False, f"The Greaseweazle host tools could not be started: {error}.")
+    environment = gw_environment()
+    with contextlib.ExitStack() as stack:
+        if not online:
+            proxy = stack.enter_context(refusing_proxy())
+            for name in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"):
+                environment[name] = proxy
+        try:
+            result = run_streaming(arguments, timeout=timeout, environment=environment)
+        except OSError as error:
+            return DeviceStatus(
+                False, f"The Greaseweazle host tools could not be started: {error}."
+            )
     return parse_info(result)
 
 
@@ -114,7 +227,7 @@ def parse_info(result: ProcessResult) -> DeviceStatus:
         if result.timed_out:
             message = "The Greaseweazle host tools did not answer in time."
         elif not_found or result.return_code == 0:
-            message = "No Greaseweazle is connected."
+            message = NOT_CONNECTED
         else:
             message = f"The Greaseweazle host tools failed: {_last_line(lines)}"
         return DeviceStatus(False, message, host_tools=host_tools)
@@ -157,7 +270,11 @@ def write(
     reader = _WriteReader(prepared.geometry, progress)
     try:
         result = run_streaming(
-            arguments, timeout=timeout, on_line=reader.feed, controller=controller
+            arguments,
+            timeout=timeout,
+            on_line=reader.feed,
+            controller=controller,
+            environment=gw_environment(),
         )
     except OSError as error:
         return WriteOutcome(

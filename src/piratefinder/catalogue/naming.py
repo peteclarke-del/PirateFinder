@@ -69,7 +69,22 @@ _ARTICLE = re.compile(
 )
 _APOSTROPHES = re.compile("['`\u2018\u2019\u00b4]")
 _NON_WORD = re.compile(r"[\W_]+", re.UNICODE)
+_JOINED_WORD = re.compile(r"\w+(?:[-.'/]\w+)+")
 _NUMBER = re.compile(r"\d+")
+# An English article at the start of a title, followed by a word: "The Chaos
+# Engine" sorts under C. "A-Ha" keeps its "A" because a hyphen follows it.
+_LEADING_ARTICLE = re.compile(r"^(?:the|a|an)\s+(?=\S)", re.IGNORECASE)
+# Dump flags about viruses: [v Name] (also [v2 Name]) names the virus on the
+# dump, "virus damage" in any flag marks a dump the virus damaged, and a
+# modification or alternate that installs an anti-virus boot block says so.
+_VIRUS_FLAG = re.compile(r"^v\d*(?:\s+(?P<name>.+))?$")
+_ANTIVIRUS_FLAG = re.compile(r"^(?:m|a)\d*\s+(?P<name>.+)$")
+_ANTIVIRUS_WORDS = ("antivirus", "anti-virus", "protector", "virus free")
+UNNAMED_VIRUS = "unknown"
+# What ``title_key`` leaves out: everything from the first bracket, and a
+# trailing version.
+_BRACKETED = re.compile(r"\s*[(\[].*$")
+_VERSION_TAIL = re.compile(r"\s+v\d[\d.]*[a-z]?$", re.IGNORECASE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,6 +104,9 @@ class TosecName:
     alternate: int = 0  # 0, or 1 for [a], 2 for [a2] and so on
     verified: bool = False  # [!]
     extension: str = ""  # lower case, without the dot
+    virus: str = ""  # from [v Name]; "unknown" for a bare [v]
+    virus_damage: bool = False  # a flag such as [b virus damage]
+    antivirus: str = ""  # from [m X] or [a X] naming an anti-virus or protector
 
     @property
     def cracked(self) -> bool:
@@ -229,11 +247,21 @@ def _parse_single(text: str, extension: str = "") -> TosecName:
 
     crackers: list[str] = []
     modifiers: list[str] = []
+    viruses: list[str] = []
+    antiviruses: list[str] = []
     trainer = ""
-    bad = verified = False
+    bad = verified = virus_damage = False
     alternate = 0
     for flag in flags:
         head, _space, rest = flag.partition(" ")
+        if "virus damage" in flag.lower():
+            virus_damage = True
+        if (virus := _VIRUS_FLAG.match(flag)) is not None:
+            viruses.append((virus.group("name") or UNNAMED_VIRUS).strip())
+        elif (guard := _ANTIVIRUS_FLAG.match(flag)) is not None and any(
+            word in flag.lower() for word in _ANTIVIRUS_WORDS
+        ):
+            antiviruses.append(guard.group("name").strip())
         if head == "cr":
             if rest.strip():
                 crackers.append(rest.strip())
@@ -261,6 +289,9 @@ def _parse_single(text: str, extension: str = "") -> TosecName:
         alternate=alternate,
         verified=verified,
         extension=extension,
+        virus=" - ".join(_distinct(viruses)),
+        virus_damage=virus_damage,
+        antivirus=" - ".join(_distinct(antiviruses)),
     )
 
 
@@ -283,6 +314,9 @@ def _combine(parts: list[TosecName], extension: str) -> TosecName:
         alternate=max(part.alternate for part in parts),
         verified=all(part.verified for part in parts),
         extension=extension,
+        virus=" - ".join(_distinct(part.virus for part in parts if part.virus)),
+        virus_damage=any(part.virus_damage for part in parts),
+        antivirus=" - ".join(_distinct(part.antivirus for part in parts if part.antivirus)),
     )
 
 
@@ -335,15 +369,59 @@ def normalise(text: str) -> str:
     Apostrophes are dropped ("Xad's" -> "xads"), "&" becomes "and", and every
     other run of punctuation or space becomes one space.
     """
-    decomposed = unicodedata.normalize("NFKD", text)
-    stripped = "".join(ch for ch in decomposed if not unicodedata.combining(ch)).casefold()
+    if text.isascii():  # nothing to decompose: the common case, and much faster
+        stripped = text.lower()
+    else:
+        decomposed = unicodedata.normalize("NFKD", text)
+        stripped = "".join(ch for ch in decomposed if not unicodedata.combining(ch)).casefold()
     stripped = _APOSTROPHES.sub("", stripped.replace("&", " and "))
     return " ".join(_NON_WORD.sub(" ", stripped).split())
+
+
+def search_text(text: str) -> str:
+    """The words the search index holds for ``text``, normalised.
+
+    Words written with inner punctuation are indexed both split and joined,
+    so "R-Type" is found by "r type" and by "rtype". The catalogue builder
+    fills the search index with it, and the search matches the user's
+    corrected text with it, so both are split into the same words.
+    """
+    words = [normalise(text)]
+    for found in _JOINED_WORD.findall(text):
+        joined = normalise(re.sub(r"[-.'/]", "", found))
+        if joined:
+            words.append(joined)
+    return " ".join(word for word in words if word)
+
+
+def title_key(name: str) -> str:
+    """The normalised title a name stands for, for joining titles across sources.
+
+    Everything from the first bracket on and a trailing version are dropped,
+    a trailing article is moved to the front, and the rest is normalised:
+    "Chaos Engine, The (Europe)" -> "the chaos engine", "Rick Dangerous v1.1
+    [cr SR]" -> "rick dangerous". " _ " is read as " & ", as file names
+    write it.
+    """
+    base = _VERSION_TAIL.sub("", _BRACKETED.sub("", name.replace(" _ ", " & ")).strip())
+    return normalise(display_title(base.strip()))
 
 
 def sort_key(text: str) -> str:
     """Order names the way people expect: "Automation 9" before "Automation 10"."""
     return _NUMBER.sub(lambda found: found.group().zfill(8), normalise(text))
+
+
+def sort_title(text: str) -> str:
+    """The sort form of a display title.
+
+    A leading English article is dropped, also when the title is written
+    with it at the end, so "The Chaos Engine" and "Chaos Engine, The" both
+    sort as "chaos engine". Case and punctuation do not count and numbers
+    sort by value, so "Disk 9" comes before "Disk 10".
+    """
+    shown = display_title(text.strip())
+    return sort_key(_LEADING_ARTICLE.sub("", shown, count=1)) or sort_key(shown)
 
 
 def image_rank_key(flags: str | Iterable[str]) -> tuple[int, int, int]:

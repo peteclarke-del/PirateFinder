@@ -4,9 +4,12 @@ The file is downloaded into the cache, the disk image is taken out of its
 container when there is one, and it is checked against the catalogue hash
 before it is saved. TOSEC gives MD5, SHA-1 and CRC32 of the raw sector image,
 so those are compared with the decoded sectors as well as the file; Atari
-Legend gives the SHA-512 of the file as stored. An image that fails the check
-is deleted. When no hash is known anywhere, the image is kept and the caller
-is told that it could not be checked.
+Legend gives the SHA-512 of the file as stored. A location with no checksum
+of its own and no dump tied to it (a D-Bug or crew-list MSA, an exxos zip) is
+accepted when it is a copy of any dump the catalogue lists for its disc,
+compared as the library matches its files. An image that fails the check is
+deleted. Only when no dump of the disc has a checksum is the image kept, and
+the caller told that it could not be checked.
 """
 
 from __future__ import annotations
@@ -23,7 +26,9 @@ from typing import Any
 
 from .. import paths
 from ..archive_layout import DEFAULT_FOLDERS, platform_folder
-from ..library.scanner import base_name, file_hashes, is_archive_name, is_image_name
+from ..images.archives import base_name, is_archive_name, is_disk_image_name
+from ..library.scanner import entry_from_bytes
+from ..library.userdb import LibraryEntry
 from ..models import ImageRecord, Location, Platform
 from .http import DownloadCancelled, Downloader, DownloadError, DownloadProgress
 
@@ -100,7 +105,7 @@ def _choose_member(names: list[str], wanted: str, image: ImageRecord | None, sou
             if candidates:
                 return candidates[0]
         raise FetchError(f"The archive from {source} does not contain {wanted}.")
-    images = [name for name in names if is_image_name(name)]
+    images = [name for name in names if is_disk_image_name(name)]
     if len(images) == 1:
         return images[0]
     if image is not None:
@@ -118,7 +123,7 @@ def _choose_member(names: list[str], wanted: str, image: ImageRecord | None, sou
 def _looks_like_archive(path: Path, location: Location) -> bool:
     if location.container:
         return True
-    if is_archive_name(path.name) and not is_image_name(path.name):
+    if is_archive_name(path.name) and not is_disk_image_name(path.name):
         return True
     with path.open("rb") as handle:
         head = handle.read(8)
@@ -136,7 +141,7 @@ def _extract(
     source = urllib.parse.urlsplit(location.url).netloc or location.provider
     if not _looks_like_archive(downloaded, location):
         name = location.member or url_name
-        if not is_image_name(name) and image is not None and is_image_name(image.name):
+        if not is_disk_image_name(name) and image is not None and is_disk_image_name(image.name):
             name = image.name
         return base_name(name), downloaded.read_bytes()
     archives = archives or _archives_module()
@@ -149,29 +154,23 @@ def _extract(
         raise FetchError(f"The archive from {source} could not be opened: {error}") from error
 
 
-def _hash_candidates(
+def _identify(
     data: bytes, name: str, inspect_bytes: Callable[[bytes, str], Any]
-) -> tuple[dict[str, str], dict[str, str], Platform | None]:
-    """File hashes, raw sector hashes and platform of an image."""
-    stored = file_hashes(data)
-    raw: dict[str, str] = {}
-    platform = None
-    try:
-        inspection = inspect_bytes(data, name)
-    except Exception:  # an undecodable image is still checked against its file hashes
-        return stored, raw, platform
-    platform = getattr(inspection, "platform", None)
-    raw_hashes = getattr(inspection, "raw_hashes", None)
-    if raw_hashes is not None and getattr(inspection, "raw", None) is not None:
-        for kind in ("crc32", "md5", "sha1", "sha512"):
-            value = (
-                raw_hashes.get(kind)
-                if isinstance(raw_hashes, dict)
-                else getattr(raw_hashes, kind, "")
-            )
-            if value:
-                raw[kind] = str(value).lower()
-    return stored, raw, platform
+) -> tuple[LibraryEntry, Platform | None]:
+    """The image as a library index entry (file and raw sector hashes), and its platform.
+
+    The scanner's ``entry_from_bytes`` makes the entry, so a download is
+    hashed exactly as a library file is.
+    """
+    found: list[Any] = []
+
+    def inspect(image: bytes, image_name: str) -> Any:
+        inspection = inspect_bytes(image, image_name)
+        found.append(inspection)
+        return inspection
+
+    entry = entry_from_bytes(name, "", name, data, inspect)
+    return entry, (getattr(found[0], "platform", None) if found else None)
 
 
 def _expected_hashes(location: Location, image: ImageRecord | None) -> list[tuple[str, str]]:
@@ -188,35 +187,48 @@ def _expected_hashes(location: Location, image: ImageRecord | None) -> list[tupl
 
 
 def verify(
-    data: bytes,
-    name: str,
-    expected: list[tuple[str, str]],
-    *,
-    container_sha512: str = "",
-    inspect_bytes: Callable[[bytes, str], Any] | None = None,
-) -> tuple[bool, str, Platform | None]:
-    """Check an image against expected (kind, value) pairs.
+    entry: LibraryEntry, expected: list[tuple[str, str]], *, container_sha512: str = ""
+) -> str:
+    """The kind of the expected (kind, value) pair ``entry`` matches.
 
-    Returns (checked, hash kind that matched, platform). ``checked`` is False
-    when nothing was expected. Raises FetchError when hashes were expected and
-    none matched.
+    MD5, SHA-1 and CRC32 are compared with the file and with the decoded
+    sectors, SHA-512 with the file and with the downloaded container. Raises
+    FetchError when none matches.
     """
-    stored, raw, platform = _hash_candidates(data, name, inspect_bytes or _inspect_function())
-    if not expected:
-        return False, "", platform
     for kind, value in expected:
         if kind == "sha512":
-            candidates = {stored["sha512"], container_sha512}
+            candidates = {entry.sha512, container_sha512}
         elif kind in ("md5", "sha1", "crc32"):
-            candidates = {stored[kind], raw.get(kind, "")}
+            candidates = {getattr(entry, kind), getattr(entry, f"raw_{kind}")}
         else:
             continue
         if value and value in candidates:
-            return True, kind, platform
+            return kind
     kinds = ", ".join(sorted({kind.upper() for kind, _value in expected}))
     raise FetchError(
         f"The downloaded image does not match the catalogue {kinds} checksum, so it was deleted."
     )
+
+
+def match_dump(entry: LibraryEntry, dumps: Sequence[ImageRecord]) -> ImageRecord | None:
+    """The dump of the disc a download with no checksum of its own is a copy of.
+
+    Compared as the library matches its files (``library.match_entry``).
+    None when no dump of the disc has a checksum; raises FetchError when
+    some have and none matches.
+    """
+    from ..library.library import DumpSet, match_entry
+
+    known = DumpSet(dumps)
+    if not known.hashed:
+        return None
+    record = match_entry(known, entry)
+    if record is None:
+        raise FetchError(
+            "The downloaded image does not match the checksum of any dump the catalogue "
+            "lists for this disc, so it was deleted."
+        )
+    return record
 
 
 def _save_name(name: str, image: ImageRecord | None) -> str:
@@ -302,8 +314,15 @@ def fetch_location(
     cache_dir: Path | None = None,
     archives: Any = None,
     inspect_bytes: Callable[[bytes, str], Any] | None = None,
+    dumps: Sequence[ImageRecord] = (),
 ) -> Path:
     """Download, check and save one location; return the saved image's path.
+
+    The image is checked against the location's own checksum, else against
+    ``image``, the dump the location is tied to. When neither has one, it
+    must be a copy of one of ``dumps``, every dump the catalogue lists for
+    the disc; the dump it matched names the saved file and a note. Only when
+    no dump of the disc has a checksum is the image kept unchecked.
 
     The image is saved as ``<download_folder>/<platform>/<type>/<crew>/<file>``,
     with ``folders`` giving the type and crew (see ``archive_layout``).
@@ -315,6 +334,7 @@ def fetch_location(
     downloader = downloader or Downloader()
     cached = cache_path_for(location.url, cache_dir)
     url_name = urllib.parse.unquote(Path(urllib.parse.urlsplit(location.url).path).name)
+    matched: ImageRecord | None = None
     try:
         try:
             downloader.download(location.url, cached, progress=progress, cancel=cancel)
@@ -323,17 +343,15 @@ def fetch_location(
         except DownloadError as error:
             raise FetchError(str(error)) from error
         name, data = _extract(cached, location, image, url_name, archives)
+        entry, found_platform = _identify(data, name, inspect_bytes or _inspect_function())
         expected = _expected_hashes(location, image)
-        container_sha512 = ""
-        if any(kind == "sha512" for kind, _value in expected):
-            container_sha512 = hashlib.sha512(cached.read_bytes()).hexdigest()
-        checked, _kind, found_platform = verify(
-            data,
-            name,
-            expected,
-            container_sha512=container_sha512,
-            inspect_bytes=inspect_bytes,
-        )
+        if expected:
+            container_sha512 = ""
+            if any(kind == "sha512" for kind, _value in expected):
+                container_sha512 = hashlib.sha512(cached.read_bytes()).hexdigest()
+            verify(entry, expected, container_sha512=container_sha512)
+        else:
+            matched = match_dump(entry, dumps)
     finally:
         with contextlib.suppress(OSError):
             cached.unlink()
@@ -342,10 +360,17 @@ def fetch_location(
     folder = Path(download_folder) / platform_folder(platform or found_platform)
     for part, fallback in zip(folders or DEFAULT_FOLDERS, DEFAULT_FOLDERS, strict=False):
         folder /= sanitise_name(part, fallback)
-    saved, existed = _store(folder, sanitise_name(_save_name(name, image)), data)
+    saved, existed = _store(folder, sanitise_name(_save_name(name, image or matched)), data)
     if notes is not None:
-        if not checked:
-            notes.append("No checksum is known for this image, so the download was not checked.")
+        if matched is not None:
+            notes.append(
+                "The download has no checksum of its own; it matched the catalogue dump "
+                f"{matched.name}."
+            )
+        elif not expected:
+            notes.append(
+                "No checksum is known for any dump of this disc, so the download was not checked."
+            )
         if existed:
             notes.append(f"An identical copy was already in the download folder: {saved}.")
     return saved

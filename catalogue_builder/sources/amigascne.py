@@ -1,10 +1,15 @@
-"""Amiga pack disks in the amigascne.org archive.
+"""Amiga pack disks in the amigascne archive, read from its scene.org mirror.
 
-The archive at ftp.amigascne.org keeps some 11,000 pack disks (game compacts,
-demo, music and tool packs) under ``Packdisks/<group>/`` and publishes a
-daily index of every file with its CRC32 and size::
+The amigascne archive keeps some 11,000 pack disks (game compacts, demo,
+music and tool packs) under ``Packdisks/<group>/`` and publishes a daily index
+of every file with its CRC32 and size::
 
     62D3BAA6<TAB>901120<TAB>Packdisks/Skid_Row/Skid_Row-Compact111.adf
+
+The archive's own server, ftp.amigascne.org, forbids automated access (its robots.txt disallows
+everything and its mirror.txt forbids mirroring over FTP or HTTP), so the
+index is read from the same tree on the scene.org mirror, whose robots.txt
+allows it, and every download location points at that mirror too.
 
 Only the index is fetched. Each ``.adf``, ``.dms``, ``.adz`` or ``.zip`` pack
 disk becomes a download location. An ADF file is the raw disk, so its CRC32
@@ -28,23 +33,28 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 
 from ..context import BuildContext
-from ..records import DiskRecord, ImageRecordIn, LocationRecord, SourceInfo
+from ..records import (
+    NO_LICENCE_STATED,
+    DiskRecord,
+    ImageRecordIn,
+    LocationRecord,
+    SourceInfo,
+)
 from ..series import SeriesMatch, SeriesRegistry, normalise
 
+BASE = "https://ftp.scene.org/mirrors/amigascne/"
 INFO = SourceInfo(
     id="amigascne",
-    name="amigascne.org archive",
-    url="http://ftp.amigascne.org/pub/amiga/",
-    licence="",
+    name="amigascne archive (scene.org mirror)",
+    url=BASE,
+    licence=NO_LICENCE_STATED,
 )
 DEFAULT_ENABLED = True
 
-BASE = "http://ftp.amigascne.org/pub/amiga/"
 INDEX = BASE + "amigascne-index.txt"
 PACK_ROOT = "Packdisks/"
 PLATFORM = "amiga"
 LOCATION_PRIORITY = 50
-MIN_INTERVAL = 1.5
 MAX_AGE_DAYS = 30.0
 # File suffix -> container type of the download ("" when the file is the image).
 CONTAINERS = {".adf": "", ".dms": "", ".adz": "gz", ".zip": "zip"}
@@ -231,9 +241,7 @@ def fetch_index(ctx: BuildContext) -> str:
     local = ctx.input(INFO.id)
     if local is not None:
         return local.read_bytes().decode("latin-1")
-    return ctx.fetch_text(
-        INDEX, encoding="latin-1", min_interval=MIN_INTERVAL, max_age_days=MAX_AGE_DAYS
-    )
+    return ctx.fetch_text(INDEX, encoding="latin-1", max_age_days=MAX_AGE_DAYS)
 
 
 def collect(ctx: BuildContext) -> Iterator[DiskRecord]:

@@ -116,7 +116,8 @@ class SeriesDisksTest(unittest.TestCase):
         combined = next(r for r in self.records if r.title.startswith("Imperium"))
         self.assertEqual(combined.kind, "compilation")
         self.assertEqual([c.title for c in combined.contents], ["Imperium", "Pyramax"])
-        self.assertEqual(combined.contents[0].cracker, "Hotline - MCA")
+        # MCA is the Atari ST tag of The Menacing Cracking Alliance (data/groups.toml).
+        self.assertEqual(combined.contents[0].cracker, "Hotline - The Menacing Cracking Alliance")
 
 
 class DeclaredByNameTest(unittest.TestCase):
@@ -267,6 +268,10 @@ class JoinedNamesTest(unittest.TestCase):
         "Copy & Utility Disk v4.0 (1989)(Sphinx)": [],
         "Packer & Tools Disc 11 (19xx)(Penguin)": [],
         "Soundtracker & Sound-FX Systemdisk (1989-06-06)(Bamiga Sector One)": [],
+        "Great Medusa, The - Mercenary 1 & 2 Collection (1990)(Novagen)": [],
+        "Repton 1 & 2 & Editor (1989)(Superior)": ["Repton 1 & 2", "Editor"],
+        "Another Great Pack - 2 Games (1990)(Crew)": [],
+        "Saving Compilation Disk - Moonbase & 2 Others (1991)(Crew)": ["Moonbase"],
     }
 
     def test_joined_titles_become_contents_and_generic_pairs_do_not(self) -> None:
@@ -289,3 +294,48 @@ class JoinedNamesTest(unittest.TestCase):
         for name, expected in self.NAMES.items():
             with self.subTest(name=name):
                 self.assertEqual(found[name], expected)
+
+
+class VirusFlagsTest(unittest.TestCase):
+    """Each image carries the virus flags of its own dump."""
+
+    def test_virus_damage_and_antivirus_flags_reach_the_images(self) -> None:
+        with tempfile.TemporaryDirectory() as cache:
+            ctx = BuildContext(cache_dir=Path(cache), series=SeriesRegistry({}), log=lambda _: None)
+        names = [
+            "Xenon (1988)(Melbourne House)",
+            "Xenon (1988)(Melbourne House)[v Saddam 1]",
+            "Xenon (1988)(Melbourne House)[b virus damage]",
+            "Xenon (1988)(Melbourne House)[m The Medway Boys Protector IV]",
+        ]
+        games = "".join(
+            f'<game name="{escape(name)}"><rom name="{escape(name)}.adf" size="1" '
+            f'crc="{index:08x}" md5="m{index}" sha1="s{index}"/></game>'
+            for index, name in enumerate(names)
+        )
+        dat = f"<datafile><header><name>x</name></header>{games}</datafile>".encode()
+        dat_set = next(d for d in tosec.DAT_SETS if d.name == "Commodore Amiga - Games - [ADF]")
+        (record,) = tosec.read_dat(ctx, dat_set, io.BytesIO(dat))
+        flags = {
+            image.name.split(")", 2)[-1]: (
+                image.virus,
+                image.virus_damage,
+                image.antivirus,
+                image.bad,
+            )
+            for image in record.images
+        }
+        self.assertEqual(
+            flags,
+            {
+                ".adf": ("", False, "", False),
+                "[v Saddam 1].adf": ("Saddam 1", False, "", False),
+                "[b virus damage].adf": ("", True, "", True),
+                "[m The Medway Boys Protector IV].adf": (
+                    "",
+                    False,
+                    "The Medway Boys Protector IV",
+                    False,
+                ),
+            },
+        )

@@ -5,6 +5,7 @@ import tempfile
 import threading
 import time
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 from piratefinder.jobs.session import QuietEvents, WriteSession, download_for_item
@@ -128,12 +129,14 @@ class FakePreparer:
         self.refuse = refuse or set()
         self.workdirs: list[Path] = []
         self.names: list[str] = []
+        self.clean_virus: list[bool] = []
 
     def __call__(
-        self, data: bytes, name: str, workdir: Path, *, label: str, platform
+        self, data: bytes, name: str, workdir: Path, *, label: str, platform, clean_virus: bool
     ) -> PreparedImage:
         self.workdirs.append(Path(workdir))
         self.names.append(name)
+        self.clean_virus.append(clean_virus)
         if name in self.refuse:
             raise ValueError(f"{name} holds copy protection that a sector image cannot hold.")
         path = Path(workdir) / "disk.st"
@@ -210,7 +213,9 @@ class SessionTests(unittest.TestCase):
         item = self.item(1)
         summary = self.session([item], {"i1": [local_source("/nas/one.st")]}, events).run()
         self.assertEqual(summary.drive, "B")
-        self.assertEqual(summary.items, (("Crew 1", VERIFIED, "/nas/one.st"),))
+        # The notes made on the way go into the result, and so into the history.
+        written = replace(VERIFIED, notes=("Checked.",))
+        self.assertEqual(summary.items, (("Crew 1", written, "/nas/one.st"),))
         self.assertEqual(
             [stage for _label, stage in events.stages], ["resolve", "prepare", "insert", "write"]
         )
@@ -220,11 +225,18 @@ class SessionTests(unittest.TestCase):
         )
         self.assertEqual(events.progress[0][1].track_number, 80)
         self.assertEqual(events.finished, [("Crew 1", WriteStatus.VERIFIED)])
-        self.assertEqual(item.outcome, VERIFIED)
+        self.assertEqual(item.outcome, written)
         self.assertEqual(item.source_used, "/nas/one.st")
         self.assertEqual(item.notes, ["Checked."])
         self.assertEqual(self.history.recorded, [summary])
         self.assert_workdirs_removed()
+
+    def test_the_item_decides_whether_a_boot_virus_is_removed(self) -> None:
+        keep = self.item(2)
+        keep.clean_virus = False
+        sources = {"i1": [local_source("/nas/one.st")], "i2": [local_source("/nas/two.st")]}
+        self.session([self.item(1), keep], sources, Recorder()).run()
+        self.assertEqual(self.preparer.clean_virus, [True, False])
 
     def test_falls_back_when_a_local_file_cannot_be_read(self) -> None:
         sources = {"i1": [local_source("/offline/one.st"), local_source("/nas/two.st")]}
@@ -283,7 +295,7 @@ class SessionTests(unittest.TestCase):
         ]
         events = Recorder()
         summary = self.session([self.item(1)], {"i1": [local_source("/nas/one.st")]}, events).run()
-        self.assertEqual(summary.items[0][1], VERIFIED)
+        self.assertEqual(summary.items[0][1], replace(VERIFIED, notes=("Checked.",)))
         self.assertEqual(
             [reason for _label, reason in events.prompts],
             ["", "The disk is write-protected.", "There is no disk in the drive. Insert a disk."],
@@ -309,6 +321,17 @@ class SessionTests(unittest.TestCase):
         self.assertIn("stopped", summary.items[3][1].summary)
         self.assertEqual(len(events.finished), 4)
         self.assert_workdirs_removed()
+
+    def test_notes_describe_this_session_only(self) -> None:
+        events = Recorder(["write", "stop"])
+        items = [self.item(n) for n in range(1, 4)]
+        items[2].notes = ["A note from an earlier session."]
+        sources = {item.id: [local_source("/nas/one.st")] for item in items}
+        summary = self.session(items, sources, events).run()
+        notes = [outcome.notes for _label, outcome, _source in summary.items]
+        # Written, then stopped at the prompt with the image prepared, then never reached.
+        self.assertEqual(notes, [("Checked.",), ("Checked.",), ()])
+        self.assertEqual(items[2].notes, [])
 
     def test_prompt_only_for_the_first_disk_when_asked(self) -> None:
         self.settings.prompt_between_disks = False
@@ -383,6 +406,12 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(summary.items[1][2], "online 7")
         self.assertEqual(summary.items[1][1].status, WriteStatus.VERIFIED)
         self.assertEqual(self.preparer.names[-1], "7.st")
+
+    def test_a_member_is_prepared_under_its_own_file_name(self) -> None:
+        local = LocalFile(path="/nas/one.st", member="set.zip::menus\\Crew 1.ST")
+        source = ImageSource(label="set", platform=Platform.ATARI_ST, local=local)
+        self.session([self.item(1)], {"i1": [source]}, Recorder()).run()
+        self.assertEqual(self.preparer.names, ["Crew 1.ST"])
 
     def test_failed_prefetch_falls_back_to_the_remaining_sources(self) -> None:
         self.fetcher.fail = {7}

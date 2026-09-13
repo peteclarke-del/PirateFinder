@@ -13,16 +13,21 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 _HOME = Path(tempfile.mkdtemp(prefix="piratefinder-ui-real-"))
 for _variable in ("XDG_CONFIG_HOME", "XDG_DATA_HOME"):
     os.environ[_variable] = str(_HOME / _variable.lower())
 
+from piratefinder.jobs.queue import new_item  # noqa: E402
 from piratefinder.models import (  # noqa: E402
     DiskKind,
+    MediaItem,
     Platform,
-    SearchFilters,
+    Query,
+    ResultMode,
     SessionSummary,
+    VirusStatus,
     WriteOutcome,
     WriteStatus,
 )
@@ -55,14 +60,69 @@ class RealBackendWithoutCatalogueTests(unittest.TestCase):
         info = self.backend.catalogue_info()
         self.assertFalse(info.available)
         self.assertEqual(info.error, "No catalogue here.")
-        self.assertEqual(self.backend.search("anything", SearchFilters()), [])
+        page = self.backend.search_page(Query(text="anything"))
+        self.assertEqual((page.rows, page.total), ((), 0))
+        self.assertEqual(self.backend.facets().crews, ())
+        self.assertEqual(self.backend.clean_alternates(1), [])
+        self.assertEqual(self.backend.summaries(1), [])
         with self.assertRaises(LookupError):
             self.backend.detail(1)
 
+    def test_media_is_not_fetched_when_switched_off(self) -> None:
+        from piratefinder.ui.backend import set_fetch_media
+
+        set_fetch_media(self.settings, False)
+        item = MediaItem("menu", "https://example.invalid/a.png", "synthetic")
+        self.assertIsNone(self.backend.media_file(item))
+        self.assertEqual(self.backend.summaries(1, 2), [])
+
+    def test_boot_blocks_are_checked_once_for_each_set_of_virus_data(self) -> None:
+        from piratefinder.models import BootRecheck
+
+        steps = []
+        first = self.backend.recheck_boot_blocks(steps.append, None)
+        self.assertEqual(first, BootRecheck(), "a new database has nothing to check yet")
+        self.assertIsNone(self.backend.recheck_boot_blocks(steps.append, None))
+
+    def test_brainfile_status_is_always_answered(self) -> None:
+        status = self.backend.brainfile_status()
+        self.assertIsInstance(status.installed, bool)
+        self.assertEqual(self.backend.infected_files(), [])
+
+    def test_infected_files_are_read_with_one_query(self) -> None:
+        from piratefinder.library.userdb import LibraryEntry
+
+        for number in range(3):
+            path = f"/nas/{number}.adf"
+            found = LibraryEntry(
+                path, display_name=f"Disk {number}", boot_status="virus", boot_name="SCA"
+            )
+            self.userdb.store_file(path, 1, 1.0, [found])
+        whole_index = AssertionError("the whole library index was read")
+        with mock.patch.object(self.userdb, "entries", side_effect=whole_index):
+            infected = self.backend.infected_files(2)
+        self.assertEqual(
+            [(local.path, local.virus) for local in infected],
+            [("/nas/0.adf", "SCA"), ("/nas/1.adf", "SCA")],
+        )
+
+    def test_virus_reports_come_from_the_finder_without_a_catalogue(self) -> None:
+        from piratefinder.library.userdb import LibraryEntry
+
+        path = str(self.folder / "gone.adf")  # scanned with a virus, then deleted
+        entry = LibraryEntry(path, display_name="Gone", boot_status="virus", boot_name="SCA")
+        self.userdb.store_file(path, 1, 1.0, [entry])
+        (local,) = self.backend.infected_files()
+        report = self.backend.virus_report(local)
+        self.assertEqual(
+            (report.status, report.name, report.removable), (VirusStatus.VIRUS, "SCA", False)
+        )
+        self.assertIn("cannot be read now", report.explanation)
+
     def test_queue_calls_reach_the_write_queue(self) -> None:
-        first = fmt.new_queue_item("Automation 250", Platform.ATARI_ST, disk_id=1)
-        second = fmt.new_queue_item("Automation 251", Platform.ATARI_ST, disk_id=2)
-        self.backend.queue_add([first, second, fmt.new_queue_item("again", None, disk_id=1)])
+        first = new_item("Automation 250", Platform.ATARI_ST, disk_id=1)
+        second = new_item("Automation 251", Platform.ATARI_ST, disk_id=2)
+        self.backend.queue_add([first, second, new_item("again", None, disk_id=1)])
         self.assertEqual([item.id for item in self.backend.queue_items()], [first.id, second.id])
         self.backend.queue_move(second.id, -1)
         self.backend.queue_set_copies(first.id, 3)
@@ -99,13 +159,49 @@ class RealBackendWithoutCatalogueTests(unittest.TestCase):
         self.assertIn("Automation 250", self.backend.report_text(read))
 
     def test_a_session_can_be_created_for_queued_items(self) -> None:
-        item = fmt.new_queue_item("Automation 250", Platform.ATARI_ST, disk_id=1)
+        item = new_item("Automation 250", Platform.ATARI_ST, disk_id=1)
         session = self.backend.create_session([item], events=None)
         self.assertTrue(callable(session.run) and callable(session.cancel))
+
+    def test_the_device_setting_reaches_the_check_and_gw_info(self) -> None:
+        from piratefinder.greaseweazle import client
+        from piratefinder.models import DeviceStatus
+
+        self.settings.device = "/dev/ttyACM3"
+        with mock.patch.object(client, "device_present", return_value=True) as present:
+            self.assertTrue(self.backend.device_present())
+        present.assert_called_once_with("/dev/ttyACM3")
+        answer = DeviceStatus(True, "Greaseweazle V4 connected on /dev/ttyACM3.")
+        with mock.patch.object(client, "probe", return_value=answer) as probe:
+            self.assertIs(self.backend.probe(), answer)
+        self.assertEqual(probe.call_args.kwargs["device"], "/dev/ttyACM3")
+        self.assertTrue(probe.call_args.kwargs["online"])
+        # With online use off, gw info's firmware lookup must not reach the network.
+        self.settings.online_enabled = False
+        with mock.patch.object(client, "probe", return_value=answer) as probe:
+            self.backend.probe()
+        self.assertFalse(probe.call_args.kwargs["online"])
 
     def test_series_kinds_are_known_to_the_filters(self) -> None:
         kinds = {kind for kind, _label, _tooltip in fmt.KIND_FILTERS}
         self.assertEqual(kinds, set(DiskKind))
+
+
+class BrainfileStatusTests(unittest.TestCase):
+    def test_whatever_the_virus_module_returns_is_understood(self) -> None:
+        from piratefinder.ui.real_backend import as_brainfile_status
+
+        self.assertFalse(as_brainfile_status(None).installed)
+        status = as_brainfile_status({"version": "2.1", "entries": 12, "path": "/x"})
+        self.assertEqual((status.installed, status.version, status.entries), (True, "2.1", 12))
+
+        class Status:
+            installed = False
+            version = ""
+            count = 0
+            path = ""
+
+        self.assertFalse(as_brainfile_status(Status()).installed)
 
 
 def build_catalogue(path: Path) -> None:
@@ -192,14 +288,48 @@ class RealBackendWithCatalogueTests(unittest.TestCase):
         self.assertIn("TOSEC", {source["name"] for source in info.sources})
 
     def test_search_detail_and_availability(self) -> None:
-        results = self.backend.search("rick", SearchFilters())
-        self.assertEqual([result.disk.label for result in results], ["Automation 251"])
-        self.assertEqual(results[0].matched, ("Rick Dangerous",))
-        detail = self.backend.detail(results[0].disk.id)
+        page = self.backend.search_page(Query(text="rick", mode=ResultMode.DISCS))
+        self.assertEqual([row.disk.label for row in page.rows], ["Automation 251"])
+        self.assertEqual(page.total, 1)
+        self.assertEqual(page.rows[0].matched, ("Rick Dangerous",))
+        titles = self.backend.search_page(Query(text="rick"))
+        self.assertEqual([row.title for row in titles.rows], ["Rick Dangerous"])
+        detail = self.backend.detail(page.rows[0].disk.id)
         self.assertEqual(detail.availability.value, "online")
+        self.assertIsNone(detail.virus)
+        facets = self.backend.facets()
+        self.assertIn("Automation", dict(facets.crews))
         self.settings.providers = {"atari-legend": False}
-        (again,) = self.backend.search("rick", SearchFilters())
+        (again,) = self.backend.search_page(Query(text="rick", mode=ResultMode.DISCS)).rows
         self.assertEqual(again.availability.value, "missing")
+
+    def test_edit_details_are_kept_shown_and_reverted(self) -> None:
+        from piratefinder.library.corrections import CorrectionError
+
+        (row,) = self.backend.search_page(Query(text="rick")).rows
+        disk_id, content_id = row.disk.id, row.content_id
+        with self.assertRaises(CorrectionError):
+            self.backend.save_details(disk_id, {"date": "June 1990"})
+        self.backend.save_details(
+            disk_id, {"crew": "Someone Else", "date": "1990-06"}, {content_id: "Rick Dangerous 1"}
+        )
+        detail = self.backend.detail(disk_id)
+        self.assertEqual(
+            (detail.disk.crew, detail.disk.year, detail.disk.month), ("Someone Else", 1990, 6)
+        )
+        self.assertEqual(detail.edited, ("crew", "date"))
+        (shown,) = self.backend.search_page(Query(text="rick")).rows
+        self.assertEqual((shown.title, shown.disk.crew), ("Rick Dangerous 1", "Someone Else"))
+        # The search matches, filters and counts by the corrected values.
+        (found,) = self.backend.search_page(Query(text="someone")).rows
+        self.assertEqual(found.title, "Rick Dangerous 1")
+        self.assertEqual(self.backend.search_page(Query(crew="Someone Else")).total, 1)
+        self.assertEqual(self.backend.search_page(Query(year=1990)).total, 1)
+        self.assertEqual(dict(self.backend.facets().crews).get("Someone Else"), 1)
+        self.backend.revert_details(disk_id)
+        self.assertEqual(self.backend.detail(disk_id).edited, ())
+        self.assertEqual(self.backend.search_page(Query(text="someone")).total, 0)
+        self.assertNotIn("Someone Else", dict(self.backend.facets().crews))
 
 
 def tearDownModule() -> None:

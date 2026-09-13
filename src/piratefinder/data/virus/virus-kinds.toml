@@ -1,0 +1,68 @@
+# Where some well-known viruses live, read by piratefinder.images.virus.
+#
+# TOSEC names the virus on an infected dump ([v Name]) but not where it
+# lives. PirateFinder can only replace a boot block, so the kind decides
+# what the details pane says: "boot" viruses live in the boot block, "file"
+# viruses in programs on the disk, "link" viruses attach to programs, and
+# "system" viruses replace a system file such as the Disk-Validator.
+#
+# `name` matches a virus name that starts with the same words, ignoring
+# case, punctuation and a trailing "virus", so "Saddam" also matches
+# "Saddam 1" and "Saddam Hussein Virus". The longest match wins. `note` is
+# added to the explanation.
+
+[[virus]]
+name = "SCA"
+platform = "amiga"
+kind = "boot"
+source = "Virus Help Team Amiga Virus Encyclopedia"
+note = ""
+
+[[virus]]
+name = "Byte Bandit"
+platform = "amiga"
+kind = "boot"
+source = "Virus Help Team Amiga Virus Encyclopedia"
+note = ""
+
+[[virus]]
+name = "Byte Warrior"
+platform = "amiga"
+kind = "boot"
+source = "Virus Help Team Amiga Virus Encyclopedia"
+note = ""
+
+[[virus]]
+name = "North Star"
+platform = "amiga"
+kind = "boot"
+source = "Virus Help Team Amiga Virus Encyclopedia"
+note = ""
+
+[[virus]]
+name = "Lamer Exterminator"
+platform = "amiga"
+kind = "boot"
+source = "Virus Help Team Amiga Virus Encyclopedia"
+note = "Lamer Exterminator also overwrites random blocks of the disk, so an infected dump may be damaged even after its boot block is replaced."
+
+[[virus]]
+name = "Saddam"
+platform = "amiga"
+kind = "system"
+source = "Virus Help Team Amiga Virus Encyclopedia"
+note = "Saddam replaces the Disk-Validator in the L drawer, and a variant replaces req.library."
+
+[[virus]]
+name = "BGS9"
+platform = "amiga"
+kind = "file"
+source = "Virus Help Team Amiga Virus Encyclopedia"
+note = "BGS9 hides the first program of the startup-sequence and runs in its place."
+
+[[virus]]
+name = "CCCP"
+platform = "amiga"
+kind = "file"
+source = "Virus Help Team Amiga Virus Encyclopedia"
+note = "CCCP infects programs as well as the boot block, so replacing the boot block can leave infected programs on the disk."

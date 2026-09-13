@@ -1,0 +1,77 @@
+{
+ "sha": "ffffffffffffffffffffffffffffffffffffffff",
+ "url": "https://api.github.com/example",
+ "tree": [
+  {
+   "path": "Named_Snaps/Rick Dangerous (Europe).png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Snaps/Rick Dangerous.png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Snaps/Rick Dangerous v1.1 (Europe) (Budget).png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Titles/Rick Dangerous (Europe).png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Boxarts/Rick Dangerous (Europe) (Budget).png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Boxarts/Rick Dangerous (Europe).png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Snaps/Chaos Engine, The (Europe).png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Snaps/4D Sports Driving _ Master Tracks I.png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Logos/Chaos Engine, The.png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  },
+  {
+   "path": "Named_Snaps/(Untitled).png",
+   "mode": "100644",
+   "type": "blob",
+   "sha": "1111111111111111111111111111111111111111",
+   "size": 1000
+  }
+ ],
+ "truncated": true
+}

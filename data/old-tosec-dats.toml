@@ -1,0 +1,54 @@
+# Older TOSEC DATs, read by the Internet Archive importer.
+#
+# Many Internet Archive items are copies of TOSEC sets made years ago, and
+# their files carry the TOSEC names of that time. TOSEC has renamed many
+# dumps since, so those names are not in the current DATs. An old DAT of the
+# right age gives the hashes of the image such a name stood for, and the
+# importer puts that hash on the download location: the merge then attaches
+# the location to the catalogue image with that hash, whatever it is called
+# now, and the application checks the download against it.
+#
+# For each Archive item the importer asks the DATs in order of how close
+# their release is to the date the item was uploaded, and takes the hash
+# from the first that knows the name.
+#
+#   id        a short name for logs
+#   released  the date of the DAT pack or DAT
+#   url       where it is downloaded from, once; it never changes
+#   sha1      the SHA-1 of that file, checked after downloading
+#   dats      regular expressions for the names of the DATs to read from a
+#             pack (matched from the start); a single DAT file is read whole
+
+# The complete pack of September 2012, on the Internet Archive. It matches
+# the Atari ST TOSEC snapshot of April 2012 (Atari_ST_TOSEC_2012_04_23),
+# whose DATs date from 2011.
+[[dat]]
+id = "tosec-2012-09-15"
+released = "2012-09-15"
+url = "https://archive.org/download/tosec_dat_18-2012-09-15/tosec_dat_pack_complete_1996_tosec_v2012_09_15.zip"
+sha1 = "a7caeb7bfb6f3b676e7d62a1a562879aebda209e"
+dats = [
+    '^Atari ST - (?:Games|Compilations) - ',
+    '^Commodore Amiga - (?:Games - \[ADF\]$|Compilations - |Demos - (?:Packs|Music)$)',
+]
+
+# The complete pack of July 2020, on the Internet Archive. It matches the
+# Amiga compilation and demo items uploaded in November 2021.
+[[dat]]
+id = "tosec-2020-07-29"
+released = "2020-07-29"
+url = "https://archive.org/download/tosec-dat-pack-complete-3036-tosec-v-2020-07-29/TOSEC%20-%20DAT%20Pack%20-%20Complete%20%283036%29%20%28TOSEC-v2020-07-29%29.zip"
+sha1 = "e89e09fcf41d370322629cab3de887e6f0a88168"
+dats = [
+    '^Atari ST - (?:Games|Compilations) - ',
+    '^Commodore Amiga - (?:Games - \[ADF\]$|Compilations - |Demos - (?:Packs|Music)$)',
+]
+
+# The Amiga games DAT of the TOSEC release of January 2023, from the
+# unofficial Git mirror of the TOSEC DATs (its first commit). It matches the
+# Amiga game items uploaded in 2022 and January 2023.
+[[dat]]
+id = "tosec-2023-01-23-amiga-games"
+released = "2023-01-23"
+url = "https://raw.githubusercontent.com/smesgr9000/TOSEC-DAT/823d8bf6b85d/TOSEC/Commodore%20Amiga%20-%20Games%20-%20%5BADF%5D%20%28TOSEC-v2022-12-21_CM%29.dat"
+sha1 = "a4b5e08c1bf5bf3ada70a3f43c3af77a82fd86b8"

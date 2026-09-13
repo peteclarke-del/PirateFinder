@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- A synthetic brainfile in the Amiga Bootblock Reader layout, written for
+     the tests. Every entry names a boot block that tests/test_images_virus.py
+     builds from a seed; none of them is a real boot block. -->
+<Bootblocks xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<Bootblock>
+		<Name>Synthetic CRC Virus</Name>
+		<Recog/>
+		<Class>v</Class>
+		<Notes>Matched by the CRC of the normalised block</Notes>
+		<KS>KS1.3</KS>
+		<Bootable>True</Bootable>
+		<Data>False</Data>
+		<CRC>---,A5C88719</CRC>
+	</Bootblock>
+	<Bootblock>
+		<Name>Synthetic Raw CRC Loader</Name>
+		<Recog/>
+		<Class>bl</Class>
+		<KS>KS1.3</KS>
+		<Bootable>True</Bootable>
+		<Data>True</Data>
+		<CRC>6D408BDC</CRC>
+	</Bootblock>
+	<Bootblock>
+		<Name>Synthetic Recogniser Antivirus</Name>
+		<Recog>40,214,90,94,150,4,200,162,250,157,280,50,300,11</Recog>
+		<Class>oldav</Class>
+		<KS>KS1.3</KS>
+		<Bootable>True</Bootable>
+		<Data>False</Data>
+	</Bootblock>
+	<Bootblock>
+		<Name>Synthetic Broken Recogniser</Name>
+		<Recog>40,214,90,notanumber</Recog>
+		<Class>v</Class>
+		<KS>KS1.3</KS>
+		<Bootable>True</Bootable>
+		<Data>False</Data>
+	</Bootblock>
+</Bootblocks>

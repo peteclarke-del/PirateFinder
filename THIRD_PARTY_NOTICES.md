@@ -64,7 +64,8 @@ bundled.
 
 ## Catalogue data
 
-The catalogue (`catalogue.sqlite`, published as `catalogue.sqlite.gz`) is
+The catalogue (`catalogue.sqlite`, published as `catalogue-layout3.sqlite.gz`
+for the layout this source reads) is
 licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0
 International licence (CC BY-NC-SA 4.0), because it includes data from Atari
 Legend under that licence. Commercial redistribution of the catalogue is
@@ -75,6 +76,49 @@ Every source the catalogue builder reads, what is taken from it and its terms
 are listed in [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md). The catalogue also
 records the sources and their licences in its `sources` table, which the
 application shows.
+
+## Boot virus recognition data
+
+The files in `src/piratefinder/data/virus` hold facts about boot block
+viruses: offsets, values and SHA-1 hashes of stretches of virus code. No
+virus code, and no text from the sources below, is copied into them.
+
+| File | Source | Terms |
+| --- | --- | --- |
+| `st-signatures.toml` | Windows of 8 virus families taken from the reference sectors in The Killer 2.0 and Xtermine 0.2 / The Exorcist, and from boot sectors kept with the Gen&Wax Visual Assembler sources | Facts only |
+| `st-markers.toml` | Marker values of 7 viruses from appendix A of the Ultimate Virus Killer book by Richard Karsmakers | Facts only; the book's text is all rights reserved and is not reproduced |
+| `amiga-signatures.toml` | 34 windows derived by PirateFinder from virus samples | GPL-3.0-or-later, as the rest of PirateFinder |
+| `amiga-markers.toml` | 58 boot block checks from AntiCicloVir 2.4 by Matthias Gutt | Public domain |
+| `amiga-markers.toml` | 25 boot block checks from VirusX 4.0 by Steve Tibbett and Dan James | "Copyrighted, but freely redistributable"; facts only |
+| `virus-kinds.toml` | Where well-known Amiga viruses live, from the Virus Help Team's Amiga Virus Encyclopedia | Facts only |
+| `indicators.toml` | Code patterns reported for information, after the virus probability factors in the Ultimate Virus Killer book | Facts only |
+
+The Amiga Bootblock Reader brainfile, by Jason and Jordan Smith, has no
+licence and is not shipped; Preferences downloads it from its GitHub release
+into the user's data folder when the user asks.
+
+## SPS Decoder Library (CAPSImg)
+
+The Greaseweazle host tools read IPF images through the SPS Decoder Library,
+Copyright (c) 2001-2014 István Fábián under exclusive licence to KryoFlux
+Products & Services Ltd. Its licence (version 1.02, based on the MAME licence)
+permits use and redistribution only free of charge and outside commercial
+products and activities, requires redistributions to reproduce its notice,
+and requires modified versions to come with their complete source.
+
+PirateFinder does not ship the library, in the repository or in the package.
+When the user accepts the licence under IPF Support in Preferences,
+PirateFinder downloads the build that Frode Solheim makes for FS-UAE
+(CAPSImg 5.1.3, from <https://fs-uae.net/plugins/>, source at
+<https://github.com/FrodeSolheim/capsimg>) directly from fs-uae.net into the
+user's data folder. The addresses and SHA-256 checksums of those builds are
+recorded in `src/piratefinder/data/caps/capsimg.toml`.
+
+The licence text is shipped, unchanged apart from its character encoding and
+line endings, as `src/piratefinder/data/caps/CAPSImg-LICENCE.txt`, so that
+it can be shown before the download. It is the text FS-UAE distributes with
+the library and publishes in its repository; the licence asks for the notice
+to be reproduced and places no restriction on copying the text itself.
 
 ## Disk images
 

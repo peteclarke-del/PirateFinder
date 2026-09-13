@@ -15,6 +15,7 @@ from piratefinder.catalogue.update import (
     UpdateCancelled,
     UpdateError,
     UpdateInfo,
+    asset_name,
     check_catalogue_file,
     check_for_update,
     install_update,
@@ -23,6 +24,9 @@ from piratefinder.catalogue.update import (
 from piratefinder.jobs.cancellation import Cancellation
 from piratefinder.online.http import Downloader, HostThrottle
 from tests.test_library_helpers import CatalogueBuilder, QuietHandler, serve
+
+NAME = asset_name()  # the layout this version reads, catalogue-layout<N>.sqlite.gz
+CHECKSUM = f"{NAME}.sha256"
 
 
 def release(tag: str, assets: list[str], base: str = "http://x", **extra: object) -> dict:
@@ -38,45 +42,46 @@ def release(tag: str, assets: list[str], base: str = "http://x", **extra: object
 
 
 class NewestReleaseTests(unittest.TestCase):
+    def test_the_asset_is_named_by_its_layout(self) -> None:
+        self.assertEqual(NAME, f"catalogue-layout{schema.SCHEMA_VERSION}.sqlite.gz")
+        self.assertEqual(asset_name(7), "catalogue-layout7.sqlite.gz")
+
     def test_picks_the_newest_complete_release(self) -> None:
         releases = [
-            release("catalogue-2026-08-01", ["catalogue.sqlite.gz", "catalogue.sqlite.gz.sha256"]),
-            release("catalogue-2026-10-01", ["catalogue.sqlite.gz"]),  # no checksum
-            release(
-                "catalogue-2026-11-01",
-                ["catalogue.sqlite.gz", "catalogue.sqlite.gz.sha256"],
-                draft=True,
-            ),
-            release(
-                "catalogue-2026-12-01",
-                ["catalogue.sqlite.gz", "catalogue.sqlite.gz.sha256"],
-                prerelease=True,
-            ),
-            release("catalogue-2026-09-05", ["catalogue.sqlite.gz", "catalogue.sqlite.gz.sha256"]),
+            release("catalogue-2026-08-01", [NAME, CHECKSUM]),
+            release("catalogue-2026-10-01", [NAME]),  # no checksum
+            release("catalogue-2026-11-01", [NAME, CHECKSUM], draft=True),
+            release("catalogue-2026-12-01", [NAME, CHECKSUM], prerelease=True),
+            release("catalogue-2026-09-05", [NAME, CHECKSUM]),
             release("v0.2.0", ["piratefinder.deb"]),
         ]
         info = newest_release(releases, "2026-09-01T10:00:00Z")
         self.assertIsNotNone(info)
         assert info is not None
         self.assertEqual(info.built_at, "2026-09-05")
-        self.assertEqual(info.url, "http://x/catalogue.sqlite.gz")
-        self.assertEqual(info.sha256_url, "http://x/catalogue.sqlite.gz.sha256")
+        self.assertEqual(info.url, f"http://x/{NAME}")
+        self.assertEqual(info.sha256_url, f"http://x/{CHECKSUM}")
+        self.assertEqual(info.asset_name, NAME)
         self.assertEqual(info.size, 10)
 
-    def test_date_from_the_asset_name(self) -> None:
+    def test_only_the_layout_this_version_reads_is_offered(self) -> None:
+        other = asset_name(schema.SCHEMA_VERSION + 1)
         releases = [
-            release(
-                "latest", ["catalogue-2026-09-20.sqlite.gz", "catalogue-2026-09-20.sqlite.sha256"]
-            )
+            release("catalogue-2026-09-05", [NAME, CHECKSUM]),
+            release("catalogue-2026-10-01", [other, f"{other}.sha256"]),
+            # The name catalogues had before assets were named by layout.
+            release("catalogue-2026-10-02", ["catalogue.sqlite.gz", "catalogue.sqlite.gz.sha256"]),
         ]
         info = newest_release(releases, "2026-09-01")
         assert info is not None
-        self.assertEqual(info.built_at, "2026-09-20")
+        self.assertEqual(info.built_at, "2026-09-05")
+        self.assertIsNone(newest_release(releases[1:], ""))
+
+    def test_a_tag_without_a_date_is_passed_over(self) -> None:
+        self.assertIsNone(newest_release([release("latest", [NAME, CHECKSUM])], ""))
 
     def test_nothing_newer(self) -> None:
-        releases = [
-            release("catalogue-2026-09-01", ["catalogue.sqlite.gz", "catalogue.sqlite.gz.sha256"])
-        ]
+        releases = [release("catalogue-2026-09-01", [NAME, CHECKSUM])]
         self.assertIsNone(newest_release(releases, "2026-09-01"))
         self.assertIsNotNone(newest_release(releases, ""))
 
@@ -101,11 +106,11 @@ class UpdateServerTests(unittest.TestCase):
         path.disk(1, "Crew 1")
         database = path.close()
         compressed = gzip.compress(database.read_bytes())
-        (self.site / "catalogue.sqlite.gz").write_bytes(compressed)
+        (self.site / NAME).write_bytes(compressed)
         digest = checksum or hashlib.sha256(compressed).hexdigest()
-        (self.site / "catalogue.sqlite.gz.sha256").write_text(f"{digest}  catalogue.sqlite.gz\n")
+        (self.site / CHECKSUM).write_text(f"{digest}  {NAME}\n")
         tag = f"catalogue-{built_at}"
-        releases = [release(tag, ["catalogue.sqlite.gz", "catalogue.sqlite.gz.sha256"], self.base)]
+        releases = [release(tag, [NAME, CHECKSUM], self.base)]
         (self.site / "releases").write_text(json.dumps(releases))
         database.unlink()
         info = check_for_update("2026-09-01", f"{self.base}/releases", downloader=self.downloader)
@@ -159,34 +164,33 @@ class UpdateServerTests(unittest.TestCase):
         connection.commit()
         connection.close()
         compressed = gzip.compress((self.folder / "future.sqlite").read_bytes())
-        (self.site / "catalogue.sqlite.gz").write_bytes(compressed)
-        (self.site / "catalogue.sqlite.gz.sha256").write_text(
-            hashlib.sha256(compressed).hexdigest()
-        )
+        (self.site / NAME).write_bytes(compressed)
+        (self.site / CHECKSUM).write_text(hashlib.sha256(compressed).hexdigest())
         with self.assertRaises(UpdateError) as caught:
             install_update(info, downloader=self.downloader, target=self.target)
-        self.assertIn("newer version of PirateFinder", str(caught.exception))
+        self.assertEqual(
+            str(caught.exception),
+            "The downloaded catalogue was made for a different PirateFinder version "
+            f"(layout {schema.SCHEMA_VERSION + 1}; this version reads layout "
+            f"{schema.SCHEMA_VERSION}).",
+        )
         self.assertFalse(self.target.exists())
         self.assert_no_leftovers()
 
     def test_not_a_catalogue(self) -> None:
         info = self.publish_catalogue()
         compressed = gzip.compress(b"just some text")
-        (self.site / "catalogue.sqlite.gz").write_bytes(compressed)
-        (self.site / "catalogue.sqlite.gz.sha256").write_text(
-            hashlib.sha256(compressed).hexdigest()
-        )
+        (self.site / NAME).write_bytes(compressed)
+        (self.site / CHECKSUM).write_text(hashlib.sha256(compressed).hexdigest())
         with self.assertRaises(UpdateError):
             install_update(info, downloader=self.downloader, target=self.target)
         self.assert_no_leftovers()
 
     def test_cut_short_download(self) -> None:
         info = self.publish_catalogue()
-        compressed = (self.site / "catalogue.sqlite.gz").read_bytes()[:-20]
-        (self.site / "catalogue.sqlite.gz").write_bytes(compressed)
-        (self.site / "catalogue.sqlite.gz.sha256").write_text(
-            hashlib.sha256(compressed).hexdigest()
-        )
+        compressed = (self.site / NAME).read_bytes()[:-20]
+        (self.site / NAME).write_bytes(compressed)
+        (self.site / CHECKSUM).write_text(hashlib.sha256(compressed).hexdigest())
         with self.assertRaises(UpdateError):
             install_update(info, downloader=self.downloader, target=self.target)
         self.assert_no_leftovers()
@@ -200,18 +204,32 @@ class UpdateServerTests(unittest.TestCase):
         self.assertFalse(self.target.exists())
         self.assert_no_leftovers()
 
-    def test_offline_or_bad_feed_gives_none(self) -> None:
-        self.assertIsNone(
+    def test_a_check_that_fails_says_why(self) -> None:
+        with self.assertRaises(UpdateError) as caught:
             check_for_update("", "http://127.0.0.1:9/releases", downloader=self.downloader)
+        self.assertIn("127.0.0.1:9 could not be reached", str(caught.exception))
+        (self.site / "odd").write_text('{"message": "API rate limit exceeded"}')
+        with self.assertRaises(UpdateError) as caught:
+            check_for_update("", f"{self.base}/odd", downloader=self.downloader)
+        host = self.base.removeprefix("http://")
+        self.assertEqual(
+            str(caught.exception),
+            f"{host} did not send a list of releases: API rate limit exceeded.",
         )
-        (self.site / "odd").write_text('{"message": "rate limited"}')
-        self.assertIsNone(check_for_update("", f"{self.base}/odd", downloader=self.downloader))
         (self.site / "broken").write_text("<html>")
-        self.assertIsNone(check_for_update("", f"{self.base}/broken", downloader=self.downloader))
+        with self.assertRaises(UpdateError) as caught:
+            check_for_update("", f"{self.base}/broken", downloader=self.downloader)
+        self.assertIn("could not be read", str(caught.exception))
+        with self.assertRaises(UpdateError):
+            check_for_update("", f"{self.base}/absent", downloader=self.downloader)
+
+    def test_a_check_that_works_and_finds_nothing_gives_none(self) -> None:
+        (self.site / "releases").write_text(json.dumps([release("v0.1.0", ["x.deb"])]))
+        self.assertIsNone(check_for_update("", f"{self.base}/releases", downloader=self.downloader))
 
     def test_missing_asset_raises(self) -> None:
         info = self.publish_catalogue()
-        (self.site / "catalogue.sqlite.gz").unlink()
+        (self.site / NAME).unlink()
         with self.assertRaises(UpdateError) as caught:
             install_update(info, downloader=self.downloader, target=self.target)
         self.assertIn("could not be downloaded", str(caught.exception))

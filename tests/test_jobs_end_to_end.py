@@ -22,11 +22,11 @@ from unittest import mock
 from piratefinder.catalogue.store import Catalogue
 from piratefinder.finder import Finder
 from piratefinder.jobs.history import History
-from piratefinder.jobs.queue import item_from_result
+from piratefinder.jobs.queue import item_from_disk
 from piratefinder.jobs.session import QuietEvents, WriteSession
 from piratefinder.library.library import Library
 from piratefinder.library.userdb import UserDatabase
-from piratefinder.models import Availability, SearchFilters, WriteStatus
+from piratefinder.models import Availability, Query, ResultMode, ResultRow, WriteStatus
 from piratefinder.settings import Settings
 from tests.test_library_helpers import CatalogueBuilder, QuietHandler, hashes, make_st_image, serve
 
@@ -119,6 +119,11 @@ class EndToEndTests(unittest.TestCase):
         library = Library(userdb, catalogue)
         return catalogue, library, Finder(catalogue, library, self.settings)
 
+    @staticmethod
+    def find(finder: Finder, text: str) -> list[ResultRow]:
+        """The discs the Find screen lists for ``text``."""
+        return list(finder.search_page(Query(text=text, mode=ResultMode.DISCS)).rows)
+
     def written_arguments(self) -> list[list[str]]:
         return [json.loads(line) for line in self.log.read_text().splitlines()]
 
@@ -128,13 +133,13 @@ class EndToEndTests(unittest.TestCase):
         scan = library.scan(self.settings.library_folders)
         self.assertEqual((scan.matched, scan.errors), (1, ()))
 
-        results = finder.search("zany golf", SearchFilters())
+        results = self.find(finder, "zany golf")
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].availability, Availability.LOCAL)
         self.assertEqual(results[0].disk.label, "Crew 1")
 
         events = Events()
-        item = item_from_result(results[0])
+        item = item_from_disk(finder.detail(results[0].disk.id).disk)
         summary = WriteSession(finder, library, self.settings, [item], events).run()
 
         label, outcome, source = summary.items[0]
@@ -160,13 +165,12 @@ class EndToEndTests(unittest.TestCase):
         with serve(functools.partial(QuietHandler, directory=str(site))) as base:
             _catalogue, library, finder = self.open_world(f"{base}/crew-set.zip")
             library.scan(self.settings.library_folders)
-            results = finder.search("zany", SearchFilters())
+            results = self.find(finder, "zany")
             self.assertEqual(results[0].availability, Availability.ONLINE)
 
             events = Events()
-            summary = WriteSession(
-                finder, library, self.settings, [item_from_result(results[0])], events
-            ).run()
+            item = item_from_disk(finder.detail(results[0].disk.id).disk)
+            summary = WriteSession(finder, library, self.settings, [item], events).run()
 
         outcome = summary.items[0][1]
         self.assertEqual(outcome.status, WriteStatus.VERIFIED, outcome.diagnostic)
@@ -180,7 +184,7 @@ class EndToEndTests(unittest.TestCase):
         )
         self.assertEqual(saved.read_bytes(), self.raw)
         self.assertEqual([f.path for f in library.files_for_disk(1)], [str(saved)])
-        self.assertEqual(finder.search("zany", SearchFilters())[0].availability, Availability.LOCAL)
+        self.assertEqual(self.find(finder, "zany")[0].availability, Availability.LOCAL)
         cache = self.folder / "cache" / "piratefinder" / "downloads"
         self.assertEqual(list(cache.rglob("*")) if cache.exists() else [], [])
 

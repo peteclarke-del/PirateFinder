@@ -2,7 +2,9 @@
 
 A source module exposes ``INFO: SourceInfo`` and ``collect(ctx) -> Iterable
 [DiskRecord]``. It must fetch through ``ctx.fetch`` so that downloads are
-cached, throttled per host and available offline on the next build.
+cached, throttled per host and available offline on the next build. How far
+apart requests to each host must be is set in ``data/fetch-hosts.toml``
+(``HostPolicy``) and nowhere else.
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import sys
 import time
+import tomllib
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -20,10 +23,39 @@ from pathlib import Path
 from .series import GroupRegistry, SeriesRegistry
 
 USER_AGENT = "PirateFinder-catalogue-builder/0.1 (+https://github.com/peteclarke-del/PirateFinder)"
+HOSTS_FILE = Path(__file__).resolve().parent.parent / "data" / "fetch-hosts.toml"
 
 
 class OfflineError(RuntimeError):
     """A source needed a download that is not cached while building offline."""
+
+
+@dataclass(frozen=True, slots=True)
+class HostPolicy:
+    """The least time between two requests to one host (data/fetch-hosts.toml).
+
+    Hosts are compared exactly and without case; a host that is not listed
+    gets ``default``.
+    """
+
+    default: float
+    intervals: dict[str, float]
+
+    @classmethod
+    def load(cls, path: Path = HOSTS_FILE) -> HostPolicy:
+        with path.open("rb") as handle:
+            document = tomllib.load(handle)
+        intervals: dict[str, float] = {}
+        for entry in document.get("host", []):
+            host = str(entry["host"]).strip().lower()
+            if host in intervals:
+                raise ValueError(f"{path.name}: host {host!r} is listed twice")
+            intervals[host] = float(entry["interval"])
+        return cls(float(document["default_interval"]), intervals)
+
+    def interval(self, url: str) -> float:
+        host = (urllib.parse.urlsplit(url).hostname or "").lower()
+        return self.intervals.get(host, self.default)
 
 
 @dataclass(slots=True)
@@ -34,6 +66,7 @@ class BuildContext:
     inputs: dict[str, Path] = field(default_factory=dict)  # source id -> local file
     log: Callable[[str], None] = lambda message: print(message, file=sys.stderr)
     groups: GroupRegistry = field(default_factory=GroupRegistry.load)  # data/groups.toml
+    hosts: HostPolicy = field(default_factory=HostPolicy.load)  # data/fetch-hosts.toml
     _last_request: dict[str, float] = field(default_factory=dict)
 
     def input(self, source_id: str) -> Path | None:
@@ -51,11 +84,14 @@ class BuildContext:
         url: str,
         *,
         name: str | None = None,
-        min_interval: float = 1.0,
         max_age_days: float = 7.0,
         retries: int = 4,
     ) -> Path:
-        """Download ``url`` into the cache unless a fresh copy is already there."""
+        """Download ``url`` into the cache unless a fresh copy is already there.
+
+        Requests to one host are kept ``hosts.interval`` apart, retries
+        included.
+        """
         target = self.cache_path(url, name)
         if target.exists():
             age_days = (time.time() - target.stat().st_mtime) / 86400
@@ -64,7 +100,8 @@ class BuildContext:
         if self.offline:
             raise OfflineError(f"not cached: {url}")
         target.parent.mkdir(parents=True, exist_ok=True)
-        host = urllib.parse.urlsplit(url).netloc
+        host = (urllib.parse.urlsplit(url).hostname or "").lower()
+        min_interval = self.hosts.interval(url)
         delay = 5.0
         for attempt in range(retries + 1):
             wait = self._last_request.get(host, 0.0) + min_interval - time.monotonic()

@@ -8,7 +8,8 @@ Every module in ``catalogue_builder/sources`` that defines ``INFO`` and
 ``collect`` is a source. A module may also set ``CONTENT_PRIORITY`` (lower
 wins when several sources list a disk's contents, default 90) and
 ``DEFAULT_ENABLED`` (False for heavy optional sources, which then run only
-when named with ``--with`` or ``--only``).
+when named with ``--with`` or ``--only``), and define
+``collect_crews(ctx)`` returning ``CrewRecord``s for the crews table.
 
 A source that fails is logged and left out, unless ``--strict`` is given.
 The catalogue is written to a temporary file, optimised and renamed into
@@ -38,7 +39,7 @@ from types import ModuleType
 from . import sources as sources_package
 from .context import BuildContext
 from .merge import DEFAULT_PRIORITY, SourceBatch, merge_records, write_catalogue
-from .records import SourceInfo
+from .records import CrewRecord, SourceInfo
 from .series import SeriesRegistry
 
 BUILDER_VERSION = "1"
@@ -201,6 +202,9 @@ def main(
             continue
         seconds = time.monotonic() - begun
         log(f"{source.info.id}: {len(records)} records in {seconds:.1f} s")
+        crews = collect_crews(source, context, log)
+        if crews is None and args.strict:
+            return 1
         batches.append(
             SourceBatch(
                 info=source.info,
@@ -208,6 +212,7 @@ def main(
                 priority=source.priority,
                 status=f"ok, {len(records)} records",
                 retrieved=str(getattr(source.module, "RETRIEVED", "") or ""),
+                crews=crews or [],
             )
         )
     if not batches:
@@ -222,6 +227,26 @@ def main(
     _report(stats, log)
     log(f"catalogue written to {args.output} in {time.monotonic() - started:.1f} s")
     return 0
+
+
+def collect_crews(
+    source: Source, context: BuildContext, log: Callable[[str], None]
+) -> list[CrewRecord] | None:
+    """The crew records of a source that has ``collect_crews``; None when that fails.
+
+    A failure costs only the crew histories of that source: its disks are
+    still merged.
+    """
+    collector = getattr(source.module, "collect_crews", None)
+    if not callable(collector):
+        return []
+    try:
+        crews = list(collector(context))
+    except Exception as error:
+        log(f"{source.info.id}: crews failed: {type(error).__name__}: {error}")
+        return None
+    log(f"{source.info.id}: {len(crews)} crew records")
+    return crews
 
 
 def write_database(
@@ -274,6 +299,23 @@ def _report(stats: dict[str, int], log: Callable[[str], None]) -> None:
         "locations",
         "hash merges",
         "unmatched locations",
+        "entries",
+        "with year",
+        "with month",
+        "with day",
+        "images with virus",
+        "images with virus damage",
+        "images with antivirus",
+        "media",
+        "media unmatched",
+        "trivia",
+        "trivia unmatched",
+        "crews",
+        "crews unmatched",
+        "crews ambiguous",
+        "crews pinned",
+        "crews dominant",
+        "with crew history",
     ):
         log(f"  {key:22} {stats.get(key, 0):7}")
 

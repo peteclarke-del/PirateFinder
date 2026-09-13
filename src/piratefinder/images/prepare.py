@@ -6,25 +6,30 @@ An ST image's layout comes from its boot sector checked against its size.
 The standard 80-cylinder layouts use gw's built-in formats; anything else,
 such as an 82-cylinder disk, gets a generated disk definition, because gw
 silently drops the cylinders a built-in format does not name. Flux images
-and IPF are written directly.
+and IPF are written directly; IPF only when gw can load the SPS Decoder
+Library (``greaseweazle.caps``).
 
 Every refusal is a :class:`PrepareError` whose message is a sentence fit to
 show the user, and every conversion made is listed in ``notes``.
+
+With ``clean_virus`` a boot block virus that ``images.virus`` can remove is
+removed from the copy that is written; the stored image is never changed.
 """
 
 from __future__ import annotations
 
-import ctypes.util
 import re
 from pathlib import Path, PurePosixPath
 
+from ..greaseweazle import caps
 from ..greaseweazle.diskdefs import (
     DiskDefError,
     builtin_format,
     custom_definition,
     write_definition,
 )
-from ..models import Geometry, Platform, PreparedImage
+from ..models import Geometry, Platform, PreparedImage, VirusStatus
+from . import virus
 from .inspect import (
     AMIGA_DD_TRACK,
     DecodeError,
@@ -40,7 +45,6 @@ from .inspect import (
     suffix_of,
 )
 
-CAPS_DOWNLOAD = "softpres.org"
 #: Cylinders gw writes from an image that has no format (tools/write.py).
 GW_DEFAULT_CYLINDERS = 82
 _PLATFORM_NAMES = {Platform.AMIGA: "Amiga", Platform.ATARI_ST: "Atari ST"}
@@ -54,11 +58,6 @@ class PrepareError(Exception):
         self.message = message
 
 
-def caps_library() -> str | None:
-    """The SPS CAPS library gw needs for IPF images, when installed."""
-    return ctypes.util.find_library("capsimage")
-
-
 def prepare(
     data: bytes,
     name: str,
@@ -66,11 +65,17 @@ def prepare(
     *,
     label: str,
     platform: Platform | None,
+    clean_virus: bool = False,
 ) -> PreparedImage:
-    """Write a gw-ready copy of the image ``data`` (named ``name``) into ``workdir``."""
+    """Write a gw-ready copy of the image ``data`` (named ``name``) into ``workdir``.
+
+    With ``clean_virus`` a removable boot block virus is removed from the
+    written copy, and a note says so.
+    """
     folder = Path(workdir)
     folder.mkdir(parents=True, exist_ok=True)
     job = _Job(folder, _file_stem(label, name), label or _display(name), platform)
+    job.clean_virus = clean_virus
     kind = detect_format(data, name)
     if kind in ("gz", "adz"):
         try:
@@ -95,6 +100,7 @@ class _Job:
         self.stem = stem
         self.label = label
         self.requested = platform
+        self.clean_virus = False
         self.notes: list[str] = []
 
     def run(self, kind: str, data: bytes, name: str) -> PreparedImage:
@@ -201,12 +207,9 @@ class _Job:
         return self.st(raw, geometry)
 
     def ipf(self, data: bytes) -> PreparedImage:
-        if caps_library() is None:
-            raise PrepareError(
-                "Writing an IPF image needs the SPS CAPS library (libcapsimage), which is not "
-                "installed. It cannot be shipped with PirateFinder, so download it from "
-                f"{CAPS_DOWNLOAD} and install it, or choose another dump of this disk."
-            )
+        support = caps.status()
+        if not support.usable:
+            raise PrepareError(support.problem)
         detected, geometry = flux_details(data, "ipf")
         platform = self.platform(detected)
         tracks = self.track_range(geometry)
@@ -248,9 +251,38 @@ class _Job:
         )
         return f"c=0-{geometry.cylinders - 1}"
 
+    def boot_block(self, raw: bytes, platform: Platform) -> bytes:
+        """``raw`` with a removable boot block virus removed, when asked; notes either way."""
+        report = virus.detect(raw, platform)
+        if report.status is not VirusStatus.VIRUS:
+            return raw
+        name = report.name
+        if not report.removable:
+            self.notes.append(
+                f"The boot block holds the {name} virus, which PirateFinder cannot remove from "
+                "this disk, so it was written as it is."
+            )
+            return raw
+        if not self.clean_virus:
+            self.notes.append(
+                f"The boot block holds the {name} virus. It was written as it is because "
+                "removal was switched off for this disk."
+            )
+            return raw
+        try:
+            cleaned = virus.clean(raw, platform)
+        except virus.VirusError as error:
+            self.notes.append(f"The {name} virus was not removed. {error.message}")
+            return raw
+        self.notes.append(
+            f"Removed the {name} boot block virus before writing; the stored image is unchanged."
+        )
+        return cleaned
+
     def sectors(
         self, raw: bytes, suffix: str, geometry: Geometry, platform: Platform
     ) -> PreparedImage:
+        raw = self.boot_block(raw, platform)
         path = self._write(raw, suffix)
         gw_format = builtin_format(geometry, platform)
         diskdefs = ""

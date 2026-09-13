@@ -247,5 +247,77 @@ def is_dark() -> bool:
     return Adw.StyleManager.get_default().get_dark()
 
 
+# A few styles the stock Adwaita classes do not cover. Colours come from the
+# theme's named colours, so they follow light and dark and keep their contrast.
+STYLE = """
+.virus-card {
+  background-color: alpha(@error_color, 0.10);
+  border-radius: 12px;
+  padding: 12px;
+}
+.media-frame {
+  background-color: alpha(currentColor, 0.07);
+  border-radius: 12px;
+}
+.current-title {
+  background-color: alpha(@accent_bg_color, 0.16);
+}
+.current-title label.title {
+  font-weight: bold;
+}
+.facts {
+  padding: 12px 14px;
+}
+.pager {
+  padding: 4px 8px;
+}
+.pane-resize {
+  min-width: 5px;
+}
+.pane-resize:hover {
+  background-color: alpha(currentColor, 0.08);
+}
+"""
+_style_installed = False
+
+
+def install_style() -> None:
+    """Load ``STYLE`` for the default display once."""
+    global _style_installed
+    display = Gdk.Display.get_default()
+    if _style_installed or display is None:
+        return
+    provider = Gtk.CssProvider()
+    provider.load_from_string(STYLE)
+    Gtk.StyleContext.add_provider_for_display(
+        display, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+    )
+    _style_installed = True
+
+
+def link_markup(text: str, url: str = "") -> str:
+    """Escaped Pango markup for ``text``, as a link when there is a ``url``."""
+    body = html.escape(text or "", quote=False)
+    if not url:
+        return body
+    return f'<a href="{html.escape(url, quote=True)}">{body}</a>'
+
+
+def caption_label(text: str = "", *, dim: bool = True, **properties) -> Gtk.Label:
+    """Small secondary text. Labels that carry links are never dimmed, so the
+    link colour keeps its contrast."""
+    properties.setdefault("xalign", 0)
+    properties.setdefault("wrap", True)
+    label = Gtk.Label(label=text, **properties)
+    label.add_css_class("caption")
+    if dim:
+        label.add_css_class("dim-label")
+    return label
+
+
+def set_accessible_label(widget: Gtk.Widget, text: str) -> None:
+    widget.update_property([Gtk.AccessibleProperty.LABEL], [text])
+
+
 def display_available() -> bool:
     return Gdk.Display.get_default() is not None

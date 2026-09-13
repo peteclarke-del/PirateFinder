@@ -1,11 +1,18 @@
 """Check for and install a newer catalogue snapshot.
 
-New catalogues are published as GitHub release assets: ``catalogue.sqlite.gz``
-with a ``.sha256`` file beside it, in a release tagged
-``catalogue-YYYY-MM-DD``. The download is checked against the published
+New catalogues are published as GitHub release assets named by the layout
+they hold, ``catalogue-layout<N>.sqlite.gz`` with a ``.sha256`` file beside
+it, in a release tagged ``catalogue-YYYY-MM-DD`` (``N`` is
+``schema.SCHEMA_VERSION`` of the builder that made it). The check looks only
+for the asset of the layout this version reads, so a catalogue it cannot
+read is never offered. The download is checked against the published
 SHA-256, decompressed next to ``paths.updated_catalogue_path()``, opened
-read-only to check its schema version, and only then renamed into place, so
-a failed or cancelled update never leaves a partial catalogue behind.
+read-only to check its layout again, and only then renamed into place, so a
+failed or cancelled update never leaves a partial catalogue behind.
+
+A check that cannot reach the release list, or cannot read it, raises
+UpdateError with the reason; None means the check worked and found nothing
+newer.
 """
 
 from __future__ import annotations
@@ -16,6 +23,7 @@ import os
 import re
 import sqlite3
 import tempfile
+import urllib.parse
 import zlib
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -26,9 +34,9 @@ from .. import paths
 from ..jobs.cancellation import is_cancelled
 from ..online.http import DownloadCancelled, Downloader, DownloadError
 from . import schema
+from .store import layout_problem
 
 DEFAULT_FEED_URL = "https://api.github.com/repos/peteclarke-del/PirateFinder/releases"
-ASSET_SUFFIX = ".sqlite.gz"
 # A catalogue is tens of megabytes; this refuses a decompression bomb.
 MAX_CATALOGUE_BYTES = 2 * 1024 * 1024 * 1024
 _DATE = re.compile(r"(\d{4}-\d{2}-\d{2})")
@@ -59,21 +67,23 @@ class UpdateInfo:
     notes: str = ""
 
 
+def asset_name(layout: int = schema.SCHEMA_VERSION) -> str:
+    """The release asset of a catalogue in ``layout``: "catalogue-layout2.sqlite.gz"."""
+    return f"catalogue-layout{layout}.sqlite.gz"
+
+
 def _date_in(text: str) -> str:
     match = _DATE.search(text or "")
     return match.group(1) if match else ""
 
 
-def _checksum_asset(assets: dict[str, dict[str, Any]], name: str) -> dict[str, Any] | None:
-    for candidate in (f"{name}.sha256", f"{name.removesuffix('.gz')}.sha256"):
-        if candidate in assets:
-            return assets[candidate]
-    return None
-
-
 def newest_release(releases: Iterable[Any], current_built_at: str = "") -> UpdateInfo | None:
-    """The newest release in a GitHub releases list that is newer than ``current_built_at``."""
+    """The newest release carrying this version's layout that is newer than ``current_built_at``.
+
+    The build date comes from the tag, ``catalogue-YYYY-MM-DD``.
+    """
     current = _date_in(current_built_at)
+    name = asset_name()
     best: UpdateInfo | None = None
     for release in releases:
         if not isinstance(release, dict) or release.get("draft") or release.get("prerelease"):
@@ -83,30 +93,28 @@ def newest_release(releases: Iterable[Any], current_built_at: str = "") -> Updat
             for asset in release.get("assets") or []
             if isinstance(asset, dict)
         }
+        asset, checksum = assets.get(name), assets.get(f"{name}.sha256")
+        if asset is None or checksum is None:
+            continue
+        url = str(asset.get("browser_download_url", ""))
+        sha256_url = str(checksum.get("browser_download_url", ""))
         tag = str(release.get("tag_name", ""))
-        for name, asset in sorted(assets.items()):
-            if not (name.endswith(ASSET_SUFFIX) and "catalogue" in name.lower()):
-                continue
-            checksum = _checksum_asset(assets, name)
-            url = str(asset.get("browser_download_url", ""))
-            if checksum is None or not url:
-                continue
-            built_at = _date_in(tag) or _date_in(name)
-            if not built_at or (current and built_at <= current):
-                continue
-            if best is not None and built_at <= best.built_at:
-                continue
-            size = asset.get("size")
-            best = UpdateInfo(
-                built_at=built_at,
-                tag=tag,
-                url=url,
-                sha256_url=str(checksum.get("browser_download_url", "")),
-                asset_name=name,
-                size=size if isinstance(size, int) else None,
-                page_url=str(release.get("html_url", "")),
-                notes=str(release.get("body") or ""),
-            )
+        built_at = _date_in(tag)
+        if not (url and sha256_url and built_at) or (current and built_at <= current):
+            continue
+        if best is not None and built_at <= best.built_at:
+            continue
+        size = asset.get("size")
+        best = UpdateInfo(
+            built_at=built_at,
+            tag=tag,
+            url=url,
+            sha256_url=sha256_url,
+            asset_name=name,
+            size=size if isinstance(size, int) else None,
+            page_url=str(release.get("html_url", "")),
+            notes=str(release.get("body") or ""),
+        )
     return best
 
 
@@ -117,14 +125,21 @@ def check_for_update(
     *,
     downloader: Downloader | None = None,
 ) -> UpdateInfo | None:
-    """A newer catalogue than ``current_built_at``, or None when there is none or offline."""
+    """A newer catalogue than ``current_built_at``, or None when there is none.
+
+    Raises UpdateError, with the reason as a sentence, when the release list
+    cannot be fetched or read.
+    """
     downloader = downloader or Downloader(timeout=timeout, retries=1)
     try:
         releases = downloader.get_json(feed_url, headers={"Accept": "application/vnd.github+json"})
-    except DownloadError:
-        return None
+    except DownloadError as error:
+        raise UpdateError(str(error)) from error
     if not isinstance(releases, list):
-        return None
+        message = releases.get("message") if isinstance(releases, dict) else None
+        host = urllib.parse.urlsplit(feed_url).netloc or feed_url
+        reason = f"{host} did not send a list of releases"
+        raise UpdateError(f"{reason}: {message}." if message else f"{reason}.")
     return newest_release(releases, current_built_at)
 
 
@@ -179,11 +194,9 @@ def check_catalogue_file(path: Path) -> str:
     except sqlite3.Error as error:
         raise UpdateError("The downloaded catalogue could not be opened.") from error
     try:
-        version = schema.schema_version(connection)
-        if version > schema.SCHEMA_VERSION:
-            raise UpdateError("The new catalogue needs a newer version of PirateFinder.")
-        if version != schema.SCHEMA_VERSION:
-            raise UpdateError("The downloaded file is not a PirateFinder catalogue.")
+        problem = layout_problem(schema.schema_version(connection))
+        if problem:
+            raise UpdateError(f"The downloaded catalogue {problem}.")
         try:
             connection.execute("SELECT COUNT(*) FROM disks").fetchone()
             row = connection.execute("SELECT value FROM meta WHERE key = 'built_at'").fetchone()

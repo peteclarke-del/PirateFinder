@@ -1,0 +1,106 @@
+# Code patterns reported, for information only, when a boot block holds code
+# PirateFinder cannot identify. Boot viruses use them, but so do many
+# loaders, intros and utilities, so they never decide a virus by
+# themselves. Read by piratefinder.images.virus.
+#
+# `bytes` is hexadecimal and is searched for at even offsets, since 68000
+# code is word aligned; `text` is searched for as it stands.
+
+# Atari ST, after the UVK book's virus probability factors.
+[[st]]
+label = "writes floppy sectors (XBIOS Flopwr)"
+bytes = "3F3C00094E4E"
+
+[[st]]
+label = "builds an executable boot sector (XBIOS Protobt)"
+bytes = "3F3C00124E4E"
+
+[[st]]
+label = "reads or writes sectors (BIOS Rwabs)"
+bytes = "3F3C00044E4D"
+
+[[st]]
+label = "uses the executable boot sector checksum 0x1234"
+bytes = "1234"
+
+[[st]]
+label = "uses the reset-resident magic 0x31415926"
+bytes = "31415926"
+
+[[st]]
+label = "uses the undocumented reset magic 0x12123456"
+bytes = "12123456"
+
+[[st]]
+label = "touches the disk vector hdv_bpb ($472)"
+bytes = "0472"
+
+[[st]]
+label = "touches the disk vector hdv_rw ($476)"
+bytes = "0476"
+
+[[st]]
+label = "touches the disk vector hdv_mediach ($47E)"
+bytes = "047E"
+
+[[st]]
+label = "touches the reset vector resvector ($42A)"
+bytes = "042A"
+
+[[st]]
+label = "touches the disk buffer pointer _dskbufp ($4C6)"
+bytes = "04C6"
+
+[[st]]
+label = "touches the vertical blank queue ($456)"
+bytes = "0456"
+
+# Amiga: exec library calls through a6 and trackdisk commands.
+[[amiga]]
+label = "patches system functions (SetFunction)"
+bytes = "4EAEFE5C"
+
+[[amiga]]
+label = "recomputes the Kickstart checksum (SumKickData)"
+bytes = "4EAEFD9C"
+
+[[amiga]]
+label = "sends device requests (DoIO)"
+bytes = "4EAEFE38"
+
+[[amiga]]
+label = "writes to the disk (trackdisk CMD_WRITE)"
+bytes = "337C0003001C"
+
+[[amiga]]
+label = "formats tracks (trackdisk TD_FORMAT)"
+bytes = "337C000B001C"
+
+[[amiga]]
+label = "opens trackdisk.device"
+text = "trackdisk.device"
+
+# Amiga: exec base fields a reset-resident program sets with move.l ...,d16(a6).
+[[amiga_vector]]
+displacement = 0x2A
+label = "ColdCapture"
+
+[[amiga_vector]]
+displacement = 0x2E
+label = "CoolCapture"
+
+[[amiga_vector]]
+displacement = 0x32
+label = "WarmCapture"
+
+[[amiga_vector]]
+displacement = 0x222
+label = "KickMemPtr"
+
+[[amiga_vector]]
+displacement = 0x226
+label = "KickTagPtr"
+
+[[amiga_vector]]
+displacement = 0x22A
+label = "KickCheckSum"

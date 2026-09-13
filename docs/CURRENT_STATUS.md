@@ -1,33 +1,131 @@
 # Current implementation status
 
-The state of version 0.1.0, the first release. [DESIGN.md](DESIGN.md)
-describes how the parts fit together.
+Version 0.1.0, released on 12 September 2026, was the first release. This page
+describes the source tree, which has gone on since then: the paged Find screen
+with filters and sorting, the details pane's pictures, crew histories and
+trivia, virus detection and the illustrated User Guide are new, and reach users
+with the next release. [DESIGN.md](DESIGN.md) describes how the parts fit
+together.
 
 ## Implemented
 
 ### Catalogue
 
-- Catalogue builder (`python3 -m catalogue_builder`) with eleven sources, nine
-  of them on by default; see [Data sources](DATA_SOURCES.md)
+- Catalogue builder (`python3 -m catalogue_builder`) with thirteen sources,
+  twelve of them on by default (Demozoo is off); see
+  [Data sources](DATA_SOURCES.md)
 - Cached, throttled fetching with retry, offline builds and local inputs
 - Series registry with aliases and per-source match rules in
   `data/series/*.toml`
 - Merging of records from every source into one row per disk, part and
   version, with contents taken from the highest-priority source that has them
+- Layout 3 (`SCHEMA_VERSION` 3 in `catalogue/schema.py`): a row per title
+  for the Find screen, disc type, crew and release date to the day where a
+  source gives it, TOSEC virus, virus damage and anti-virus flags on each
+  dump, picture addresses, facts, notes, Wikipedia article titles and crew
+  histories for the details pane, each disc pointing at its crew's history
+  (`disks.crew_id`), and location and picture addresses and credits stored
+  once each (`address_prefix`, `media_credit`)
 - Full-text and substring indexes for search
-- Weekly catalogue build and publication by GitHub Actions
-- In-app catalogue update from the newest published snapshot, checked against
-  its SHA-256 and schema version before it replaces the installed catalogue
+- Crew histories chosen per platform and per crediting source, with pins in
+  `data/crew-pins.toml`; a crew name that several groups share gives no
+  history rather than another group's (the Atari ST menu crew Awesome and the
+  Amiga demo group of that name each get their own)
+- The amigascne archive's index and menu texts in every build, read from its
+  scene.org mirror (`ftp.scene.org/mirrors/amigascne/`), since the archive's
+  own server forbids automated access; the menu texts are cached for 30 days.
+  The Demozoo export is read by the weekly Catalogue workflow
+- Internet Archive files that carry older TOSEC names placed by the hashes of
+  older TOSEC DATs (`data/old-tosec-dats.toml`), so their downloads are
+  checked like any other; see [Data sources](DATA_SOURCES.md)
+- Weekly catalogue build and publication by GitHub Actions, as a release asset
+  named by its layout (`catalogue-layout3.sqlite.gz`, with its `.sha256` file,
+  for the layout this source reads)
+- In-app catalogue update from the newest published snapshot of the layout
+  this version reads, from the public release list without an account,
+  checked against its SHA-256 and layout before it replaces the installed
+  catalogue; a check that cannot reach or read the release list says "Could
+  not check for a newer catalogue" and why, never that the catalogue is up to
+  date
+- A catalogue of another layout refused with a message naming both layouts
 
-### Finding disks
+The build of 13 September 2026 holds 66,664 discs in 1,394 series (12,323 menu
+disks and compacts, 30,770 packs, 23,232 single disks and 339 compilations),
+117,699 titles, 82,601 known dumps, 88,362 download locations, 205,463
+picture addresses, 20,772 facts, notes and article titles, and 2,313 crew
+histories. It takes 249 MB installed and 73 MB compressed.
 
-- Search by title, crew or series, disk number, or a combination, using series
-  aliases, with platform and kind filters and an "available only" switch
-- Result rows with the disk label, contents with matching titles in bold,
-  platform and availability (local, online or missing), and multiple
-  selection
-- A detail pane with contents in menu order, credits, known dumps with their
-  source and availability, and reference links
+### Finding discs
+
+- Search across titles, discs, series, crews, credits, platform, type, year,
+  image file names and notes, every word matching as a word start, with
+  series aliases and disc numbers (`a250`, `pp 51`, `d-bug 100b`)
+- Titles and Discs views, with the matching part of each word in bold
+- Filters for platform, type, disc kind, crew and year, each listing its
+  number of discs, and Available Only
+- Sorting by relevance, title, year, disc number, crew and platform, from a
+  list or the column headers
+- The user's corrections in the search: text matches a corrected label,
+  catalogue name, crew, date, publisher, cracker, notes or title name, the
+  crew and year filters and their counts use the corrected crew and year,
+  and the sort orders the corrected values
+- Pages of 50, 100, 200 or 500 rows, with ticks kept across pages, sorts,
+  filters and searches
+- Library files that match no disc offered for a search that matches them
+- Example searches on the welcome page, taken from the installed catalogue
+
+### Details pane
+
+- Pictures of the title and the disc, downloaded when shown, cached, credited
+  and linked to their source, with small screens enlarged as square pixels
+- Facts with the release date as precise as the sources give it, every title
+  on the disc, the crew's history and members, trivia with its source and
+  licence, and Wikipedia summaries fetched in the background
+- A Boot Block fact for a boot block on the dump that would be written that
+  is not a virus (anti-virus, named loader or unidentified code), shown for
+  information; for an unmatched library file once the file has been read
+- The menu's scroll text, and notes laid out like a menu screen or drawn with
+  symbols, in a fixed-width font
+- Every known dump with its source and location, and a choice of which to
+  write
+- Write Now, Add to Queue, Download Only (with an alert for its notes, such as
+  a download that could not be checked), Show in Files and Copy Label Text
+- Edit Details: the user's own label, catalogue name, crew, release date
+  (`YYYY`, `YYYY-MM` or `YYYY-MM-DD`, checked as it is typed), publisher,
+  cracker and notes for a disc, and names for its titles, kept in the user
+  database and shown in the result rows, the details pane (each corrected
+  fact marked Edited, with the catalogue's value in its tooltip) and the crew
+  folder of a download; Revert to Catalogue forgets them
+- Corrections that stay through catalogue updates: each corrected disc is
+  found again in a new catalogue by its series and number or by the checksums
+  of its dumps, since disc and title ids change with every build
+- A setting that switches every picture and summary download off
+
+### Viruses
+
+- Amiga boot blocks checked against the standard Kickstart 1.3 and 2.0 boot
+  blocks, then the Amiga Bootblock Reader brainfile, asked first once the
+  user has downloaded it, then 34 built-in signatures of virus code that
+  recognise about 90 boot block viruses (`data/virus/amiga-signatures.toml`),
+  then 25 VirusX 4.0 and 58 AntiCicloVir 2.4 checks (`amiga-markers.toml`)
+- Atari ST boot sectors checked against built-in signatures of 8 virus
+  families (`data/virus/st-signatures.toml`), and the markers of 7 more
+  viruses from the Ultimate Virus Killer book (`st-markers.toml`), reported
+  as "probably" that virus and never cleaned, with immunisers and TOS boot
+  loaders recognised
+- TOSEC virus flags shown for the dump that would be written, in the results
+  and the details pane
+- Removal of an identified boot block virus from the written copy (the
+  default), or from the stored file with the original kept as a backup
+- A clean dump of the same disc offered when the catalogue lists one
+- A list of the library files with a boot block virus, each with Clean
+- The brainfile downloaded on request from its GitHub release
+- The library's boot blocks checked again when the virus data changes: the
+  user database keeps a fingerprint of the built-in virus data, the
+  detection code's version and the installed brainfile, and when it differs
+  (at start, before a scan, and after the brainfile is installed) every
+  checked boot block is read again, without hashing the file; a file that
+  cannot be read then is read in full by the next scan
 
 ### Library
 
@@ -36,9 +134,11 @@ describes how the parts fit together.
 - Images inside zip, 7z and gzip archives, with one level of nesting
 - Matching by raw sector hashes after decoding MSA, DMS, ADZ and unprotected
   STX, then by file hashes
+- Boot block checks during the scan
 - Unmatched files searchable by file name, volume label and the names of the
   files on Atari TOS and AmigaDOS disks
-- Counts of images, matched and unmatched files and duplicates
+- Counts of images, matched and unmatched files, duplicates and files with a
+  virus
 
 ### Downloads
 
@@ -49,17 +149,30 @@ describes how the parts fit together.
   and resumes partial downloads
 - Single members taken from large Internet Archive zip and 7z sets
 - Every download checked against the catalogue hash before it is kept, and
-  deleted when it does not match; images with no known hash are kept and
-  reported as unchecked
+  deleted when it does not match, after which the next source is tried
+- A download with no hash of its own and no dump tied to it (D-Bug and
+  crew-list MSAs, exxos zips, amigascne files, short-named
+  Internet Archive menu zips) checked against every dump the catalogue lists
+  for its disc, with the library's matching; it is saved under the name of
+  the dump it matched and a note names that dump. It is kept unchecked, with a
+  note, only when no dump of the disc has a hash
 - Downloads stored as `<platform>/<type>/<crew>/<image>` in a download folder
   the user chooses, which may be on a NAS
 
 ### Writing
 
 - Preparation of ADF (80 to 84 cylinders, DD and HD), DMS, ADZ, gzip, ST (any
-  layout the boot sector describes), MSA, unprotected STX, IPF (with the CAPS
-  library), SCP and HFE, with generated disk definitions for non-standard
-  layouts; see [Format support](FORMAT_SUPPORT.md)
+  layout the boot sector describes), MSA, unprotected STX, IPF (with the SPS
+  Decoder Library), SCP and HFE, with generated disk definitions for
+  non-standard layouts; see [Format support](FORMAT_SUPPORT.md)
+- IPF Support in Preferences, Greaseweazle: says whether the SPS Decoder
+  Library is found on the system, installed by PirateFinder or missing, and
+  installs FS-UAE's CAPSImg 5.1.3 from fs-uae.net after the user accepts its
+  licence, checked against a pinned SHA-256, as
+  `~/.local/share/piratefinder/caps/libcapsimage.so.5`, or removes it. gw is
+  started with that folder in `LD_LIBRARY_PATH`, and image preparation finds
+  the library there. Builds exist for x86_64 and 32-bit ARM (the armhf
+  package); arm64 has none, and the page says so
 - A persistent write queue with reordering and copies, an insert-disk prompt
   before each disk (Write, Skip, Stop), and background download of the next
   online disk while one is written
@@ -67,37 +180,69 @@ describes how the parts fit together.
 - Results read from the output of `gw`, so write-protected disks and empty
   drives are reported as such even when `gw` exits with status zero
 - A session summary with retry of failed disks and a copyable report, and a
-  history of past sessions
+  history of past sessions, each listing the notes made while writing
+  (conversions, a virus removed or left, a download that could not be checked)
 - A banner when no Greaseweazle is connected, with a retry button
+- The Greaseweazle followed every two seconds from the system's device list,
+  without running a program or using the network; `gw info` runs only when a
+  device appears, on Retry, Check Connection and Check Again, and never while
+  writing
+- The Device setting used for writing, for `gw info` and for the device check
+- The firmware lookup `gw info` makes kept on the computer while online use is
+  switched off: gw is given an HTTPS proxy on 127.0.0.1 that refuses every
+  connection, since the host tools have no option to skip it; see
+  [Privacy](PRIVACY.md)
+
+### Help
+
+- An in-app User Guide of fourteen topics with screenshots, opened from the
+  main menu or with F1, and the same text published as
+  [USER_GUIDE.md](USER_GUIDE.md), generated from one source and checked by a
+  test
+- A Keyboard Shortcuts window and a Diagnostic Log that can be copied or saved
+- Screenshots drawn from the real window by `piratefinder.ui.screenshot`
 
 ### Distribution
 
-- Ubuntu 24.04 and Linux Mint 22 amd64 `.deb` with the catalogue, a private
-  copy of Greaseweazle Host Tools 1.23 and the Greaseweazle udev rules
+- Ubuntu 24.04 (and Linux Mint 22) and Debian 13 `.deb` packages for amd64,
+  arm64 and armhf, named `PirateFinder_<version>_<distro>_<arch>.deb`, each
+  with the catalogue, a private copy of Greaseweazle Host Tools 1.23 whose
+  compiled modules are built for that release's Python (3.12 or 3.13) and
+  architecture, and the Greaseweazle udev rules; `packaging/build-deb.sh
+  --distro ... --arch ... --container` builds any of them in a container of
+  the target release and architecture, and `packaging/install-test.sh`
+  installs one in a fresh container and starts it. Version 0.1.0 had one
+  package, `PirateFinder_0.1.0_ubuntu24.04_amd64.deb`
 - Release workflow that verifies the tag, bundles the newest published
-  catalogue, install-tests the package and publishes it with SHA-256 checksums
+  catalogue of the layout the source reads in all six packages (arm64 built
+  on GitHub's Arm runners, armhf under qemu), install-tests each in a
+  container of its own release and architecture, and publishes them with one
+  `SHA256SUMS`; CI builds and install-tests Ubuntu 24.04 amd64 and Debian 13
+  arm64 on every pull request
+- A public repository: the package, its checksums and the catalogue releases
+  download without a GitHub account
 
 ## Not yet done
 
-- The user database stores corrections to a disk's details and the search
-  applies them, but the interface has no way to enter one yet.
-- The Catalogue workflow has to publish a catalogue release before the first
-  application release can be built.
-- The Demozoo export and the amigascne.org menu texts are off by default
-  because of their size and request count. The Catalogue workflow turns
-  Demozoo on, so published catalogues list the contents of Amiga and ST demo
-  packs; the menu texts (about 2,000 requests) are not yet included anywhere.
-- About 9,500 Internet Archive files carry older TOSEC names that match no
-  current catalogue image, so the builder drops them. Most of those disks have
-  another download location.
-- The kind buttons filter and count only the best 500 results of a search. A
-  broad search (a single common word) can have more matches of one kind than
-  the list shows.
-- Writing has been checked against the real `gw` 1.23 tool without a
-  Greaseweazle attached: generated disk definitions produce the same flux as
-  gw's own formats, and every track of 82 and 83 cylinder disks survives. No
-  write to a real floppy has been made yet.
-- Only the amd64 Ubuntu 24.04 package is built. Other architectures and
-  distribution families are planned; see [ROADMAP.md](../ROADMAP.md).
-- IPF writing depends on the SPS CAPS library, which cannot be bundled and
-  must be installed by the user.
+- No write to a real floppy has been made yet; the test with real hardware
+  is planned with the owner. Writing has been checked against the real `gw`
+  1.23 tool without a Greaseweazle attached: generated disk definitions
+  produce the same flux as gw's own formats, and every track of 82 and 83
+  cylinder disks survives.
+- Version 0.1.0, the only release so far, reads layout 1 and looks for any
+  catalogue file in the releases, not only its own layout. Once the Catalogue
+  workflow publishes layout 3 catalogues from this source, a 0.1.0
+  installation offers one, downloads it and refuses it with "The new catalogue
+  needs a newer version of PirateFinder." Its own catalogue stays in use.
+  Released code cannot be changed; the next release looks only for its own
+  layout, and anyone who upgrades to it gets that behaviour.
+- The new workflows have not run on GitHub yet: the Catalogue workflow's
+  first layout 3 publication, the six-package Release workflow and the arm64
+  CI job run at the next merge and tag. Locally, Ubuntu 24.04 amd64 and arm64
+  and Debian 13 amd64 and armhf were built and install-tested in containers
+  of their own release and architecture.
+- IPF on arm64: the SPS Decoder Library, which cannot be bundled, has no
+  Linux aarch64 build anywhere (fs-uae.net, the CAPSImg GitHub releases or
+  FS-UAE's own arm64 package), so IPF Support says that there is no build for
+  the processor and IPF images cannot be written there until one is
+  published.

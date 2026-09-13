@@ -48,6 +48,14 @@ def normalise(text: str) -> str:
     return " ".join(re.sub(r"[^a-z0-9]+", " ", folded.lower()).split())
 
 
+def crew_key(name: str) -> str:
+    """A crew name for comparison: "The Medway Boys" and "Medway Boys" agree,
+    and so do "Tristar & Red Sector Inc" and "Tristar and Red Sector Inc.",
+    and "The Droog's" and "Droogs"."""
+    text = re.sub(r"['\u2019]", "", name).replace("&", " and ")
+    return re.sub(r"^the ", "", normalise(text))
+
+
 @dataclass(slots=True)
 class SeriesDef:
     id: str
@@ -163,45 +171,120 @@ class GroupRegistry:
 
     ``expand("QTX")`` gives "Quartex"; a tag that is not listed comes back as
     it was. ``expand`` also accepts several groups joined by " - ", the TOSEC
-    way of writing a joint release, and expands each of them.
+    way of writing a joint release, and expands each of them. A group entry
+    may list ``platforms``: its abbreviations then mean it only on those
+    platforms ("ICS" is one crew on the Atari ST and another on the Amiga),
+    and are expanded only when the caller names the platform.
     """
 
-    def __init__(self, abbreviations: dict[str, str], aliases: dict[str, str]) -> None:
+    def __init__(
+        self,
+        abbreviations: dict[str, str],
+        aliases: dict[str, str],
+        platform_abbreviations: dict[tuple[str, str], str] | None = None,
+    ) -> None:
         self._abbreviations = abbreviations
         self._aliases = aliases
+        self._platform_abbreviations = platform_abbreviations or {}
 
     @classmethod
     def load(cls, path: Path = GROUPS_FILE) -> GroupRegistry:
         abbreviations: dict[str, str] = {}
         aliases: dict[str, str] = {}
+        by_platform: dict[tuple[str, str], str] = {}
         if path.exists():
             with path.open("rb") as handle:
                 document = tomllib.load(handle)
             for entry in document.get("group", []):
                 name = entry["name"]
                 aliases[normalise(name)] = name
+                platforms = entry.get("platforms", [])
                 for tag in entry.get("abbreviations", []):
-                    abbreviations[tag] = name
+                    targets = [(tag, platform) for platform in platforms] if platforms else [tag]
+                    table = by_platform if platforms else abbreviations
+                    for target in targets:
+                        if table.get(target, name) != name:
+                            raise ValueError(f"{path.name}: {target!r} names two groups")
+                        table[target] = name
                 for alias in entry.get("aliases", []):
                     aliases[normalise(alias)] = name
-        return cls(abbreviations, aliases)
+        return cls(abbreviations, aliases, by_platform)
 
-    def expand_one(self, tag: str) -> str:
+    def expand_one(self, tag: str, platform: str = "") -> str:
         text = tag.strip()
+        if platform and (text, platform) in self._platform_abbreviations:
+            return self._platform_abbreviations[(text, platform)]
         if text in self._abbreviations:
             return self._abbreviations[text]
         return self._aliases.get(normalise(text), text)
 
-    def expand(self, text: str) -> str:
-        names = [self.expand_one(part) for part in text.split(" - ") if part.strip()]
+    def expand(self, text: str, platform: str = "") -> str:
+        names = [self.expand_one(part, platform) for part in text.split(" - ") if part.strip()]
         return " - ".join(dict.fromkeys(names))
 
-    def spellings(self, text: str) -> list[str]:
+    def crew_keys(self, name: str, platform: str = "") -> set[str]:
+        """The ``crew_key`` of a crew name as written and expanded; two names
+        mean the same crew when their keys meet."""
+        expanded = self.expand_one(name, platform)
+        return {key for key in (crew_key(name), crew_key(expanded)) if key}
+
+    def spellings(self, text: str, platform: str = "") -> list[str]:
         """Every spelling of the groups in ``text``: the tags as given and the
         expanded names, for the search index."""
         found: dict[str, None] = {}
         for part in text.split(" - "):
             if part.strip():
                 found.setdefault(part.strip(), None)
-                found.setdefault(self.expand_one(part), None)
+                found.setdefault(self.expand_one(part, platform), None)
         return list(found)
+
+
+CREW_PINS_FILE = DATA_DIR.parent / "crew-pins.toml"
+
+
+@dataclass(frozen=True, slots=True)
+class CrewChoice:
+    """How the merge picks one of several crews of one name that a source has
+    on one platform, when the source credits none of them with a disk
+    (data/crew-pins.toml).
+
+    A pin names the crew a name stands for on a platform, as the source's own
+    id for it. Without a pin, a crew that has at least ``dominant_share`` of
+    the releases the source credits to all crews of that name on that
+    platform, and at least ``dominant_releases`` of them, is taken.
+    """
+
+    dominant_share: float
+    dominant_releases: int
+    pins: dict[tuple[str, str, str], str] = field(default_factory=dict)
+
+    @classmethod
+    def load(cls, path: Path = CREW_PINS_FILE) -> CrewChoice:
+        with path.open("rb") as handle:
+            document = tomllib.load(handle)
+        pins: dict[tuple[str, str, str], str] = {}
+        for entry in document.get("pin", []):
+            key = (crew_key(entry["name"]), entry["platform"], entry["source"])
+            if key in pins:
+                raise ValueError(f"{path.name}: {entry['name']!r} is pinned twice")
+            pins[key] = str(entry["id"])
+        return cls(float(document["dominant_share"]), int(document["dominant_releases"]), pins)
+
+    def pinned(self, keys: set[str], platform: str, source: str) -> str | None:
+        """The pinned crew id for a crew name (as ``crew_keys``) on a platform."""
+        for key in sorted(keys):
+            found = self.pins.get((key, platform, source))
+            if found is not None:
+                return found
+        return None
+
+    def dominant(self, releases: dict[int, int]) -> int | None:
+        """The one crew of ``releases`` (crew -> releases on the platform) that
+        has most of them, or None when none has enough."""
+        total = sum(releases.values())
+        if not total:
+            return None
+        crew, count = max(releases.items(), key=lambda item: (item[1], -item[0]))
+        if count >= self.dominant_releases and count >= self.dominant_share * total:
+            return crew
+        return None

@@ -148,12 +148,48 @@ class GroupsTest(unittest.TestCase):
         import tomllib
 
         document = tomllib.loads(GROUPS_FILE.read_text())
-        names = [entry["name"] for entry in document["group"]]
+        # Two groups may share a name on different platforms ("The Exceptions").
+        names = [(entry["name"], *entry.get("platforms", [])) for entry in document["group"]]
         self.assertEqual(len(names), len(set(names)), "a group is listed twice")
-        tags = [tag for entry in document["group"] for tag in entry.get("abbreviations", [])]
+        tags = [
+            (tag, platform)
+            for entry in document["group"]
+            for tag in entry.get("abbreviations", [])
+            for platform in entry.get("platforms", ["every platform"])
+        ]
         self.assertEqual(len(tags), len(set(tags)), "an abbreviation names two groups")
-        for tag in tags:
+        for tag, platform in tags:
             self.assertRegex(tag, re.compile(r"^\S+$"))
+            self.assertIn(platform, ("every platform", "amiga", "atari-st"))
+
+    def test_an_abbreviation_can_mean_a_group_on_one_platform_only(self) -> None:
+        groups = GroupRegistry.load()
+        self.assertEqual(groups.expand("MCA", "atari-st"), "The Menacing Cracking Alliance")
+        self.assertEqual(groups.expand("MCA", "amiga"), "MCA")
+        self.assertEqual(groups.expand("MCA"), "MCA")
+        self.assertEqual(groups.expand("ICS", "amiga"), "Italian Cracking Service")
+        # On the ST, ICS is the name of a menu series and stays as it is.
+        self.assertEqual(groups.expand("ICS", "atari-st"), "ICS")
+        self.assertEqual(groups.expand("PSG - QTX", "amiga"), "Prestige - Quartex")
+        self.assertEqual(groups.spellings("PSG", "amiga"), ["PSG", "Prestige"])
+        self.assertEqual(groups.spellings("PSG", "atari-st"), ["PSG"])
+        self.assertIn("prestige", groups.crew_keys("PSG", "amiga"))
+        self.assertEqual(groups.crew_keys("PSG", "atari-st"), {"psg"})
+
+    def test_a_tag_naming_two_groups_on_one_platform_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "groups.toml"
+            path.write_text(
+                '[[group]]\nname = "A"\nplatforms = ["amiga"]\nabbreviations = ["X"]\n'
+                '[[group]]\nname = "B"\nplatforms = ["amiga", "atari-st"]\nabbreviations = ["X"]\n'
+            )
+            with self.assertRaisesRegex(ValueError, "names two groups"):
+                GroupRegistry.load(path)
+            path.write_text(path.read_text().replace('["amiga", "atari-st"]', '["atari-st"]'))
+            groups = GroupRegistry.load(path)
+            self.assertEqual(
+                (groups.expand("X", "amiga"), groups.expand("X", "atari-st")), ("A", "B")
+            )
 
 
 if __name__ == "__main__":

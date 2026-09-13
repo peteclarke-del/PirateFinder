@@ -135,6 +135,35 @@ CREATE TABLE `games` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 INSERT INTO `games` VALUES (1,'New Zealand Story, The','new-zealand-story'),(2,'Rick Dangerous','rick-dangerous'),(3,'Stack Up','stack-up');
+CREATE TABLE `game_facts` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `game_id` int(11) NOT NULL,
+  `fact` mediumtext NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT INTO `game_facts` VALUES (2,2,'See [url=https://example.org/rick]the story[/url] and [url=https://example.org/]https://example.org/[/url].\r\n\r\n\r\n[b]Cheat:[/b] type [i]POOKIE[/i] [img=14x16]https://example.org/wink.gif[/img]'),(1,2,'A re-release of [game=6500]Westphaser[/game].'),(3,3,'   ');
+CREATE TABLE `screenshots` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `imgext` varchar(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT INTO `screenshots` VALUES (319,'png'),(320,'PNG'),(321,'jpg'),(322,'png'),(323,'zip'),(4970,'png');
+CREATE TABLE `screenshot_game` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `game_id` int(11) DEFAULT NULL,
+  `screenshot_id` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT INTO `screenshot_game` VALUES (1,2,323),(2,2,319),(3,2,320),(4,2,321),(5,2,322),(6,1,4970);
+CREATE TABLE `menu_disk_screenshots` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `menu_disk_id` bigint(20) unsigned NOT NULL,
+  `imgext` varchar(4) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Screenshots of a menu disk';
+INSERT INTO `menu_disk_screenshots` VALUES (1887,NULL,NULL,3219,'bmp'),(1886,NULL,NULL,3219,'png'),(1890,NULL,NULL,3220,'zip');
 CREATE TABLE `game_akas` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `game_id` int(11) NOT NULL DEFAULT 0,
@@ -176,9 +205,26 @@ INSERT INTO `pub_devs` VALUES (411,'Ocean');
 CREATE TABLE `crews` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
+  `logo` varchar(255) DEFAULT NULL,
+  `history` mediumtext DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-INSERT INTO `crews` VALUES (7,'Pompey Pirates'),(8,'Superior'),(9,'Flame of Finland');
+INSERT INTO `crews` VALUES (7,'Pompey Pirates','png','Founded in [b]Portsmouth[/b].\r\nIt\\\'s true.'),(8,'Superior',NULL,NULL),(9,'Flame of Finland',NULL,NULL),(10,'The Lonely Crew',NULL,'Never made a menu.');
+CREATE TABLE `crew_individual` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `crew_id` int(11) DEFAULT NULL,
+  `individual_id` int(11) DEFAULT NULL,
+  `individual_nick_id` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT INTO `crew_individual` VALUES (2,7,1632,5),(1,7,1631,NULL),(3,7,1631,NULL);
+CREATE TABLE `individual_nicks` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `individual_id` int(11) DEFAULT NULL,
+  `nick_id` int(11) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT INTO `individual_nicks` VALUES (5,1632,1633);
 CREATE TABLE `crew_menu_set` (
   `crew_id` int(11) NOT NULL,
   `menu_set_id` bigint(20) unsigned NOT NULL,
@@ -190,7 +236,7 @@ CREATE TABLE `individuals` (
   `name` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-INSERT INTO `individuals` VALUES (1631,'Marcer');
+INSERT INTO `individuals` VALUES (1631,'Marcer'),(1632,'Alien'),(1633,'Big Al');
 CREATE TABLE `trainer_options` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Unique ID of trainer_options table',
   `name` varchar(256) DEFAULT NULL COMMENT 'Name of the option',

@@ -4,7 +4,8 @@ The scan first lists candidate files by suffix, then reads only the files whose
 size or modification time changed since the last scan. Archives are opened
 with ``images.archives``, which follows one nested archive level and names
 nested members ``inner.zip::image.st``, and every disk image found is
-inspected with ``images.inspect``. Files that have gone from a folder
+inspected with ``images.inspect``, which also checks its boot block for
+viruses; the status is kept with the entry. Files that have gone from a folder
 that was read completely are removed from the index. Unreadable files,
 corrupt archives and missing tools are reported in the summary and never stop
 the scan.
@@ -21,30 +22,21 @@ from collections.abc import Callable, Iterable, Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
+from ..images.archives import ARCHIVE_SUFFIXES, base_name, is_disk_image_name
+from ..images.inspect import IMAGE_SUFFIXES, MAX_IMAGE_SIZE
 from ..jobs.cancellation import Cancellation, is_cancelled
 from ..models import ScanSummary
 from .userdb import LibraryEntry, UserDatabase
 
 __all__ = [
-    "ARCHIVE_SUFFIXES",
-    "CANDIDATE_SUFFIXES",
-    "IMAGE_SUFFIXES",
-    "NESTED_SEPARATOR",
     "Cancellation",
     "Scanner",
     "read_image_bytes",
 ]
 
-IMAGE_SUFFIXES = frozenset({".adf", ".adz", ".dms", ".st", ".msa", ".stx", ".ipf", ".scp", ".hfe"})
-ARCHIVE_SUFFIXES = frozenset({".zip", ".7z", ".gz"})
 CANDIDATE_SUFFIXES = IMAGE_SUFFIXES | ARCHIVE_SUFFIXES
 
-# Separates an archive member from a member of an archive nested inside it,
-# as images.archives writes it.
-NESTED_SEPARATOR = "::"
-
 # Anything larger is not a floppy image, even as flux.
-MAX_IMAGE_BYTES = 128 * 1024 * 1024
 
 # Metadata folders that network storage keeps beside the user's files.
 SKIPPED_FOLDERS = frozenset(
@@ -65,21 +57,6 @@ def _inspect_function() -> Callable[[bytes, str], Any]:
     from ..images.inspect import inspect_bytes
 
     return inspect_bytes
-
-
-def base_name(name: str) -> str:
-    """The file name of a member, without its folders or outer archive."""
-    return Path(name.rsplit(NESTED_SEPARATOR, 1)[-1].replace("\\", "/")).name
-
-
-def is_image_name(name: str) -> bool:
-    """Whether a file or member name has a disk image suffix."""
-    return Path(base_name(name)).suffix.lower() in IMAGE_SUFFIXES
-
-
-def is_archive_name(name: str) -> bool:
-    """Whether a file or member name has a supported archive suffix."""
-    return Path(base_name(name)).suffix.lower() in ARCHIVE_SUFFIXES
 
 
 def _member_name(member: Any) -> str:
@@ -147,6 +124,8 @@ def entry_from_bytes(
     raw = getattr(inspection, "raw", None)
     listing = getattr(inspection, "listing", ()) or ()
     image_format = getattr(inspection, "format", "") or suffix_format
+    report = getattr(inspection, "virus", None)
+    status = getattr(report, "status", "")
     return LibraryEntry(
         path=path,
         member=member,
@@ -162,6 +141,8 @@ def entry_from_bytes(
         raw_size=len(raw) if isinstance(raw, bytes | bytearray) else None,
         volume_label=str(getattr(inspection, "volume_label", "") or ""),
         listing=tuple(str(item) for item in listing),
+        boot_status=str(getattr(status, "value", status) or ""),
+        boot_name=str(getattr(report, "name", "") or ""),
     )
 
 
@@ -304,8 +285,8 @@ class Scanner:
 
     def _images_in(self, path: Path, errors: list[str]) -> Iterator[tuple[str, str, bytes]]:
         """Yield (member, name, data) for every image in a file."""
-        if is_image_name(path.name):
-            if path.stat().st_size > MAX_IMAGE_BYTES:
+        if is_disk_image_name(path.name):
+            if path.stat().st_size > MAX_IMAGE_SIZE:
                 errors.append(f"{path}: the file is too large to be a floppy image.")
                 return
             yield "", path.name, path.read_bytes()
@@ -324,10 +305,10 @@ class Scanner:
             return
         for member in archives.members(path):
             name = _member_name(member)
-            if name.endswith("/") or not is_image_name(name):
+            if name.endswith("/") or not is_disk_image_name(name):
                 continue
             size = _member_size(member)
-            if size is not None and size > MAX_IMAGE_BYTES:
+            if size is not None and size > MAX_IMAGE_SIZE:
                 member_error(name, "the member is too large to be a floppy image.")
                 continue
             try:

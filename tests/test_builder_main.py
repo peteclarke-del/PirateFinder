@@ -106,7 +106,7 @@ class BuilderCommandTest(unittest.TestCase):
             sources = connection.execute(
                 "SELECT id, retrieved, records FROM sources ORDER BY id"
             ).fetchall()
-        self.assertEqual(labels, ["Xenon", "Automation 250"])  # Amiga sorts first
+        self.assertEqual(labels, ["Automation 250", "Xenon"])  # numbered disks first
         self.assertEqual(meta["source:failing"], "failed: ConnectionError: site down")
         self.assertEqual(meta["source:good"], "ok, 1 records")
         self.assertRegex(meta["built_at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+00:00$")
@@ -148,6 +148,22 @@ class BuilderCommandTest(unittest.TestCase):
     def test_input_must_name_a_source(self) -> None:
         with self.assertRaises(SystemExit):
             self.run_main("--input", "no-equals-sign")
+
+
+class SourceLicenceTest(unittest.TestCase):
+    """Every row of the sources table names a licence or the terms a source is used under."""
+
+    def test_every_source_states_its_licence_or_terms(self) -> None:
+        from catalogue_builder import sources
+        from catalogue_builder.merge import CREDITED_SOURCES
+
+        found, broken = discover(sources, log=lambda message: None)
+        self.assertEqual(broken, {})
+        self.assertGreater(len(found), 10)
+        for source in found:
+            self.assertTrue(source.info.licence.strip(), source.info.id)
+        for info in CREDITED_SOURCES.values():
+            self.assertTrue(info.licence.strip(), info.id)
 
 
 if __name__ == "__main__":
