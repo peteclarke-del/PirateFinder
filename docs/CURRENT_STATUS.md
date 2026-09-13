@@ -1,8 +1,10 @@
 # Current implementation status
 
-Version 0.2.1, released on 13 September 2026, is the current release. It
-adds Download All Pictures and lets an application update wait for the
-password prompt however long it takes. Version 0.2.0, released the same day,
+Version 0.2.2, released on 14 September 2026, is the current release. It
+asks again for pictures a busy site said it did not have, instead of leaving
+them out for a week. Version 0.2.1, released the day before, added Download
+All Pictures and lets an application update wait for the password prompt
+however long it takes. Version 0.2.0, released on 13 September too,
 brought the paged Find screen with filters and sorting, the details pane's
 pictures, crew histories and trivia, virus detection, the illustrated User
 Guide and Check for Application Updates. Version 0.1.0, released the day
@@ -248,11 +250,12 @@ histories. It takes 249 MB installed and 73 MB compressed.
   refuses it with "The new catalogue needs a newer version of PirateFinder."
   Its own catalogue stays in use. Released code cannot be changed; version
   0.2.0 looks only for its own layout, so upgrading ends the offers.
-- Check for Application Updates first appears in 0.2.0. The first update of
-  an installed copy from the About window is 0.2.0 to 0.2.1, on the owner's
-  machine. 0.2.0 itself was installed through the same check, download,
-  checksum and pkexec code, run from the source tree, which found the
-  install time limit that 0.2.1 removes.
+- Check for Application Updates first appears in 0.2.0. The owner's machine
+  went from 0.2.0 to 0.2.1 with the installed 0.2.0's own check, download,
+  checksum and pkexec code, run from a terminal rather than the About
+  window; the button itself has been driven only in the window tests. 0.2.0
+  was installed the same way from the source tree, which found the install
+  time limit that 0.2.1 removes.
 - IPF on arm64: the SPS Decoder Library, which cannot be bundled, has no
   Linux aarch64 build anywhere (fs-uae.net, the CAPSImg GitHub releases or
   FS-UAE's own arm64 package), so IPF Support says that there is no build for
