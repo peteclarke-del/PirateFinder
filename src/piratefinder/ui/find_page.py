@@ -94,6 +94,8 @@ class FindPage(Gtk.Box):
         self.searching = False
         self.examples: list[tuple[str, str]] = []
         self._quiet = False
+        # The text of the last search started, so the entry only searches when it changes.
+        self._searched_text = ""
 
         self.split_view = Adw.OverlaySplitView(
             sidebar_position=Gtk.PackType.END,
@@ -177,7 +179,7 @@ class FindPage(Gtk.Box):
             search_delay=SEARCH_DELAY_MS,
         )
         set_accessible_label(self.search_entry, "Search the catalogue")
-        self.search_entry.connect("search-changed", lambda _entry: self.search())
+        self.search_entry.connect("search-changed", self._on_search_changed)
         self.search_entry.connect("activate", self._on_entry_activate)
         self.search_entry.connect("stop-search", lambda _entry: self.search_entry.set_text(""))
         line.append(self.search_entry)
@@ -544,6 +546,7 @@ class FindPage(Gtk.Box):
         elif reset_page:
             self.page_index = 0
         query = self.query()
+        self._searched_text = query.text
         self._generation += 1
         generation = self._generation
         if not query.browsing:
@@ -739,6 +742,13 @@ class FindPage(Gtk.Box):
         self.detail.detail = None
         self.detail.local = None
         self.detail.content_id = None
+
+    def _on_search_changed(self, entry: Gtk.SearchEntry) -> None:
+        """Search when the words changed. The entry also reports a change it
+        never had, a moment after it is built, and a search then would go
+        back to the first page the user may already have left."""
+        if entry.get_text().strip() != self._searched_text:
+            self.search()
 
     def _on_entry_activate(self, _entry) -> None:
         """Enter in the search box opens the first result."""
