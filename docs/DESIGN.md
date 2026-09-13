@@ -58,6 +58,7 @@ src/piratefinder/            the application
   online/
     http.py                  throttled downloads with retry and resume
     releases.py              the repository's GitHub releases, for both updates
+    prefetch.py              Download All Pictures: the catalogue's pictures into the media cache
     fetch.py                 fetch a catalogue location into the download folder
     media.py                 cached pictures and Wikipedia summaries
   jobs/
@@ -489,6 +490,16 @@ loading the disc again. From the top:
   picture is downloaded when it is first shown and kept in the media cache;
   one narrower than 800 pixels is scaled up without smoothing. When
   pictures are switched off the space says so and offers Open Preferences.
+  Download All Pictures (`online/prefetch.py`, driven by
+  `ui/picture_downloader.py` from Preferences) fills the same cache ahead of
+  time: `Catalogue.picture_addresses()` lists each address once, in disc
+  order, and one worker per site calls `MediaCache.fetch`, so the host locks
+  and the one-a-second throttle apply as they do for the pane, and the sites
+  run side by side. The count lists each cache folder once
+  (`MediaCache.cached_keys()`) rather than reading 78,000 notes, and its time
+  estimate is the largest number of pictures left on one site, a second each.
+  A fresh cached picture costs no request, so a stopped download carries on
+  where it stopped.
 - **Heading and buttons**: the title and its disc, or the disc label with
   its series, date, platform and kind; a warning when the catalogue lists
   the disc as damaged, intro only or missing; Write Now, Add to Queue, and a
@@ -735,6 +746,11 @@ Library.recheck_boot_blocks(progress=None, cancel=None) -> BootRecheck | None
     # BootRecheck(checked, changed, unreadable, cancelled); None when nothing changed
 # online/media.py
 MediaCache.fetch(item: MediaItem, *, cancel=None) -> Path | None
+MediaCache.cached_picture(url, source) -> Path | None  # never uses the network
+MediaCache.cached_keys() -> dict[str, set[str]]
+# online/prefetch.py
+count(cache, addresses) -> PictureCount  # total, cached, size, remaining_by_site
+download(cache, addresses, progress=None, cancel=None) -> PictureSummary
 MediaCache.wikipedia_summary(title, *, cancel=None) -> TriviaItem | None
 ```
 

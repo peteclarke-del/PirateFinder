@@ -26,6 +26,7 @@ import os
 import shutil
 import sys
 import tempfile
+from collections import Counter
 from dataclasses import replace
 from pathlib import Path
 
@@ -185,6 +186,15 @@ class CatalogueShotsBackend(FakeBackend):
 
     def search_page(self, query):
         return self.real.search_page(query)
+
+    def picture_count(self, platforms=()):
+        """The catalogue's own pictures, as a new installation with none cached has them."""
+        from ..online.media import host_key
+        from ..online.prefetch import PictureCount
+
+        addresses = self.real.catalogue.picture_addresses(platforms)
+        remaining = Counter(host_key(url) for url, _source in addresses)
+        return PictureCount(len(addresses), 0, 0, dict(remaining))
 
     def facets(self):
         return self.real.facets()
@@ -779,6 +789,11 @@ class Shots:
         dialog = window.show_preferences()
         dialog.set_visible_page_name(page)
         settle(300)
+        # Download All Pictures counts the catalogue's pictures when Preferences opens.
+        for _wait in range(40):
+            if not window.pictures.state.busy:
+                break
+            settle(250)
         return dialog.force_close
 
     def about_update(self):

@@ -100,6 +100,11 @@ histories. It takes 249 MB installed and 73 MB compressed.
   found again in a new catalogue by its series and number or by the checksums
   of its dumps, since disc and title ids change with every build
 - A setting that switches every picture and summary download off
+- Download All Pictures in Preferences: every picture of the Atari ST, the
+  Amiga or both fetched ahead of time into the same cache, one worker per
+  site at the pane's pace of one request a second, with a count of what is
+  already there, a time estimate, Stop, and a next run that starts from the
+  cached pictures
 
 ### Viruses
 

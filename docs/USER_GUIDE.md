@@ -260,6 +260,12 @@ Pictures and Wikipedia summaries are downloaded only while Download Screenshots 
 
 ![The picture area of the details pane when pictures are off](images/details-pictures-off.png)
 
+### Downloading every picture
+
+The details pane fetches a disc's pictures when it first shows the disc. To have them all at once, for example before going offline, use Download All Pictures in Preferences, under Details Pane. Choose Atari ST and Amiga, Atari ST or Amiga, then Download. The row says how many of the pictures are already on this computer, and how long the rest take.
+
+Pictures are fetched one a second from each site, as the details pane fetches them, so every picture the catalogue lists, about 78,000, takes about 12 hours, most of it for Demozoo's. They go into the same cache folder and are refreshed the same way. The download carries on with Preferences closed, Stop ends it, and closing PirateFinder stops it too. The next Download carries on from the pictures already there and asks nothing of a site for them. A picture a site no longer has is counted and left out.
+
 ## Writing Disks
 
 Write one disc now or several in a session, and what the prompts, progress and summary mean.
@@ -542,6 +548,7 @@ Choose Preferences in the main menu, or press Ctrl+Comma. Every change is saved 
 | Download Folder | Where downloaded images are kept. Floppy Images/PirateFinder in your home folder to start with. |
 | Online Downloads | Allows downloads from the providers below. On to start with. When off, no disk image, picture or summary is downloaded. |
 | Download Screenshots and Background Information | Fetches pictures and Wikipedia summaries for the disc in the details pane, when it is shown. On to start with. Greyed out while Online Downloads is off. |
+| Download All Pictures | Fetches every picture the catalogue lists for the platforms you choose, ahead of time, into the details pane's cache. Only while both switches above are on. |
 | Providers | One switch for each provider the catalogue lists, all on to start with. |
 
 ### Greaseweazle
@@ -876,6 +883,7 @@ PirateFinder has no account, sends no usage statistics and has no crash reportin
 | When you install a new version of PirateFinder | The package for your system and the release's SHA256SUMS file, from github.com. |
 | When you write or download a disc that is not in your library | The disk image, from the provider the catalogue names for it. During a session the next disc is fetched in the background. |
 | When the details pane shows a disc | With Download Screenshots and Background Information and Online Downloads on: each picture as it is shown, from the site that hosts it (atarilegend.com, d-bug.me, media.demozoo.org, or raw.githubusercontent.com for libretro-thumbnails), and the Wikipedia summaries of the title, the disc and the crew, from en.wikipedia.org. |
+| When you choose Download under Download All Pictures | Every picture the catalogue lists for the platforms you chose that is not on this computer yet, one a second from each of the same sites. |
 | When you choose Download Brainfile | The latest Amiga Bootblock Reader release, from api.github.com and github.com. |
 | When you accept the licence under IPF Support | The SPS Decoder Library for your processor, from fs-uae.net. |
 | When a Greaseweazle is plugged in, or you choose Retry or Check Connection | PirateFinder runs the host tool's `gw info` command to identify the device, and `gw info` asks api.github.com for the newest Greaseweazle firmware version. This request comes from the Greaseweazle host tools, not from PirateFinder's own code. While Online Downloads is off, PirateFinder keeps it from leaving the computer, and newer firmware is not reported. The regular check for the device reads the computer's device list only, and nothing runs while a disc is being written. |
@@ -884,7 +892,7 @@ Every request from PirateFinder names it, its version and the project page in th
 
 ### Turning requests off
 
-Online Downloads off stops disk image, picture and summary downloads. Download Screenshots and Background Information off stops pictures and summaries only. Check for Updates at Start off stops the check at start. The brainfile and the SPS Decoder Library are fetched only when you ask for them. Online Downloads off also stops the Greaseweazle host tool's firmware check, which otherwise happens only when `gw info` identifies a Greaseweazle.
+Online Downloads off stops disk image, picture and summary downloads. Download Screenshots and Background Information off stops pictures and summaries only, Download All Pictures included. Check for Updates at Start off stops the check at start. The brainfile and the SPS Decoder Library are fetched only when you ask for them. Online Downloads off also stops the Greaseweazle host tool's firmware check, which otherwise happens only when `gw info` identifies a Greaseweazle.
 
 ### What is stored
 

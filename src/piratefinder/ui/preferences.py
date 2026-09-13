@@ -12,11 +12,13 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, GLib, Gtk  # noqa: E402
 
+from .. import paths  # noqa: E402
 from ..greaseweazle.caps import CapsState, CapsStatus  # noqa: E402
 from ..jobs.cancellation import Cancellation  # noqa: E402
 from . import formatting as fmt  # noqa: E402
 from .backend import BrainfileStatus, fetch_media, set_fetch_media  # noqa: E402
 from .bridge import Latest, run_in_thread  # noqa: E402
+from .picture_downloader import PLATFORM_CHOICES, SWITCHED_OFF, PictureState  # noqa: E402
 from .queue_page import drive_row, set_drive_row  # noqa: E402
 from .updater import UpdateState  # noqa: E402
 from .widgets import (  # noqa: E402
@@ -67,6 +69,10 @@ class PreferencesDialog(Adw.PreferencesDialog):
         self.add(self._catalogue_page())
         host.updater.subscribe(self._show_update)
         self._show_update(host.updater.state)
+        host.pictures.subscribe(self._show_pictures)
+        self._show_pictures(host.pictures.state)
+        if not host.pictures.state.busy:
+            host.pictures.count(host.pictures.platforms)
         self.connect("closed", self._on_closed)
 
     @property
@@ -115,6 +121,25 @@ class PreferencesDialog(Adw.PreferencesDialog):
         # Nothing is fetched while online use is off, whatever this switch says.
         self.media_row.set_sensitive(self.settings.online_enabled)
         information.add(self.media_row)
+        self.pictures_row = _row("Download All _Pictures", "")
+        self.pictures_row.set_subtitle_lines(4)
+        self.pictures_platform = Gtk.DropDown.new_from_strings(
+            [label for label, _platforms in PLATFORM_CHOICES]
+        )
+        self.pictures_platform.set_valign(Gtk.Align.CENTER)
+        self.pictures_platform.set_tooltip_text("Whose discs' pictures to download")
+        choices = [platforms for _label, platforms in PLATFORM_CHOICES]
+        current = self._host.pictures.platforms
+        self.pictures_platform.set_selected(choices.index(current) if current in choices else 0)
+        self.pictures_platform.connect("notify::selected", self._on_pictures_platform)
+        self.pictures_row.add_suffix(self.pictures_platform)
+        self.pictures_progress = progress_bar()
+        self.pictures_progress.set_size_request(140, -1)
+        self.pictures_progress.set_visible(False)
+        self.pictures_row.add_suffix(self.pictures_progress)
+        self.pictures_button = text_button("_Download", self._on_pictures_button)
+        self.pictures_row.add_suffix(self.pictures_button)
+        information.add(self.pictures_row)
         page.add(information)
 
         providers = Adw.PreferencesGroup(
@@ -158,10 +183,67 @@ class PreferencesDialog(Adw.PreferencesDialog):
             provider_row.set_sensitive(row.get_active())
         self.media_row.set_sensitive(row.get_active())
         self._save("online_enabled")
+        self._show_pictures(self._host.pictures.state)
 
     def _on_media_changed(self, row: Adw.SwitchRow, _property) -> None:
         set_fetch_media(self.settings, row.get_active())
         self._save("fetch_media")
+        self._show_pictures(self._host.pictures.state)
+
+    # Download All Pictures
+
+    @property
+    def _picture_platforms(self):
+        return PLATFORM_CHOICES[self.pictures_platform.get_selected()][1]
+
+    def _on_pictures_platform(self, *_args) -> None:
+        self._host.pictures.count(self._picture_platforms)
+
+    def _on_pictures_button(self, _button) -> None:
+        pictures = self._host.pictures
+        if pictures.state.phase == "downloading":
+            pictures.stop()
+            return
+        count = pictures.state.count
+        if count is None or not count.remaining:
+            pictures.start()
+            return
+        label = PLATFORM_CHOICES[self.pictures_platform.get_selected()][0]
+        estimate = count.estimated_size
+        size = f" and about {fmt.human_size(estimate)} of space" if estimate else ""
+        folder = str(paths.cache_dir() / "media").replace(str(GLib.get_home_dir()), "~", 1)
+        body = (
+            f"{count.remaining:,} pictures of {label} discs are not on this computer yet. They "
+            f"are fetched one a second from each site, which takes "
+            f"{fmt.duration_text(count.seconds)}{size}. PirateFinder must stay open: closing "
+            "it stops the download, and the next Download carries on from there. The pictures "
+            f"are kept in {folder} and refreshed like the ones the details pane fetches."
+        )
+
+        def respond(response: str) -> None:
+            if response == "download":
+                pictures.start()
+
+        alert(
+            self,
+            "Download All Pictures?",
+            body,
+            (("cancel", "_Cancel", ""), ("download", "_Download", "suggested")),
+            respond,
+        )
+
+    def _show_pictures(self, state: PictureState) -> None:
+        enabled = self._host.backend.media_enabled
+        downloading = state.phase == "downloading"
+        message = state.message if enabled or downloading else SWITCHED_OFF
+        self.pictures_row.set_subtitle(message)
+        self.pictures_progress.set_visible(downloading)
+        if downloading:
+            set_fraction(self.pictures_progress, state.fraction)
+        self.pictures_button.set_label("_Stop" if downloading else "_Download")
+        self.pictures_button.set_sensitive(downloading or (enabled and not state.busy))
+        self.pictures_platform.set_visible(not downloading)
+        self.pictures_platform.set_sensitive(not state.busy)
 
     def _on_provider_changed(self, row: Adw.SwitchRow, _property, provider_id: str) -> None:
         providers = dict(self.settings.providers)
@@ -675,3 +757,4 @@ class PreferencesDialog(Adw.PreferencesDialog):
         self.cancel_brainfile()
         self.cancel_caps()
         self._host.updater.unsubscribe(self._show_update)
+        self._host.pictures.unsubscribe(self._show_pictures)

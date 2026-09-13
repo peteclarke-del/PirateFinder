@@ -27,6 +27,7 @@ from ..models import (
     ImageRecord,
     LocalFile,
     MediaItem,
+    Platform,
     Query,
     QueueItem,
     ResultPage,
@@ -36,6 +37,7 @@ from ..models import (
     TriviaItem,
     VirusReport,
 )
+from ..online.prefetch import PictureCount, PictureProgress, PictureSummary
 from ..settings import Settings
 
 FETCH_MEDIA = "fetch_media"
@@ -169,6 +171,19 @@ class Backend:
 
     def media_file(self, item: MediaItem) -> Path | None:
         """A local copy of a picture, downloaded and cached on first use; may block."""
+        raise NotImplementedError
+
+    def picture_count(self, platforms: Sequence[Platform] = ()) -> PictureCount:
+        """How many of the catalogue's pictures of ``platforms`` are on this computer."""
+        raise NotImplementedError
+
+    def download_pictures(
+        self,
+        platforms: Sequence[Platform],
+        progress: Callable[[PictureProgress], None],
+        cancel,
+    ) -> PictureSummary:
+        """Fetch every picture of ``platforms`` into the cache; stops when ``cancel`` is set."""
         raise NotImplementedError
 
     def clean_alternates(self, disk_id: int) -> list[ImageRecord]:
@@ -354,6 +369,12 @@ class UnavailableBackend(Backend):
 
     def detail(self, disk_id: int) -> DiskDetail:
         raise LookupError("No catalogue is installed.")
+
+    def picture_count(self, platforms: Sequence[Platform] = ()) -> PictureCount:
+        return PictureCount(0, 0, 0)
+
+    def download_pictures(self, platforms, progress, cancel) -> PictureSummary:
+        return PictureSummary(0, 0, 0, 0)
 
     def summaries(self, disk_id: int, content_id: int | None = None) -> list[TriviaItem]:
         return []
