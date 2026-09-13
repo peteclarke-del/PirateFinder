@@ -192,6 +192,12 @@ fixed-width font. Pictures and Wikipedia summaries are downloaded only when a
 disc is shown, and not at all while Download Screenshots and Background
 Information is off in Preferences.
 
+Download All Pictures, in Preferences under Details Pane, fetches every picture
+the catalogue lists for the Atari ST, the Amiga or both ahead of time, into the
+same cache. It keeps to the pane's pace of one request a second to each site,
+so all 78,000 or so pictures take about 12 hours; it carries on in the
+background, and the next run starts from what is already there.
+
 When the catalogue is wrong about a disc, Edit Details in the pane's menu
 corrects its label, catalogue name, crew, release date (`YYYY`, `YYYY-MM` or
 `YYYY-MM-DD`), publisher, cracker and notes, and the names of its titles. The

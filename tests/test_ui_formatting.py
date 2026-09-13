@@ -158,6 +158,16 @@ class FindTextTests(unittest.TestCase):
         self.assertEqual(local_name(LocalFile(path="/lib/x.st")), "x.st")
 
 
+class DurationTextTests(unittest.TestCase):
+    def test_an_estimate_is_rounded_to_what_a_person_plans_by(self) -> None:
+        self.assertEqual(fmt.duration_text(20), "under a minute")
+        self.assertEqual(fmt.duration_text(60), "about 1 minute")
+        self.assertEqual(fmt.duration_text(89 * 60), "about 89 minutes")
+        self.assertEqual(fmt.duration_text(90 * 60 - 1), "about 2 hours")
+        self.assertEqual(fmt.duration_text(90 * 60), "about 2 hours")
+        self.assertEqual(fmt.duration_text(41_447), "about 12 hours")
+
+
 class StickerTests(unittest.TestCase):
     def contents(self, *titles: tuple[str, ContentKind]) -> list[Content]:
         return [Content(1, title, kind, position) for position, (title, kind) in enumerate(titles)]

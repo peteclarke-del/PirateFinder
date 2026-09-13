@@ -1411,6 +1411,98 @@ class WindowTests(unittest.TestCase):
         close.assert_not_called()
         self.assertFalse(self.window.get_application().restart_requested)
 
+    # Download All Pictures
+
+    def pictures_dialog(self):
+        dialog = self.window.show_preferences()
+        wait_until(lambda: self.window.pictures.state.phase == "ready", "the pictures counted")
+        return dialog
+
+    def test_preferences_count_the_pictures_on_this_computer(self) -> None:
+        dialog = self.pictures_dialog()
+        self.assertEqual(
+            dialog.pictures_row.get_subtitle(),
+            "10 of 100 pictures are on this computer (195 KB). The other 90 take about "
+            "2 minutes, at one a second from each site.",
+        )
+        self.assertEqual(dialog.pictures_button.get_label(), "_Download")
+        dialog.pictures_platform.set_selected(2)  # Amiga
+        wait_until(lambda: self.window.pictures.state.phase == "ready", "the Amiga pictures")
+        self.assertTrue(dialog.pictures_row.get_subtitle().startswith("0 of 40 pictures"))
+        self.assertEqual(self.window.pictures.platforms, (Platform.AMIGA,))
+        self.assertEqual(self.backend.picture_runs, [])  # counting fetches nothing
+
+    def test_download_all_pictures_asks_first_then_fills_the_cache(self) -> None:
+        dialog = self.pictures_dialog()
+        dialog.pictures_button.emit("clicked")
+        wait_until(
+            lambda: isinstance(self.window.get_visible_dialog(), Adw.AlertDialog), "the question"
+        )
+        question = self.window.get_visible_dialog()
+        self.assertEqual(question.get_heading(), "Download All Pictures?")
+        self.assertIn("90 pictures of Atari ST and Amiga discs", question.get_body())
+        self.assertIn("about 2 minutes", question.get_body())
+        question.emit("response", "download")
+        wait_until(
+            lambda: (
+                self.window.pictures.state.phase == "ready" and self.backend.picture_runs == [()]
+            ),
+            "the pictures downloaded and counted again",
+        )
+        self.assertEqual(
+            dialog.pictures_row.get_subtitle(),
+            "Finished: all 100 pictures were checked. 90 were downloaded. "
+            "100 of 100 pictures are on this computer (1.9 MB).",
+        )
+
+    def test_stopping_the_download_says_how_far_it_got(self) -> None:
+        self.backend.script.track_delay = 0.02
+        dialog = self.pictures_dialog()
+        self.window.pictures.start()
+        wait_until(
+            lambda: (
+                self.window.pictures.state.phase == "downloading"
+                and (self.window.pictures.state.fraction or 0) > 0
+            ),
+            "the download under way",
+        )
+        self.assertTrue(dialog.pictures_progress.get_visible())
+        self.assertFalse(dialog.pictures_platform.get_visible())
+        self.assertEqual(dialog.pictures_button.get_label(), "_Stop")
+        self.assertTrue(dialog.pictures_row.get_subtitle().startswith("Atari ST and Amiga: "))
+        dialog.pictures_button.emit("clicked")
+        wait_until(lambda: self.window.pictures.state.phase == "ready", "the stop")
+        self.assertTrue(dialog.pictures_row.get_subtitle().startswith("Stopped after "))
+        self.assertFalse(dialog.pictures_progress.get_visible())
+
+    def test_the_download_carries_on_with_preferences_closed(self) -> None:
+        self.backend.script.track_delay = 0.01
+        dialog = self.pictures_dialog()
+        self.window.pictures.start()
+        dialog.force_close()
+        wait_until(
+            lambda: (
+                self.window.pictures.state.phase == "ready"
+                and self.backend.pictures_cached[Platform.AMIGA] == 40
+            ),
+            "the download with Preferences closed",
+        )
+        again = self.pictures_dialog()
+        self.assertTrue(again.pictures_row.get_subtitle().startswith("100 of 100 pictures"))
+
+    def test_no_pictures_are_downloaded_while_they_are_switched_off(self) -> None:
+        dialog = self.pictures_dialog()
+        dialog.media_row.set_active(False)
+        self.assertFalse(dialog.pictures_button.get_sensitive())
+        self.assertEqual(
+            dialog.pictures_row.get_subtitle(),
+            "Switch on Online Downloads and Download Screenshots and Background Information "
+            "to download pictures",
+        )
+        self.window.pictures.start()
+        pump(0.05)
+        self.assertEqual(self.backend.picture_runs, [])
+
     def test_preferences_switch_pictures_off_and_download_the_brainfile(self) -> None:
         dialog = self.window.show_preferences()
         pump(0.1)

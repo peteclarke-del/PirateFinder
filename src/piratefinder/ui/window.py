@@ -34,6 +34,7 @@ from .help_view import HelpWindow  # noqa: E402
 from .history_page import HistoryPage  # noqa: E402
 from .library_page import LibraryPage  # noqa: E402
 from .log import LOG  # noqa: E402
+from .picture_downloader import PictureDownloader  # noqa: E402
 from .preferences import PreferencesDialog  # noqa: E402
 from .queue_page import QueuePage  # noqa: E402
 from .updater import CatalogueUpdater  # noqa: E402
@@ -64,6 +65,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.backend = backend
         self.updater = CatalogueUpdater(self)
         self.app_updater = AppUpdater(self)
+        self.pictures = PictureDownloader(self)
         self.about_dialog: Adw.AboutDialog | None = None
         self._info = self._load_catalogue_info()
         self._device: DeviceStatus | None = None
@@ -708,6 +710,7 @@ class MainWindow(Adw.ApplicationWindow):
             self.library_page.cancel_scan()
         self.updater.cancel()
         self.app_updater.cancel()
+        self.pictures.stop()
         if self._help_window is not None:
             self._help_window.destroy()
             self._help_window = None

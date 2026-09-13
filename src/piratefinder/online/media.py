@@ -105,6 +105,11 @@ def _folder_name(source: str) -> str:
     return re.sub(r"[^a-z0-9._-]+", "_", source.lower()).strip("._") or "other"
 
 
+def picture_key(url: str, source: str) -> tuple[str, str]:
+    """The folder and the file name, without extension, a picture is cached under."""
+    return _folder_name(source), _digest(url.strip())
+
+
 def _digest(text: str) -> str:
     return hashlib.sha1(text.encode("utf-8"), usedforsecurity=False).hexdigest()
 
@@ -130,6 +135,40 @@ class MediaCache:
         return bool(self._enabled())
 
     # Pictures ------------------------------------------------------------------
+
+    def cached_picture(self, url: str, source: str) -> Path | None:
+        """The picture on disk for ``url``, fresh or not, or None; never uses the network."""
+        folder = self.root / _folder_name(source)
+        key = _digest(url.strip())
+        meta = _read_json(folder / f"{key}.json")
+        if meta.get("status") != _OK:
+            return None
+        path = folder / f"{key}.{meta.get('ext', '')}"
+        return path if path.is_file() else None
+
+    def cached_keys(self) -> dict[str, set[str]]:
+        """The pictures on disk, as their keys by source folder, from one listing of each folder.
+
+        A picture file is written only when a fetch succeeded and removed when
+        the site no longer has it, so its presence is enough.
+        """
+        found: dict[str, set[str]] = {}
+        with contextlib.suppress(OSError):
+            for folder in self.root.iterdir():
+                if folder.is_dir():
+                    found[folder.name] = {
+                        path.stem for path in folder.iterdir() if path.suffix[1:] in _EXTENSIONS
+                    }
+        return found
+
+    def picture_bytes(self) -> int:
+        """The space the cached pictures take, summaries and notes left out."""
+        total = 0
+        for extension in _EXTENSIONS:
+            for path in self.root.glob(f"*/*.{extension}"):
+                with contextlib.suppress(OSError):
+                    total += path.stat().st_size
+        return total
 
     def fetch(self, item: MediaItem, *, cancel: object | None = None) -> Path | None:
         """The cached picture for ``item``, downloading it when needed; None when unavailable."""
