@@ -192,7 +192,21 @@ class WindowTests(unittest.TestCase):
                 return False
             return all(getattr(shown.query, name) == value for name, value in wanted.items())
 
-        wait_until(done, f"a page for {wanted}")
+        try:
+            wait_until(done, f"a page for {wanted}")
+        except AssertionError as error:
+            shown = page.result_page
+            fields = ("text", "crew", "year", "platform", "mode", "sort", "page", "page_size")
+            asked = [
+                {name: getattr(query, name) for name in fields}
+                for query in self.backend.queries[-6:]
+            ]
+            raise AssertionError(
+                f"{error}; searching={page.searching}, page_index={page.page_index}, "
+                f"pager={page.pager.page}/{page.pager.pages}, "
+                f"shown={shown.query if shown else None}, total={shown.total if shown else None}, "
+                f"last queries={asked}"
+            ) from None
 
     def browse_automation(self, page_size: int = 50) -> None:
         page = self.window.find_page
