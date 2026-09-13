@@ -52,31 +52,36 @@ jobs:
           appstreamcli validate --no-net data/com.github.pclarke.PirateFinder.metainfo.xml
 
   package:
-    name: Build the package without a catalogue
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    name: Package for ${{ matrix.distro }} ${{ matrix.arch }} without a catalogue
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Two of the release targets, both on native runners so they stay
+        # quick. The Release workflow builds every target.
+        include:
+          - distro: ubuntu-24.04
+            arch: amd64
+            runner: ubuntu-24.04
+          - distro: debian-13
+            arch: arm64
+            runner: ubuntu-24.04-arm
+    env:
+      DISTRO: ${{ matrix.distro }}
+      ARCH: ${{ matrix.arch }}
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-          cache: pip
+      - name: Build the package
+        run: >-
+          ./packaging/build-deb.sh --container --distro "${DISTRO}" --arch "${ARCH}"
+          --no-catalogue dist
 
-      - name: Build the Ubuntu package
-        run: ./packaging/build-deb.sh --no-catalogue dist
-
-      - name: Inspect the package
+      - name: Show the package
         run: |
           dpkg-deb --info dist/*.deb
           dpkg-deb --contents dist/*.deb
-          package_root="$(mktemp -d)"
-          trap 'rm -rf -- "${package_root}"' EXIT
-          dpkg-deb --extract dist/*.deb "${package_root}"
-          if find "${package_root}/usr" -perm /022 -print -quit | grep -q .; then
-            echo "Package contains group-writable or world-writable files" >&2
-            exit 1
-          fi
-          test -x "${package_root}/usr/bin/piratefinder"
-          test -x "${package_root}/usr/lib/piratefinder/bin/gw"
-          test -f "${package_root}/usr/lib/udev/rules.d/49-piratefinder-greaseweazle.rules"
+
+      - name: Install and test the package
+        run: ./packaging/install-test.sh dist/*.deb
