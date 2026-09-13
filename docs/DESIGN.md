@@ -777,7 +777,13 @@ Files and settings added since version 0.1.0:
   library's boot blocks are checked again (see Viruses).
 - Pictures and Wikipedia summaries are cached under
   `~/.cache/piratefinder/media/<source>/`, kept for 30 days and revalidated
-  after that; missing pictures are remembered for 7 days.
+  after that. A miss (404, 410, not a picture, over 8 MB) is held for an
+  hour and a cached copy kept; a second miss in a row removes the copy and is
+  held for 7 days. The note records `misses` and the last `reason`.
+  Download All Pictures rests a site's worker after five misses in a row (a
+  minute, doubling to fifteen) and asks for each missed picture once more at
+  the end, since GitHub's raw file server answered 404 for pictures it had
+  during the first full run.
 - `Settings.fetch_media` ("Download screenshots and background
   information") switches all picture and summary downloads off. Online use as
   a whole switched off does the same.
