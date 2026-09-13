@@ -11,6 +11,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
 from .. import __version__  # noqa: E402
+from ..app_update import AppRelease  # noqa: E402
 from ..branding import APPLICATION_ID, APPLICATION_NAME, HOMEPAGE  # noqa: E402
 from ..greaseweazle.client import NOT_CONNECTED  # noqa: E402
 from ..images.virus import BRAINFILE_PROJECT  # noqa: E402
@@ -18,6 +19,12 @@ from ..jobs.cancellation import Cancellation  # noqa: E402
 from ..jobs.queue import queue_key  # noqa: E402
 from ..models import DeviceStatus, QueueItem, SessionSummary  # noqa: E402
 from . import formatting as fmt  # noqa: E402
+from .app_updater import (  # noqa: E402
+    RESTART_WHILE_WRITING,
+    AppUpdateControls,
+    AppUpdater,
+    attach_to_about,
+)
 from .backend import Backend, CatalogueInfo, Downloaded, UpdateOffer  # noqa: E402
 from .bridge import Latest, run_in_thread  # noqa: E402
 from .diagnostics import DiagnosticLogDialog, shortcuts_window  # noqa: E402
@@ -56,6 +63,8 @@ class MainWindow(Adw.ApplicationWindow):
         self.set_size_request(360, 480)
         self.backend = backend
         self.updater = CatalogueUpdater(self)
+        self.app_updater = AppUpdater(self)
+        self.about_dialog: Adw.AboutDialog | None = None
         self._info = self._load_catalogue_info()
         self._device: DeviceStatus | None = None
         self._probing = False
@@ -178,6 +187,7 @@ class MainWindow(Adw.ApplicationWindow):
             "add-selected": self.add_selected,
             "retry-device": self.probe_device,
             "install-update": self.install_offered_update,
+            "restart": self.restart,
         }
         self.actions: dict[str, Gio.SimpleAction] = {}
         for name, callback in callbacks.items():
@@ -620,6 +630,10 @@ class MainWindow(Adw.ApplicationWindow):
             copyright="Copyright 2026 Pete Clarke",
             license_type=Gtk.License.GPL_3_0,
         )
+        controls = AppUpdateControls(self.app_updater, self)
+        attach_to_about(about, controls)
+        about.connect("closed", lambda _dialog: controls.detach())
+        self.about_dialog = about
         about.add_credit_section(
             "Catalogue Data", [f"{name} {url}" for name, url, _what in DATA_CREDITS]
         )
@@ -646,6 +660,25 @@ class MainWindow(Adw.ApplicationWindow):
             "ask for it in Preferences.",
         )
         about.present(self)
+
+    # Application updates
+
+    def app_update_installed(self, release: AppRelease) -> None:
+        self.toast(
+            f"{release.name} is installed. Restart {APPLICATION_NAME} to use it.",
+            button="Restart",
+            action="win.restart",
+        )
+
+    def restart(self) -> None:
+        """Quit and start the installed version, unless disks are being written."""
+        if self.session_running():
+            self.toast(RESTART_WHILE_WRITING)
+            return
+        application = self.get_application()
+        if application is not None:
+            application.restart_requested = True
+        self.close()
 
     # Closing
 
@@ -674,6 +707,7 @@ class MainWindow(Adw.ApplicationWindow):
         if self.library_page.scanning:
             self.library_page.cancel_scan()
         self.updater.cancel()
+        self.app_updater.cancel()
         if self._help_window is not None:
             self._help_window.destroy()
             self._help_window = None

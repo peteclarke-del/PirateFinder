@@ -49,6 +49,22 @@
     <keyword>compact</keyword>
   </keywords>
   <releases>
+    <release version="0.2.0" date="2026-09-13">
+      <description>
+        <p>A new Find screen and a details pane.</p>
+        <ul>
+          <li>Filters for platform, type, crew, year and disc kind, one search box for every field, and results as titles or discs, sorted and paged</li>
+          <li>A details pane with the disc, its release date, the other titles on it, pictures, crew histories and trivia</li>
+          <li>Boot block viruses found on Amiga and Atari ST discs, removed before writing or cleaned from the stored image</li>
+          <li>Downloads checked against every known dump of the disc and filed by platform, type and crew</li>
+          <li>Corrections to a disc's details that survive catalogue updates</li>
+          <li>Optional IPF support, installed after its licence is accepted</li>
+          <li>Packages for Ubuntu 24.04 and Debian 13 on amd64, arm64 and armhf</li>
+          <li>Check for Application Updates in the About window, which downloads, checks and installs a newer version</li>
+          <li>An illustrated User Guide in the Help menu</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-09-12">
       <description>
         <p>First release.</p>

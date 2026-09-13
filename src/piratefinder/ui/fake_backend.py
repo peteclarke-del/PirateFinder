@@ -25,6 +25,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
 
+from ..app_update import AppRelease, PackageTarget
 from ..archive_layout import archive_crew, archive_type
 from ..greaseweazle.caps import CapsState, CapsStatus, builds
 from ..jobs.queue import clamp_copies, copy_labels, queue_key
@@ -70,6 +71,7 @@ from ..models import (
     WriteProgress,
     WriteStatus,
 )
+from ..online.releases import UpdateCancelled, UpdateError
 from ..settings import Settings
 from .backend import (
     Backend,
@@ -877,6 +879,15 @@ class FakeBackend(Backend):
         self.update_offer: UpdateOffer | None = None
         self.update_error = ""  # when set, the update check fails with this reason
         self.download_notes: list[str] = []  # what Download Only reports with its file
+        # The application update: an installed Ubuntu package, the newest release
+        # (None for up to date), and the sentences the check or install fail with.
+        self.app_target: PackageTarget | None = PackageTarget("ubuntu-24.04", "amd64")
+        self.app_release: AppRelease | None = None
+        self.app_check_error = ""
+        self.app_install_error = ""
+        self.app_install_dismissed = False
+        self.app_checks = 0
+        self.app_installed: list[Path] = []
         self.search_delay = 0.0
         self.probe_delay = 0.0
         self.media_delay = 0.0
@@ -1244,6 +1255,32 @@ class FakeBackend(Backend):
             time.sleep(self.script.track_delay)
         self.built_at = offer.built_at
         self.update_offer = None
+
+    # Application updates
+
+    def app_update_target(self) -> PackageTarget | None:
+        return self.app_target
+
+    def check_app_update(self) -> AppRelease | None:
+        self.app_checks += 1
+        if self.app_check_error:
+            raise UpdateError(self.app_check_error)
+        return self.app_release
+
+    def download_app_update(self, release: AppRelease, progress: ProgressCallback, cancel) -> Path:
+        for step in range(11):
+            if getattr(cancel, "cancelled", False):
+                raise UpdateCancelled("The update was cancelled.")
+            progress(step * 1000, 10_000)
+            time.sleep(self.script.track_delay)
+        return Path(tempfile.gettempdir()) / release.package_name
+
+    def install_app_update(self, package: Path) -> None:
+        if self.app_install_dismissed:
+            raise UpdateCancelled("The password prompt was dismissed, so nothing was installed.")
+        if self.app_install_error:
+            raise UpdateError(self.app_install_error)
+        self.app_installed.append(package)
 
     # Library
 

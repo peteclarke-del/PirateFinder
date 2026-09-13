@@ -117,7 +117,9 @@ been written and verified on real hardware.
   Debian 13 packages for amd64, arm64 and armhf, each in a container of its
   own release and architecture, named
   `PirateFinder_<version>_<distro>_<arch>.deb` and published with one
-  `SHA256SUMS`. The next tag is the first release built this way.
+  `SHA256SUMS`. Version 0.2.0 is the first release built this way.
+- [Complete] Check for and install a newer version from the About window,
+  with the package for the same system checked against `SHA256SUMS`.
 - Packages for further distribution families, such as Fedora.
 
 Complete when a tagged release produces a tested installer on every supported

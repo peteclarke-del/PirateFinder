@@ -1,10 +1,10 @@
 # Current implementation status
 
-Version 0.1.0, released on 12 September 2026, was the first release. This page
-describes the source tree, which has gone on since then: the paged Find screen
-with filters and sorting, the details pane's pictures, crew histories and
-trivia, virus detection and the illustrated User Guide are new, and reach users
-with the next release. [DESIGN.md](DESIGN.md) describes how the parts fit
+Version 0.2.0, released on 13 September 2026, is the current release. It
+brought the paged Find screen with filters and sorting, the details pane's
+pictures, crew histories and trivia, virus detection, the illustrated User
+Guide and Check for Application Updates. Version 0.1.0, released the day before, was the first. This page
+describes the source tree; [DESIGN.md](DESIGN.md) describes how the parts fit
 together.
 
 ## Implemented
@@ -211,8 +211,7 @@ histories. It takes 249 MB installed and 73 MB compressed.
   architecture, and the Greaseweazle udev rules; `packaging/build-deb.sh
   --distro ... --arch ... --container` builds any of them in a container of
   the target release and architecture, and `packaging/install-test.sh`
-  installs one in a fresh container and starts it. Version 0.1.0 had one
-  package, `PirateFinder_0.1.0_ubuntu24.04_amd64.deb`
+  installs one in a fresh container and starts it
 - Release workflow that verifies the tag, bundles the newest published
   catalogue of the layout the source reads in all six packages (arm64 built
   on GitHub's Arm runners, armhf under qemu), install-tests each in a
@@ -221,6 +220,12 @@ histories. It takes 249 MB installed and 73 MB compressed.
   arm64 on every pull request
 - A public repository: the package, its checksums and the catalogue releases
   download without a GitHub account
+- Check for Application Updates in the About window, on request only: reads
+  the latest release, downloads the package built for the same distribution
+  and architecture (recorded in `/usr/lib/piratefinder/package-target`),
+  checks it against `SHA256SUMS`, installs it with `pkexec apt-get install`
+  and restarts PirateFinder; a copy run from source is sent to the release
+  page
 
 ## Not yet done
 
@@ -229,18 +234,17 @@ histories. It takes 249 MB installed and 73 MB compressed.
   1.23 tool without a Greaseweazle attached: generated disk definitions
   produce the same flux as gw's own formats, and every track of 82 and 83
   cylinder disks survives.
-- Version 0.1.0, the only release so far, reads layout 1 and looks for any
-  catalogue file in the releases, not only its own layout. Once the Catalogue
-  workflow publishes layout 3 catalogues from this source, a 0.1.0
-  installation offers one, downloads it and refuses it with "The new catalogue
-  needs a newer version of PirateFinder." Its own catalogue stays in use.
-  Released code cannot be changed; the next release looks only for its own
-  layout, and anyone who upgrades to it gets that behaviour.
-- The new workflows have not run on GitHub yet: the Catalogue workflow's
-  first layout 3 publication, the six-package Release workflow and the arm64
-  CI job run at the next merge and tag. Locally, Ubuntu 24.04 amd64 and arm64
-  and Debian 13 amd64 and armhf were built and install-tested in containers
-  of their own release and architecture.
+- Version 0.1.0 reads layout 1 and looks for any catalogue file in the
+  releases, not only its own layout. The Catalogue workflow now publishes
+  layout 3, so a 0.1.0 installation offers a new catalogue, downloads it and
+  refuses it with "The new catalogue needs a newer version of PirateFinder."
+  Its own catalogue stays in use. Released code cannot be changed; version
+  0.2.0 looks only for its own layout, so upgrading ends the offers.
+- Check for Application Updates first appears in 0.2.0, so no installed
+  copy has updated itself from a real release yet: the first real update is
+  from 0.2.0 to the next version. The check, the download and its checksum
+  have been tested against a local web server, and the install against a
+  stand-in for pkexec and apt.
 - IPF on arm64: the SPS Decoder Library, which cannot be bundled, has no
   Linux aarch64 build anywhere (fs-uae.net, the CAPSImg GitHub releases or
   FS-UAE's own arm64 package), so IPF Support says that there is no build for
