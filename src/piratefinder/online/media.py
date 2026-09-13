@@ -7,8 +7,12 @@ user switches off "Download screenshots and background information".
 Pictures are cached as ``<cache>/media/<source>/<sha1 of the URL>.<ext>``
 with a small JSON file beside each one. A cached picture is used for 30 days
 and then revalidated with If-None-Match and If-Modified-Since. A picture the
-server does not have (404 or 410), or a reply that is not a PNG, GIF or JPEG
-of at most 8 MB, is remembered for 7 days so it is not asked for again.
+server says it does not have (404 or 410), or a reply that is not a PNG, GIF
+or JPEG of at most 8 MB, is a miss. A busy site sometimes answers so for
+pictures it has (GitHub's raw file server did for a quarter of an hour), so
+one miss is only held for an hour, and a cached copy is kept through it; a
+second miss in a row is remembered for 7 days and the copy is removed. The
+note beside the picture records the misses and the last reason.
 Only one request at a time goes to each host, and requests to the small
 hobby sites (Atari Legend, D-Bug, Demozoo) are at least a second apart.
 
@@ -48,6 +52,7 @@ from .http import (
 DAY = 24 * 60 * 60
 FRESH_SECONDS = 30 * DAY
 MISSING_SECONDS = 7 * DAY
+FIRST_MISS_SECONDS = 60 * 60
 MAX_PICTURE_BYTES = 8 * 1024 * 1024
 MAX_SUMMARY_BYTES = 1024 * 1024
 # Small hobby sites: one request a second across all their host names.
@@ -146,6 +151,14 @@ class MediaCache:
         path = folder / f"{key}.{meta.get('ext', '')}"
         return path if path.is_file() else None
 
+    def misses(self, url: str, source: str) -> int:
+        """How many times in a row the site has missed the picture; never uses the network."""
+        folder, key = picture_key(url, source)
+        meta = _read_json(self.root / folder / f"{key}.json")
+        if meta.get("status") == _MISSING:
+            return max(1, int(meta.get("misses", 1) or 1))
+        return int(meta.get("misses", 0) or 0)
+
     def cached_sizes(self) -> dict[str, dict[str, int]]:
         """The pictures on disk, as their sizes by key by source folder, from one
         listing of each folder.
@@ -173,11 +186,20 @@ class MediaCache:
 
     def fetch(self, item: MediaItem, *, cancel: object | None = None) -> Path | None:
         """The cached picture for ``item``, downloading it when needed; None when unavailable."""
+        return self.fetch_telling(item, cancel=cancel)[0]
+
+    def fetch_telling(
+        self, item: MediaItem, *, cancel: object | None = None, recheck_missing: bool = False
+    ) -> tuple[Path | None, bool]:
+        """As ``fetch``, and whether a request was made.
+
+        ``recheck_missing`` asks again for a picture held back after a miss.
+        """
         if not self.enabled:
-            return None
+            return None, False
         url = item.url.strip()
         if urllib.parse.urlsplit(url).scheme.lower() not in ("http", "https"):
-            return None
+            return None, False
         folder = self.root / _folder_name(item.source)
         key = _digest(url)
         meta_path = folder / f"{key}.json"
@@ -188,10 +210,12 @@ class MediaCache:
             cached = folder / f"{key}.{meta.get('ext', '')}" if meta.get("status") == _OK else None
             if cached is not None and not cached.is_file():
                 cached = None
-            if meta.get("status") == _MISSING and age < MISSING_SECONDS:
-                return None
+            if meta.get("status") == _MISSING and not recheck_missing:
+                misses = int(meta.get("misses", 1) or 1)
+                if age < (MISSING_SECONDS if misses >= 2 else FIRST_MISS_SECONDS):
+                    return None, False
             if cached is not None and age < FRESH_SECONDS:
-                return cached
+                return cached, False
             headers = {"User-Agent": MEDIA_USER_AGENT}
             if cached is not None and meta.get("etag"):
                 headers["If-None-Match"] = str(meta["etag"])
@@ -200,28 +224,27 @@ class MediaCache:
             try:
                 reply = self._request(url, headers, MAX_PICTURE_BYTES, cancel)
             except DownloadCancelled:
-                return None
+                return None, True
             except ReplyTooLarge:
-                self._forget_picture(folder, key, url, now)
-                return None
+                return self._missed(folder, key, url, now, meta, cached, "larger than 8 MB"), True
             except DownloadError:
-                return cached  # a stale picture is better than none while the site is down
+                return cached, True  # a stale picture is better than none while the site is down
             if reply.status == 304 and cached is not None:
                 meta["fetched"] = now
+                meta.pop("misses", None)
                 _write_json(meta_path, meta)
-                return cached
+                return cached, True
             if reply.status in (404, 410) or reply.status >= 300:
-                self._forget_picture(folder, key, url, now)
-                return None
+                reason = f"HTTP {reply.status}"
+                return self._missed(folder, key, url, now, meta, cached, reason), True
             extension = picture_type(reply.data)
             if not extension:
-                self._forget_picture(folder, key, url, now)
-                return None
+                return self._missed(folder, key, url, now, meta, cached, "not a picture"), True
             target = folder / f"{key}.{extension}"
             try:
                 _write_bytes(target, reply.data)
             except OSError:
-                return None
+                return None, True
             for other in _EXTENSIONS:
                 if other != extension:
                     with contextlib.suppress(OSError):
@@ -237,13 +260,32 @@ class MediaCache:
                     "last_modified": reply.header("Last-Modified"),
                 },
             )
-            return target
+            return target, True
 
-    def _forget_picture(self, folder: Path, key: str, url: str, now: float) -> None:
+    def _missed(
+        self,
+        folder: Path,
+        key: str,
+        url: str,
+        now: float,
+        meta: dict[str, Any],
+        cached: Path | None,
+        reason: str,
+    ) -> Path | None:
+        """Note a miss; the second in a row removes the cached copy and holds it for 7 days."""
+        misses = int(meta.get("misses", 0) or 0) + 1
+        if meta.get("status") == _MISSING and "misses" not in meta:
+            misses = 2  # a note from before misses were counted held a miss already
+        if cached is not None and misses < 2:
+            # Keep the copy, still stale, so the next showing asks again.
+            _write_json(folder / f"{key}.json", {**meta, "misses": misses, "reason": reason})
+            return cached
         for extension in _EXTENSIONS:
             with contextlib.suppress(OSError):
                 (folder / f"{key}.{extension}").unlink()
-        _write_json(folder / f"{key}.json", {"url": url, "status": _MISSING, "fetched": now})
+        note = {"url": url, "status": _MISSING, "fetched": now, "misses": misses, "reason": reason}
+        _write_json(folder / f"{key}.json", note)
+        return None
 
     # Wikipedia -----------------------------------------------------------------
 

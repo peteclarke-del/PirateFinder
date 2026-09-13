@@ -172,17 +172,67 @@ class MediaCacheTests(unittest.TestCase):
         self.assertEqual((changed.suffix, changed.read_bytes()), (".gif", GIF))
         self.assertFalse(first.exists())
 
-    def test_missing_pictures_are_remembered_for_a_week(self) -> None:
-        for path in ("/gone.png", "/page.png"):
+    def test_one_miss_is_held_for_an_hour_and_two_in_a_row_for_a_week(self) -> None:
+        for path, reason in (("/gone.png", "HTTP 404"), ("/page.png", "not a picture")):
             with self.subTest(path=path):
                 self.assertIsNone(self.cache.fetch(self.item(path)))
                 count = len(self.server.requests)
-                self.now[0] += 6 * DAY
+                note = self.note(path)
+                self.assertEqual((note["misses"], note["reason"]), (1, reason))
+                self.now[0] += 50 * 60
                 self.assertIsNone(self.cache.fetch(self.item(path)))
                 self.assertEqual(len(self.server.requests), count)
+                # A busy site says so of pictures it has: after an hour, ask again.
+                self.now[0] += 20 * 60
+                self.assertIsNone(self.cache.fetch(self.item(path)))
+                self.assertEqual(len(self.server.requests), count + 1)
+                self.assertEqual(self.note(path)["misses"], 2)
+                self.now[0] += 6 * DAY
+                self.assertIsNone(self.cache.fetch(self.item(path)))
+                self.assertEqual(len(self.server.requests), count + 1)
                 self.now[0] += 2 * DAY
                 self.cache.fetch(self.item(path))
-                self.assertEqual(len(self.server.requests), count + 1)
+                self.assertEqual(len(self.server.requests), count + 2)
+
+    def test_a_cached_picture_survives_one_miss_and_goes_on_the_second(self) -> None:
+        first = self.cache.fetch(self.item("/pic.png"))
+        pictures = self.server.pictures
+        self.server.pictures = {}
+        self.now[0] += 31 * DAY
+        self.assertEqual(self.cache.fetch(self.item("/pic.png")), first)
+        self.assertTrue(first.is_file())
+        self.assertEqual(self.note("/pic.png")["misses"], 1)
+        self.assertIsNone(self.cache.fetch(self.item("/pic.png")))
+        self.assertFalse(first.exists())
+        self.assertEqual(self.cache.misses(self.base + "/pic.png", "atari-legend"), 2)
+        # Back on the site: found again, and the misses forgotten.
+        self.server.pictures = pictures
+        self.now[0] += 8 * DAY
+        self.assertEqual(self.cache.fetch(self.item("/pic.png")), first)
+        self.assertEqual(self.cache.misses(self.base + "/pic.png", "atari-legend"), 0)
+
+    def test_a_held_picture_can_be_asked_for_again_on_purpose(self) -> None:
+        self.assertIsNone(self.cache.fetch(self.item("/gone.png")))
+        count = len(self.server.requests)
+        self.assertEqual(self.cache.fetch_telling(self.item("/gone.png")), (None, False))
+        self.assertEqual(
+            self.cache.fetch_telling(self.item("/gone.png"), recheck_missing=True), (None, True)
+        )
+        self.assertEqual(len(self.server.requests), count + 1)
+
+    def test_a_note_from_before_misses_were_counted_is_one_miss(self) -> None:
+        folder, key = media.picture_key(self.base + "/gone.png", "atari-legend")
+        (self.folder / "media" / folder).mkdir(parents=True)
+        note = {"url": self.base + "/gone.png", "status": "missing", "fetched": self.now[0]}
+        (self.folder / "media" / folder / f"{key}.json").write_text(json.dumps(note))
+        self.assertEqual(self.cache.misses(self.base + "/gone.png", "atari-legend"), 1)
+        self.now[0] += 2 * 60 * 60
+        self.assertIsNone(self.cache.fetch(self.item("/gone.png")))
+        self.assertEqual(self.note("/gone.png")["misses"], 2)
+
+    def note(self, path: str) -> dict:
+        folder, key = media.picture_key(self.base + path, "atari-legend")
+        return json.loads((self.folder / "media" / folder / f"{key}.json").read_text())
 
     def test_a_picture_that_is_too_large_is_refused(self) -> None:
         with mock.patch.object(media, "MAX_PICTURE_BYTES", 10):
