@@ -150,6 +150,8 @@ class WindowTests(unittest.TestCase):
             lambda: self.backend.boot_rechecks == 1 and not self.window.library_page.scanning,
             "the boot block check at start",
         )
+        # The filter choices load in the background; a test picks from them.
+        wait_until(lambda: self.window.find_page.facets.crews, "the filter choices")
 
     def tearDown(self) -> None:
         window = self.window
@@ -458,6 +460,20 @@ class WindowTests(unittest.TestCase):
         )
         shortcut.get_action().activate(Gtk.ShortcutActionFlags.EXCLUSIVE, page, None)
         self.wait_query(page=1)
+
+    def test_the_search_box_keeps_the_page_until_its_words_change(self) -> None:
+        page = self.window.find_page
+        self.browse_automation(page_size=50)
+        page.pager.next_button.emit("clicked")
+        self.wait_query(page=1)
+        # The entry reports a change a moment after it is built, with the same words.
+        asked = len(self.backend.queries)
+        page.search_entry.emit("search-changed")
+        pump(0.05)
+        self.assertEqual(len(self.backend.queries), asked)
+        self.assertEqual((page.page_index, page.result_page.query.page), (1, 1))
+        page.search_entry.set_text("necron")
+        self.wait_query(text="necron", page=0)
 
     def test_titles_and_discs_modes(self) -> None:
         page = self.window.find_page
@@ -1133,10 +1149,28 @@ class WindowTests(unittest.TestCase):
         window, backend = self.window, self.backend
         self.settings.device = "/dev/ttyACM7"
         window.settings_changed("device")
-        wait_until(lambda: backend.probes == 2, "gw info for the new port")
+        wait_until(
+            lambda: backend.probes == 2 and window.device is not None,
+            "gw info for the new port",
+        )
         backend.present = False
         self.settings.device = "/dev/ttyACM8"
         window.settings_changed("device")
+        self.assertTrue(window.banner.get_revealed())
+        self.assertEqual(backend.probes, 2)
+
+    def test_a_port_changed_while_gw_info_runs_ignores_the_old_answer(self) -> None:
+        window, backend = self.window, self.backend
+        backend.probe_delay = 0.3
+        self.settings.device = "/dev/ttyACM7"
+        window.settings_changed("device")
+        wait_until(lambda: backend.probes == 2, "gw info for the first port")
+        backend.present = False
+        self.settings.device = "/dev/ttyACM8"
+        window.settings_changed("device")
+        # gw info answers for /dev/ttyACM7, which is connected; nothing is on the new port.
+        wait_until(lambda: window.device is not None, "the new port checked")
+        self.assertFalse(window.device.connected)
         self.assertTrue(window.banner.get_revealed())
         self.assertEqual(backend.probes, 2)
 

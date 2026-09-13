@@ -437,16 +437,30 @@ class MainWindow(Adw.ApplicationWindow):
             self._deliver_probe(self._device or DeviceStatus(True, "Writing in progress"))
             return
         self._probing = True
-        run_in_thread(self.backend.probe, self._probe_done, self._probe_failed, name="probe")
+        port = self.backend.settings.device
+        run_in_thread(
+            self.backend.probe,
+            lambda status: self._probe_done(status, port),
+            lambda error: self._probe_failed(error, port),
+            name="probe",
+        )
 
     def check_device(self, then: Callable[[DeviceStatus], None]) -> None:
         self.probe_device(then)
 
-    def _probe_failed(self, error: BaseException) -> None:
-        self._probe_done(DeviceStatus(False, f"The Greaseweazle could not be checked: {error}"))
+    def _probe_failed(self, error: BaseException, port: str) -> None:
+        status = DeviceStatus(False, f"The Greaseweazle could not be checked: {error}")
+        self._probe_done(status, port)
 
-    def _probe_done(self, status: DeviceStatus) -> None:
+    def _probe_done(self, status: DeviceStatus, port: str) -> None:
         self._probing = False
+        if port != self.backend.settings.device:
+            # The device setting changed while gw info ran, so the answer is
+            # about the old port: follow the new one instead.
+            self.follow_device()
+            if not self._probing:
+                self._deliver_probe(self._device or DeviceStatus(False, NOT_CONNECTED))
+            return
         if status.connected:
             self._arrival_probes = 0
         self._show_device(status)

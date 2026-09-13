@@ -878,6 +878,7 @@ class FakeBackend(Backend):
         self.update_error = ""  # when set, the update check fails with this reason
         self.download_notes: list[str] = []  # what Download Only reports with its file
         self.search_delay = 0.0
+        self.probe_delay = 0.0
         self.media_delay = 0.0
         self.summary_delay = 0.0
         self.saved = 0
@@ -1424,6 +1425,8 @@ class FakeBackend(Backend):
 
     def probe(self) -> DeviceStatus:
         self.probes += 1
+        if self.probe_delay:
+            time.sleep(self.probe_delay)
         return self.device
 
     def caps_status(self) -> CapsStatus:
