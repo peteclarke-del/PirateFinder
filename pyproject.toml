@@ -23,7 +23,12 @@ package-dir = { "" = "src" }
 where = ["src"]
 
 [tool.setuptools.package-data]
-piratefinder = ["data/icons/hicolor/*/apps/*", "data/help/*"]
+piratefinder = [
+    "data/icons/hicolor/*/apps/*",
+    "data/help/*",
+    "data/virus/*",
+    "data/caps/*",
+]
 
 [tool.setuptools.dynamic]
 version = { attr = "piratefinder.__version__" }

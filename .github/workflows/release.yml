@@ -49,86 +49,143 @@ jobs:
           desktop-file-validate data/com.github.pclarke.PirateFinder.desktop
           appstreamcli validate --no-net data/com.github.pclarke.PirateFinder.metainfo.xml
 
-  publish:
-    name: Build and publish the installer
+  catalogue:
+    name: Fetch the catalogue to bundle
     needs: test
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.download.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # The packages ship the newest published catalogue of the layout this
+      # source reads. Catalogue releases are tagged catalogue-YYYY-MM-DD by the
+      # Catalogue workflow and carry catalogue-layout<N>.sqlite.gz, where N is
+      # SCHEMA_VERSION in src/piratefinder/catalogue/schema.py. It is fetched
+      # once here so that every package carries the same catalogue.
+      - name: Download the newest catalogue of this layout
+        id: download
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: src
+        run: |
+          layout="$(python3 -c 'from piratefinder.catalogue.schema import SCHEMA_VERSION; print(SCHEMA_VERSION)')"
+          asset="catalogue-layout${layout}.sqlite.gz"
+          catalogue_tag="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq ".[] | select((.draft | not) and (.tag_name | startswith(\"catalogue-\")))
+                  | select(any(.assets[]; .name == \"${asset}\"))
+                  | [.created_at, .tag_name] | @tsv" \
+            | sort | tail -n 1 | cut -f 2)"
+          if [[ -z "${catalogue_tag}" ]]; then
+            echo "No catalogue release carries ${asset}. Run the Catalogue workflow first." >&2
+            exit 1
+          fi
+          mkdir -p build/release-catalogue
+          gh release download "${catalogue_tag}" \
+            --pattern "${asset}" \
+            --pattern "${asset}.sha256" \
+            --dir build/release-catalogue
+          (cd build/release-catalogue && sha256sum --check "${asset}.sha256")
+          echo "tag=${catalogue_tag}" >> "${GITHUB_OUTPUT}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: catalogue
+          path: build/release-catalogue/
+          if-no-files-found: error
+          retention-days: 1
+
+  package:
+    name: Package for ${{ matrix.distro }} ${{ matrix.arch }}
+    needs: catalogue
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        # The targets in packaging/targets.sh; tests/test_packaging.py checks
+        # that the two lists agree. Each package is built and install-tested
+        # in a container of its own distribution release and architecture.
+        # arm64 runs natively on GitHub's Arm runners, and armhf under qemu.
+        distro: [ubuntu-24.04, debian-13]
+        arch: [amd64, arm64, armhf]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+          - arch: armhf
+            runner: ubuntu-24.04
+            emulated: true
+    env:
+      DISTRO: ${{ matrix.distro }}
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-qemu-action@v4
+        if: matrix.emulated
+        with:
+          platforms: arm
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: catalogue
+          path: build/release-catalogue
+
+      - name: Unpack the catalogue
+        run: |
+          (cd build/release-catalogue && sha256sum --check -- *.sha256)
+          gunzip --stdout build/release-catalogue/*.sqlite.gz > build/catalogue.sqlite
+
+      - name: Build the package
+        run: >-
+          ./packaging/build-deb.sh --container --distro "${DISTRO}" --arch "${ARCH}"
+          --catalogue build/catalogue.sqlite dist
+
+      - name: Show the package
+        run: |
+          dpkg-deb --info dist/*.deb
+          dpkg-deb --contents dist/*.deb
+
+      - name: Install and test the package
+        run: ./packaging/install-test.sh --require-catalogue dist/*.deb
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-${{ matrix.distro }}-${{ matrix.arch }}
+          path: dist/*.deb
+          if-no-files-found: error
+          compression-level: 0
+
+  publish:
+    name: Publish the release
+    needs: [catalogue, package]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/download-artifact@v8
         with:
-          python-version: "3.12"
-          cache: pip
+          pattern: package-*
+          path: dist
+          merge-multiple: true
 
-      # The package ships the newest published catalogue. Catalogue releases
-      # are tagged catalogue-YYYY-MM-DD by the Catalogue workflow.
-      - name: Download the newest catalogue
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          catalogue_tag="$(gh release list --limit 200 --exclude-drafts \
-            --json tagName,createdAt \
-            --jq '[.[] | select(.tagName | startswith("catalogue-"))]
-                  | sort_by(.createdAt) | last | .tagName // empty')"
-          if [[ -z "${catalogue_tag}" ]]; then
-            echo "No catalogue release found. Run the Catalogue workflow first." >&2
-            exit 1
-          fi
-          mkdir -p build/release-catalogue
-          gh release download "${catalogue_tag}" \
-            --pattern catalogue.sqlite.gz \
-            --pattern catalogue.sqlite.gz.sha256 \
-            --dir build/release-catalogue
-          (cd build/release-catalogue && sha256sum --check catalogue.sqlite.gz.sha256)
-          gunzip --stdout build/release-catalogue/catalogue.sqlite.gz > build/catalogue.sqlite
-          echo "CATALOGUE_TAG=${catalogue_tag}" >> "${GITHUB_ENV}"
-
-      - name: Build the Ubuntu installer
-        run: ./packaging/build-deb.sh --catalogue build/catalogue.sqlite dist
-
-      - name: Inspect installer
-        run: |
-          dpkg-deb --info dist/*.deb
-          dpkg-deb --contents dist/*.deb
-          package_root="$(mktemp -d)"
-          trap 'rm -rf -- "${package_root}"' EXIT
-          dpkg-deb --extract dist/*.deb "${package_root}"
-          if find "${package_root}/usr" -perm /022 -print -quit | grep -q .; then
-            echo "Package contains group-writable or world-writable files" >&2
-            exit 1
-          fi
-          test -f "${package_root}/usr/share/piratefinder/catalogue.sqlite"
-
-      - name: Install and verify package
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ./dist/*.deb
-          test -x /usr/bin/piratefinder
-          /usr/lib/piratefinder/bin/gw info --help
-          PYTHONPATH=/usr/lib/piratefinder /usr/bin/python3 -c "import piratefinder, greaseweazle"
-          PYTHONPATH=/usr/lib/piratefinder /usr/bin/python3 -c "
-          from pathlib import Path
-          from piratefinder.catalogue.store import Catalogue
-          print(Catalogue.open(Path('/usr/share/piratefinder/catalogue.sqlite')).stats())
-          "
-
+      # The pattern names the packages only, so the file never hashes itself.
       - name: Create checksums
-        run: cd dist && sha256sum -- *.deb > SHA256SUMS
-
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: PirateFinder-${{ github.ref_name }}
-          path: dist/
-          if-no-files-found: error
+        run: |
+          cd dist
+          sha256sum -- *.deb > SHA256SUMS
+          cat SHA256SUMS
 
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          CATALOGUE_TAG: ${{ needs.catalogue.outputs.tag }}
         run: >-
           gh release create "${GITHUB_REF_NAME}" dist/*
           --verify-tag
