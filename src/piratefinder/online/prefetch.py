@@ -22,7 +22,7 @@ from .media import POLITE_INTERVAL, MediaCache, host_key, picture_key
 
 # Every site gets one request a second at most (media.py and http.py).
 SECONDS_PER_PICTURE = POLITE_INTERVAL
-# Below this many cached pictures, their average says little about the rest.
+# Below this many cached pictures of a source, their average says little about its rest.
 ESTIMATE_SAMPLE = 100
 
 Address = tuple[str, str]  # the picture's address and its source
@@ -36,6 +36,8 @@ class PictureCount:
     cached: int
     size: int  # bytes the cached pictures take
     remaining_by_site: dict[str, int] = field(default_factory=dict)
+    # By cache folder, one per source: (pictures cached, their bytes, pictures left).
+    by_source: dict[str, tuple[int, int, int]] = field(default_factory=dict)
 
     @property
     def remaining(self) -> int:
@@ -48,10 +50,20 @@ class PictureCount:
 
     @property
     def estimated_size(self) -> int | None:
-        """The space the rest will take, from the pictures cached so far; None with too few."""
-        if self.cached < ESTIMATE_SAMPLE:
-            return None
-        return round(self.size / self.cached * self.remaining)
+        """The space the rest will take, each source's from its own pictures so far.
+
+        The sources' pictures differ tenfold in size (libretro-thumbnails keeps
+        full-size screens), so one average for all would be far out. None while
+        a source with pictures left has too few cached to go by.
+        """
+        total = 0.0
+        for cached, size, remaining in self.by_source.values():
+            if not remaining:
+                continue
+            if cached < ESTIMATE_SAMPLE:
+                return None
+            total += size / cached * remaining
+        return round(total)
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,16 +88,24 @@ class PictureSummary:
 
 
 def count(cache: MediaCache, addresses: Sequence[Address]) -> PictureCount:
-    cached = 0
     remaining: Counter[str] = Counter()
-    keys = cache.cached_keys()
+    sizes = cache.cached_sizes()
+    # Per cache folder: pictures cached, their bytes, pictures left.
+    sources: dict[str, list[int]] = {}
     for url, source in addresses:
         folder, key = picture_key(url, source)
-        if key in keys.get(folder, ()):
-            cached += 1
-        else:
+        tally = sources.setdefault(folder, [0, 0, 0])
+        size = sizes.get(folder, {}).get(key)
+        if size is None:
             remaining[host_key(url)] += 1
-    return PictureCount(len(addresses), cached, cache.picture_bytes(), dict(remaining))
+            tally[2] += 1
+        else:
+            tally[0] += 1
+            tally[1] += size
+    cached = sum(tally[0] for tally in sources.values())
+    size = sum(tally[1] for tally in sources.values())
+    by_source = {folder: (a, b, c) for folder, (a, b, c) in sources.items()}
+    return PictureCount(len(addresses), cached, size, dict(remaining), by_source)
 
 
 def download(

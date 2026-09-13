@@ -264,7 +264,7 @@ Pictures and Wikipedia summaries are downloaded only while Download Screenshots 
 
 The details pane fetches a disc's pictures when it first shows the disc. To have them all at once, for example before going offline, use Download All Pictures in Preferences, under Details Pane. Choose Atari ST and Amiga, Atari ST or Amiga, then Download. The row says how many of the pictures are already on this computer, and how long the rest take.
 
-Pictures are fetched one a second from each site, as the details pane fetches them, so every picture the catalogue lists, about 78,000, takes about 12 hours, most of it for Demozoo's. They go into the same cache folder and are refreshed the same way. The download carries on with Preferences closed, Stop ends it, and closing PirateFinder stops it too. The next Download carries on from the pictures already there and asks nothing of a site for them. A picture a site no longer has is counted and left out.
+Pictures are fetched one a second from each site, as the details pane fetches them, so every picture the catalogue lists, about 78,000, takes about 12 hours, most of it for Demozoo's, and about 3 GB of space, most of it for libretro-thumbnails' full-size screens. Once some of each site's pictures are cached, the row also estimates the space the rest will take. They go into the same cache folder and are refreshed the same way. The download carries on with Preferences closed, Stop ends it, and closing PirateFinder stops it too. The next Download carries on from the pictures already there and asks nothing of a site for them. A picture a site no longer has is counted and left out.
 
 ## Writing Disks
 

@@ -496,8 +496,11 @@ loading the disc again. From the top:
   order, and one worker per site calls `MediaCache.fetch`, so the host locks
   and the one-a-second throttle apply as they do for the pane, and the sites
   run side by side. The count lists each cache folder once
-  (`MediaCache.cached_keys()`) rather than reading 78,000 notes, and its time
-  estimate is the largest number of pictures left on one site, a second each.
+  (`MediaCache.cached_sizes()`) rather than reading 78,000 notes. Its time
+  estimate is the largest number of pictures left on one site, a second each;
+  its size estimate takes each source's average from its own cached pictures,
+  since libretro-thumbnails' full-size screens average about 110 KB against
+  8 to 12 KB for the other sites.
   A fresh cached picture costs no request, so a stopped download carries on
   where it stopped.
 - **Heading and buttons**: the title and its disc, or the disc label with
@@ -747,9 +750,9 @@ Library.recheck_boot_blocks(progress=None, cancel=None) -> BootRecheck | None
 # online/media.py
 MediaCache.fetch(item: MediaItem, *, cancel=None) -> Path | None
 MediaCache.cached_picture(url, source) -> Path | None  # never uses the network
-MediaCache.cached_keys() -> dict[str, set[str]]
+MediaCache.cached_sizes() -> dict[str, dict[str, int]]  # bytes by key by source folder
 # online/prefetch.py
-count(cache, addresses) -> PictureCount  # total, cached, size, remaining_by_site
+count(cache, addresses) -> PictureCount  # total, cached, size, remaining_by_site, by_source
 download(cache, addresses, progress=None, cancel=None) -> PictureSummary
 MediaCache.wikipedia_summary(title, *, cancel=None) -> TriviaItem | None
 ```

@@ -146,29 +146,30 @@ class MediaCache:
         path = folder / f"{key}.{meta.get('ext', '')}"
         return path if path.is_file() else None
 
-    def cached_keys(self) -> dict[str, set[str]]:
-        """The pictures on disk, as their keys by source folder, from one listing of each folder.
+    def cached_sizes(self) -> dict[str, dict[str, int]]:
+        """The pictures on disk, as their sizes by key by source folder, from one
+        listing of each folder.
 
         A picture file is written only when a fetch succeeded and removed when
         the site no longer has it, so its presence is enough.
         """
-        found: dict[str, set[str]] = {}
+        found: dict[str, dict[str, int]] = {}
         with contextlib.suppress(OSError):
-            for folder in self.root.iterdir():
-                if folder.is_dir():
-                    found[folder.name] = {
-                        path.stem for path in folder.iterdir() if path.suffix[1:] in _EXTENSIONS
-                    }
+            for folder in os.scandir(self.root):
+                if not folder.is_dir():
+                    continue
+                sizes = found.setdefault(folder.name, {})
+                with contextlib.suppress(OSError):
+                    for entry in os.scandir(folder.path):
+                        stem, _, extension = entry.name.rpartition(".")
+                        if extension in _EXTENSIONS:
+                            with contextlib.suppress(OSError):
+                                sizes[stem] = entry.stat().st_size
         return found
 
     def picture_bytes(self) -> int:
         """The space the cached pictures take, summaries and notes left out."""
-        total = 0
-        for extension in _EXTENSIONS:
-            for path in self.root.glob(f"*/*.{extension}"):
-                with contextlib.suppress(OSError):
-                    total += path.stat().st_size
-        return total
+        return sum(sum(sizes.values()) for sizes in self.cached_sizes().values())
 
     def fetch(self, item: MediaItem, *, cancel: object | None = None) -> Path | None:
         """The cached picture for ``item``, downloading it when needed; None when unavailable."""
