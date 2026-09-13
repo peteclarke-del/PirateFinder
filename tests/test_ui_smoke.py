@@ -35,6 +35,8 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gdk, GLib, Gtk  # noqa: E402
 
+from piratefinder import __version__  # noqa: E402
+from piratefinder.app_update import AppRelease  # noqa: E402
 from piratefinder.greaseweazle.caps import CapsState, CapsStatus  # noqa: E402
 from piratefinder.jobs.queue import MAX_COPIES, new_item  # noqa: E402
 from piratefinder.models import (  # noqa: E402
@@ -1270,6 +1272,144 @@ class WindowTests(unittest.TestCase):
         dialog = self.window.get_visible_dialog()
         dialog.force_close()
         pump(0.05)
+
+    # Application updates
+
+    NEWER = AppRelease(
+        "9.0.0",
+        "v9.0.0",
+        "PirateFinder 9.0.0",
+        "https://github.com/peteclarke-del/PirateFinder/releases/tag/v9.0.0",
+        notes="Faster searches.",
+        package_name="PirateFinder_9.0.0_ubuntu-24.04_amd64.deb",
+        package_url="https://example.org/PirateFinder_9.0.0_ubuntu-24.04_amd64.deb",
+        package_size=24_000_000,
+        sums_url="https://example.org/SHA256SUMS",
+    )
+
+    def about_controls(self):
+        from piratefinder.ui.app_updater import AppUpdateControls
+
+        self.window.show_about()
+        pump(0.05)
+        about = self.window.about_dialog
+        found = [w for w in widgets_in(about.get_child()) if isinstance(w, AppUpdateControls)]
+        self.assertEqual(len(found), 1)
+        return found[0]
+
+    def wait_update(self, phase: str) -> None:
+        updater = self.window.app_updater
+        wait_until(lambda: updater.state.phase == phase, f"the update to be {phase}")
+
+    def test_the_about_window_has_the_update_button_under_the_version(self) -> None:
+        controls = self.about_controls()
+        version = controls.get_prev_sibling()
+        self.assertTrue(version.has_css_class("app-version"))
+        self.assertEqual(version.get_label(), __version__)
+        self.assertEqual(controls.button.get_label(), "_Check for Application Updates")
+        self.assertFalse(controls.status.get_visible())
+        self.assertEqual(self.backend.app_checks, 0)  # nothing is asked until the user asks
+
+    def test_an_update_check_says_this_is_the_newest_version(self) -> None:
+        controls = self.about_controls()
+        controls.button.emit("clicked")
+        self.wait_update("current")
+        self.assertEqual(
+            controls.status.get_text(), f"PirateFinder {__version__} is the newest version"
+        )
+        self.assertEqual(controls.button.get_label(), "_Check for Application Updates")
+        self.assertEqual(self.backend.app_checks, 1)
+
+    def test_a_failed_update_check_gives_the_reason_and_never_says_newest(self) -> None:
+        self.backend.app_check_error = "api.github.com could not be reached: timed out."
+        controls = self.about_controls()
+        controls.button.emit("clicked")
+        self.wait_update("failed")
+        self.assertEqual(
+            controls.status.get_text(),
+            "Could not check for a newer version: api.github.com could not be reached: timed out.",
+        )
+        self.assertNotIn("newest", controls.status.get_text())
+
+    def test_a_newer_version_is_downloaded_installed_and_restarted(self) -> None:
+        self.backend.app_release = self.NEWER
+        controls = self.about_controls()
+        controls.button.emit("clicked")
+        self.wait_update("available")
+        self.assertEqual(
+            controls.status.get_text(),
+            f"PirateFinder 9.0.0 is available. You have version {__version__}.",
+        )
+        self.assertEqual(controls.button.get_label(), "_Update to 9.0.0")
+        self.assertTrue(controls.button.has_css_class("suggested-action"))
+        self.assertTrue(controls.page_button.get_visible())
+        controls.button.emit("clicked")
+        wait_until(
+            lambda: isinstance(self.window.get_visible_dialog(), Adw.AlertDialog), "the question"
+        )
+        question = self.window.get_visible_dialog()
+        self.assertEqual(question.get_heading(), "Update PirateFinder?")
+        size = fmt.human_size(self.NEWER.package_size)
+        self.assertIn(f"The package for Ubuntu 24.04 amd64 ({size})", question.get_body())
+        self.assertIn("Faster searches.", question.get_body())
+        question.emit("response", "update")
+        self.wait_update("installed")
+        self.assertEqual(
+            [path.name for path in self.backend.app_installed], [self.NEWER.package_name]
+        )
+        self.assertEqual(
+            controls.status.get_text(),
+            "PirateFinder 9.0.0 is installed. Restart PirateFinder to use it.",
+        )
+        self.assertEqual(controls.button.get_label(), "_Restart PirateFinder")
+        application = self.window.get_application()
+        self.addCleanup(setattr, application, "restart_requested", False)
+        with mock.patch.object(self.window, "close") as close:
+            controls.button.emit("clicked")
+        close.assert_called_once_with()
+        self.assertTrue(application.restart_requested)
+
+    def test_a_dismissed_password_prompt_leaves_the_update_offered(self) -> None:
+        self.backend.app_release = self.NEWER
+        self.backend.app_install_dismissed = True
+        controls = self.about_controls()
+        controls.button.emit("clicked")
+        self.wait_update("available")
+        self.window.app_updater.install(self.NEWER)
+        wait_until(
+            lambda: self.window.app_updater.state.message.startswith("The password prompt"),
+            "the dismissed prompt",
+        )
+        self.assertEqual(self.window.app_updater.state.phase, "available")
+        self.assertEqual(controls.button.get_label(), "_Update to 9.0.0")
+        self.assertEqual(self.backend.app_installed, [])
+
+    def test_a_copy_run_from_source_is_sent_to_the_release_page(self) -> None:
+        self.backend.app_target = None
+        self.backend.app_release = replace(self.NEWER, package_name="", package_url="")
+        controls = self.about_controls()
+        controls.button.emit("clicked")
+        self.wait_update("available")
+        self.assertIn("runs from its source code", controls.status.get_text())
+        self.assertEqual(controls.button.get_label(), "Open Release _Page")
+        self.assertFalse(controls.button.has_css_class("suggested-action"))
+        with mock.patch("piratefinder.ui.app_updater.open_uri") as opened:
+            controls.button.emit("clicked")
+        opened.assert_called_once_with(controls, self.NEWER.page_url)
+
+    def test_no_update_or_restart_while_disks_are_written(self) -> None:
+        with (
+            mock.patch.object(self.window, "session_running", return_value=True),
+            mock.patch.object(self.window, "close") as close,
+        ):
+            self.window.app_updater.install(self.NEWER)
+            self.assertEqual(
+                self.window.app_updater.state.message,
+                "PirateFinder can be updated once the disks have been written",
+            )
+            self.window.restart()
+        close.assert_not_called()
+        self.assertFalse(self.window.get_application().restart_requested)
 
     def test_preferences_switch_pictures_off_and_download_the_brainfile(self) -> None:
         dialog = self.window.show_preferences()

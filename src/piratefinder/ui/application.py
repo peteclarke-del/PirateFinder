@@ -102,6 +102,8 @@ class PirateFinderApplication(Adw.Application):
         super().__init__(application_id=application_id, flags=flags)
         self._backend_factory = backend_factory or _default_backend
         self.window = None
+        # Set by the window after an update, so main() starts the new version.
+        self.restart_requested = False
         quit_action = Gio.SimpleAction.new("quit", None)
         quit_action.connect("activate", lambda _action, _parameter: self._quit())
         self.add_action(quit_action)

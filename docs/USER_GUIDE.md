@@ -15,6 +15,7 @@ The same guide opens inside PirateFinder: choose User Guide in the main menu, or
 - [Downloads](#downloads)
 - [Preferences](#preferences)
 - [Updating the Catalogue](#updating-the-catalogue)
+- [Updating PirateFinder](#updating-piratefinder)
 - [Image Formats and Conversions](#image-formats-and-conversions)
 - [Troubleshooting](#troubleshooting)
 - [Keyboard Shortcuts](#keyboard-shortcuts)
@@ -606,6 +607,40 @@ Without a catalogue it can read, the Find page says No Catalogue Installed and o
 
 The catalogue builder is part of the source tree and needs only Python 3.12. Run `PYTHONPATH=src:. python3 -m catalogue_builder` in the source tree. It downloads its sources into a cache, joins them and writes `build/catalogue.sqlite`, which PirateFinder uses when it runs from the same tree. The first build downloads the TOSEC DAT pack and the other sources' dumps; later builds reuse the cache. docs/CATALOGUE.md in the source tree explains the options.
 
+## Updating PirateFinder
+
+Checking for a newer version of PirateFinder from the About window, and installing it.
+
+![The About window after Check for Application Updates found a newer version](images/about-update.png)
+
+### Checking for a newer version
+
+Open About PirateFinder from the main menu and press Check for Application Updates. PirateFinder asks GitHub for the newest release of the application and compares it with the version shown above the button. It checks only when you press the button; nothing is sent when PirateFinder starts.
+
+The answer shows under the button: that this is the newest version, or the newer version and the one you have. When GitHub cannot be reached or its answer cannot be read, it says Could not check for a newer version, with the reason, and never that this is the newest version.
+
+### Installing it
+
+1. Press Update to, followed by the new version number. A question says which package will be installed and shows the release notes.
+2. Press Download and Install. The package made for your system, such as Ubuntu 24.04 on amd64, is downloaded from GitHub and checked against the SHA256SUMS file published with it. A package that does not match is deleted and nothing is installed.
+3. The system asks for your password, and apt installs the package over the old one. Your settings, library, queue, history and downloaded images are kept.
+4. Press Restart PirateFinder, or Restart in the notification, to start the new version.
+
+### While it runs
+
+Closing the About window does not stop a download, and reopening it shows how far it has got. Cancel stops the download. While discs are being written, an update cannot be installed and PirateFinder cannot restart; wait until the session is over.
+
+### When it cannot install
+
+- Dismissing the password prompt installs nothing and leaves the update offered.
+- Without pkexec, or when the system does not allow the installation, the message gives a command to run in a terminal instead: sudo apt install followed by the downloaded package, which is kept in `~/.cache/piratefinder/updates`.
+- A copy run from its source tree cannot update itself. The button then opens the release page; update the source tree instead.
+- When the release has no package for your system, the button opens the release page, which lists the packages it has.
+
+### The catalogue
+
+The catalogue is updated on its own, with Update Catalogue in the main menu, as Updating the Catalogue describes. Each new version of PirateFinder brings the newest catalogue with it.
+
 ## Image Formats and Conversions
 
 Which image files can be written, and how each one is prepared.
@@ -693,6 +728,10 @@ When the install fails, IPF Support says why. A file that does not match the che
 ### A catalogue from another version
 
 A catalogue built for an older or newer PirateFinder has a different layout and cannot be read. PirateFinder then uses another copy it can read, or shows No Catalogue Installed; Preferences says the file was made for a different PirateFinder version, with its layout and the one this version reads. Install the current package, or build a catalogue from the same source tree. If `PIRATEFINDER_CATALOGUE` is set, check that it names a current file.
+
+### Check for Application Updates cannot check or install
+
+Could not check for a newer version, followed by a reason, means GitHub could not be reached or its answer could not be read; try again later. The update failed, followed by a reason, comes from the download or from apt, and gives the command to install the downloaded package in a terminal. Updating PirateFinder has the details.
 
 ### Update Catalogue cannot check
 
@@ -832,7 +871,9 @@ PirateFinder has no account, sends no usage statistics and has no crash reportin
 | When | What is requested |
 | --- | --- |
 | When PirateFinder starts | With Check for Updates at Start on, one request to api.github.com for the PirateFinder release list, to see whether a newer catalogue is published. |
-| When you install an update | The catalogue file for this version's layout and its checksum, from github.com. |
+| When you install a catalogue update | The catalogue file for this version's layout and its checksum, from github.com. |
+| When you press Check for Application Updates | One request to api.github.com for the latest PirateFinder release. |
+| When you install a new version of PirateFinder | The package for your system and the release's SHA256SUMS file, from github.com. |
 | When you write or download a disc that is not in your library | The disk image, from the provider the catalogue names for it. During a session the next disc is fetched in the background. |
 | When the details pane shows a disc | With Download Screenshots and Background Information and Online Downloads on: each picture as it is shown, from the site that hosts it (atarilegend.com, d-bug.me, media.demozoo.org, or raw.githubusercontent.com for libretro-thumbnails), and the Wikipedia summaries of the title, the disc and the crew, from en.wikipedia.org. |
 | When you choose Download Brainfile | The latest Amiga Bootblock Reader release, from api.github.com and github.com. |

@@ -14,6 +14,8 @@ keeps.
 | At start, with Check for Updates at Start on (the default) | The PirateFinder release list, to see whether a newer catalogue is published | `api.github.com` | Check for Updates at Start, in Preferences, Catalogue |
 | When you choose Update Catalogue or Update Now | The same release list | `api.github.com` | Only made when you ask |
 | When you install a catalogue update | The catalogue file for this version's layout, such as `catalogue-layout3.sqlite.gz`, and its `.sha256` file | `github.com` and GitHub's download servers | Only made when you ask |
+| When you press Check for Application Updates, in the About window | The latest PirateFinder release | `api.github.com` | Only made when you ask |
+| When you choose Update to and then Download and Install | The package for your system, such as `PirateFinder_0.3.0_ubuntu-24.04_amd64.deb`, and the release's `SHA256SUMS` | `github.com` and GitHub's download servers | Only made when you ask |
 | When you write, or choose Download Only for, a disc that is not in your library | The disk image, from the location the catalogue gives | The provider: `archive.org`, `atarilegend.com`, `d-bug.me`, `exxosforum.co.uk` or `ftp.scene.org` (the mirror of the amigascne archive) | Online Downloads, or the provider's own switch, in Preferences, General |
 | During a writing session | The next disc in the session, in the background, when it is only available online | As above | As above |
 | When the details pane shows a disc | Each picture as it is shown, not the ones behind the arrows until you step to them | `atarilegend.com`, `d-bug.me`, `media.demozoo.org` or `raw.githubusercontent.com` | Download Screenshots and Background Information, or Online Downloads |
@@ -89,6 +91,7 @@ time to each site.
 | The SPS Decoder Library for IPF (`libcapsimage.so.5`) and a note of its release and source | `~/.local/share/piratefinder/caps/` | Until you choose Remove under IPF Support |
 | Pictures and Wikipedia summaries | `~/.cache/piratefinder/media/<source>/` | 30 days, then checked again with the site; a picture a site does not have is remembered for 7 days |
 | Downloads being checked | `~/.cache/piratefinder/downloads/` | Until the check, then deleted; a partial download stays so it can be resumed |
+| A new PirateFinder package | `~/.cache/piratefinder/updates/` | Until it is installed, then deleted |
 | Downloaded disk images | The download folder, `~/Floppy Images/PirateFinder` unless you choose another | Until you delete them |
 | Images prepared for writing | A temporary folder named `piratefinder-write-...` | Until the disk is written |
 | The Diagnostic Log | Memory only | Until PirateFinder closes |
@@ -111,8 +114,8 @@ Stored Image, which rewrites or adds an image file and keeps the original. See
   summaries only.
 - Each provider has its own switch.
 - Check for Updates at Start off stops the check at start.
-- The catalogue update, the brainfile and the SPS Decoder Library are
-  downloaded only when you ask.
+- The catalogue update, the application update, the brainfile and the SPS
+  Decoder Library are checked for and downloaded only when you ask.
 
 With all of these off, PirateFinder makes no request of its own, and Online
 Downloads off also keeps the Greaseweazle host tool's firmware check, above,

@@ -244,6 +244,27 @@ class PackageBuilderTests(unittest.TestCase):
         self.assertIn('catalogue="${project_dir}/build/catalogue.sqlite"', self.builder)
         self.assertIn("--no-catalogue", self.builder)
 
+    def test_the_package_names_its_system_for_the_application_update(self) -> None:
+        from piratefinder import app_update
+
+        # The application reads the file beside itself, /usr/lib/piratefinder.
+        self.assertEqual(app_update.PACKAGE_TARGET.name, "package-target")
+        self.assertIn('application_lib="${package_root}/usr/lib/piratefinder"', self.builder)
+        self.assertIn(
+            'printf \'distro=%s\\narch=%s\\n\' "${distro}" "${arch}" '
+            '> "${application_lib}/package-target"',
+            self.builder,
+        )
+        self.assertIn("app_update.installed_target()", read(INSTALL_TEST))
+        # The update looks for the package the build names.
+        self.assertIn(
+            'artifact_name="PirateFinder_${package_version}_${distro}_${arch}.deb"', self.builder
+        )
+        self.assertEqual(
+            app_update.PackageTarget("debian-13", "armhf").package_name("1.2.3"),
+            "PirateFinder_1.2.3_debian-13_armhf.deb",
+        )
+
     def test_the_greaseweazle_source_is_pinned_and_verified(self) -> None:
         version = read(PACKAGING / "greaseweazle-version.txt").strip()
         digest = read(PACKAGING / "greaseweazle-source.sha256").strip()
@@ -457,6 +478,16 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("--prerelease", workflow)
         self.assertIn('tag="catalogue-$(date --utc +%F)"', workflow)
         self.assertIn("actions/cache@", workflow)
+
+    def test_application_releases_are_the_latest_with_checksums_for_the_update(self) -> None:
+        from piratefinder import app_update
+
+        workflow = read(ROOT / ".github" / "workflows" / "release.yml")
+        # The update reads the release marked latest and checks the package
+        # against SHA256SUMS.
+        self.assertIn("--latest", workflow)
+        self.assertIn(f"sha256sum -- *.deb > {app_update.SUMS_NAME}", workflow)
+        self.assertTrue(app_update.LATEST_URL.endswith("/releases/latest"))
 
     def test_both_workflows_name_the_catalogue_by_the_layout_the_application_reads(self) -> None:
         from piratefinder.catalogue.schema import SCHEMA_VERSION
