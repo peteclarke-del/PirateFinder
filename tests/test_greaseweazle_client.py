@@ -8,6 +8,8 @@ fatal error banner in ``cli.py``.
 from __future__ import annotations
 
 import json
+import socket
+import sys
 import tempfile
 import threading
 import unittest
@@ -353,6 +355,43 @@ class ProbeTests(unittest.TestCase):
             self.assertFalse((Path(folder) / "argv.json").exists())
         self.assertFalse(status.connected)
 
+    def test_probe_with_online_use_off_keeps_the_firmware_lookup_on_this_computer(self) -> None:
+        # Like gw info: print the device, then look up the newest firmware over HTTPS,
+        # which honours the proxy variables, and end with a fatal error when that fails.
+        with tempfile.TemporaryDirectory() as folder:
+            script = Path(folder) / "gw"
+            script.write_text(
+                f"#!{sys.executable}\n"
+                "import json, os, sys, urllib.request\n"
+                "print('Host Tools: 1.23\\nDevice:\\n  Model:      Greaseweazle V4\\n"
+                "  Firmware:   1.5', file=sys.stderr)\n"
+                f"json.dump(dict(os.environ), open({str(Path(folder) / 'env.json')!r}, 'w'))\n"
+                "if not os.environ.get('HTTPS_PROXY'):\n"
+                "    sys.exit(0)  # a test never reaches the real GitHub API\n"
+                "try:\n"
+                "    urllib.request.urlopen('https://api.github.com/repos/keirf/"
+                "greaseweazle-firmware/releases/latest', timeout=5)\n"
+                "except Exception as error:\n"
+                "    print('** FATAL ERROR:', error, file=sys.stderr)\n"
+                "    sys.exit(1)\n"
+                "print('the request went out', file=sys.stderr)\n"
+            )
+            script.chmod(0o755)
+            offline = client.probe(executable=str(script), online=False)
+            environment = json.loads((Path(folder) / "env.json").read_text())
+            self.assertTrue(environment["https_proxy"].startswith("http://127.0.0.1:"))
+            online = client.probe(executable=str(script))
+            self.assertNotIn("HTTPS_PROXY", json.loads((Path(folder) / "env.json").read_text()))
+        self.assertTrue(offline.connected)
+        self.assertEqual(offline.message, "Greaseweazle V4 connected.")
+        self.assertTrue(online.connected)
+
+    def test_the_refusing_proxy_refuses(self) -> None:
+        with client.refusing_proxy() as proxy:
+            port = int(proxy.rsplit(":", 1)[1])
+            with self.assertRaises(ConnectionRefusedError):
+                socket.create_connection(("127.0.0.1", port), timeout=5)
+
     def test_probe_without_gw(self) -> None:
         with mock.patch.object(client, "find_gw", return_value=None):
             status = client.probe()
@@ -362,6 +401,78 @@ class ProbeTests(unittest.TestCase):
     @unittest.skipUnless(client.find_gw(), "the Greaseweazle host tools (gw) are not installed")
     def test_real_gw_reports_its_version(self) -> None:
         self.assertTrue(client.probe().host_tools)
+
+
+class DevicePresentTests(unittest.TestCase):
+    """The file-only check the window repeats: a fake sysfs and /dev in a temporary folder."""
+
+    def setUp(self) -> None:
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.sysfs = Path(folder.name) / "sys/bus/usb/devices"
+        self.dev = Path(folder.name) / "dev"
+        self.sysfs.mkdir(parents=True)
+        self.dev.mkdir()
+        self.usb_device("usb1", "1d6b", "0002", "EHCI Host Controller")
+        self.usb_device("1-4", "046d", "c52b", "USB Receiver")
+
+    def usb_device(self, name: str, vendor: str, product: str, product_name: str = "") -> None:
+        folder = self.sysfs / name
+        folder.mkdir()
+        (folder / "idVendor").write_text(f"{vendor}\n")
+        (folder / "idProduct").write_text(f"{product}\n")
+        if product_name:
+            (folder / "product").write_text(f"{product_name}\n")
+
+    def present(self, device: str = "") -> bool:
+        return client.device_present(device, sysfs=self.sysfs, dev=self.dev)
+
+    def test_nothing_plugged_in(self) -> None:
+        self.assertFalse(self.present())
+
+    def test_the_greaseweazle_usb_id(self) -> None:
+        self.usb_device("1-2", "1209", "4d69")
+        self.assertTrue(self.present())
+
+    def test_a_usb_interface_folder_without_ids_is_passed_over(self) -> None:
+        (self.sysfs / "1-2:1.0").mkdir()
+        self.assertFalse(self.present())
+
+    def test_the_product_name_gw_accepts(self) -> None:
+        # The old shared test id 1209:0001, named by its product string.
+        self.usb_device("1-3", "1209", "0001", "Greaseweazle")
+        self.assertTrue(self.present())
+
+    def test_another_device_on_the_shared_test_id_is_not_taken(self) -> None:
+        self.usb_device("1-3", "1209", "0001", "Some Other Gadget")
+        self.assertFalse(self.present())
+
+    def test_the_udev_link(self) -> None:
+        (self.dev / "greaseweazle").write_text("")
+        self.assertTrue(self.present())
+
+    def test_a_serial_port_named_by_id(self) -> None:
+        by_id = self.dev / "serial/by-id"
+        by_id.mkdir(parents=True)
+        (by_id / "usb-Keir_Fraser_Greaseweazle_GW0001-if00").write_text("")
+        self.assertTrue(self.present())
+
+    def test_the_chosen_device_must_exist(self) -> None:
+        self.usb_device("1-2", "1209", "4d69")
+        (self.dev / "ttyACM1").write_text("")
+        self.assertTrue(self.present(str(self.dev / "ttyACM1")))
+        self.assertTrue(self.present("ttyACM1"), "a bare name is looked up in /dev")
+        self.assertFalse(self.present(str(self.dev / "ttyACM5")), "the chosen port decides")
+
+    def test_an_unreadable_sysfs_is_not_an_error(self) -> None:
+        missing = self.sysfs.parent / "missing"
+        self.assertFalse(client.device_present(sysfs=missing, dev=self.dev))
+
+    def test_no_gw_runs(self) -> None:
+        self.usb_device("1-2", "1209", "4d69")
+        with mock.patch.object(client, "run_streaming") as run:
+            self.assertTrue(self.present())
+        run.assert_not_called()
 
 
 class FindTests(unittest.TestCase):

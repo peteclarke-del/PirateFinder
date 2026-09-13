@@ -5,7 +5,8 @@ is decoded before hashing and matches the entry for the same disk whatever its
 container. The file's own hashes are kept too, because some sources publish
 the hash of the container. Library scans call :func:`inspect_bytes` on
 thousands of files, so detection works on headers and sizes and the directory
-listing is read lazily and never raises.
+listing is read lazily and never raises. The boot block of every decoded
+image is checked for viruses (``images.virus``), which never raises either.
 """
 
 from __future__ import annotations
@@ -15,12 +16,13 @@ import zlib
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
-from ..models import Geometry, Platform
+from ..models import Geometry, LocalFile, Platform, VirusReport
 from .vendor import dms as vendor_dms
 from .vendor import msa as vendor_msa
 from .vendor import stx as vendor_stx
 from .vendor.filesystems import ImageEntry, open_data
 from .vendor.floppy_geometry import geometries_for_size, geometry_for_boot_sector
+from .virus import detect as detect_virus
 
 #: The largest image that is decoded in memory. Floppy images are at most a
 #: few megabytes; anything larger is refused rather than read.
@@ -30,6 +32,8 @@ MAX_IMAGE_SIZE = 64 * 1024 * 1024
 IMAGE_SUFFIXES = frozenset({".st", ".msa", ".stx", ".adf", ".adz", ".dms", ".ipf", ".scp", ".hfe"})
 
 SECTOR_SIZE = 512
+#: What ``boot_block`` returns: the Amiga boot block; an ST boot sector is the first half.
+BOOT_BLOCK_SIZE = 1024
 AMIGA_DD_TRACK = 11 * SECTOR_SIZE
 AMIGA_HD_TRACK = 22 * SECTOR_SIZE
 AMIGA_CYLINDERS = range(80, 85)
@@ -37,6 +41,8 @@ AMIGA_CYLINDERS = range(80, 85)
 #: thousands of entries, so it is cut off here.
 MAX_LISTING = 1000
 
+#: Formats that belong to one platform. Flux images (ipf, scp, hfe) and plain
+#: gzip files can hold either, so only their contents tell; see ``format_platform``.
 FORMAT_PLATFORMS = {
     "st": Platform.ATARI_ST,
     "msa": Platform.ATARI_ST,
@@ -92,6 +98,8 @@ class Inspection:
     raw_hashes: Hashes
     size: int = 0
     problem: str = ""  # why raw is missing, in a sentence
+    # What the boot block holds, when the image decoded and its platform is known.
+    virus: VirusReport | None = None
 
     @property
     def raw_size(self) -> int:
@@ -100,6 +108,21 @@ class Inspection:
 
 def suffix_of(name: str) -> str:
     return PurePosixPath(name.replace("\\", "/")).suffix.lower()
+
+
+def sector_suffix(platform: Platform | None) -> str:
+    """The suffix of a plain sector image: ".adf" for the Amiga, ".st" otherwise."""
+    return ".adf" if platform is Platform.AMIGA else ".st"
+
+
+def format_platform(image_format: str) -> Platform | None:
+    """The platform an image format belongs to, or None when the format does not say."""
+    return FORMAT_PLATFORMS.get(image_format.lower())
+
+
+def local_platform(local: LocalFile) -> Platform | None:
+    """The platform of a library file as its format says, or its suffix when it has no format."""
+    return format_platform(local.format or suffix_of(local.member or local.path).lstrip("."))
 
 
 def detect_format(data: bytes, name: str = "") -> str:
@@ -314,15 +337,51 @@ def flux_details(data: bytes, kind: str) -> tuple[Platform | None, Geometry | No
 
 def inspect_bytes(data: bytes, name: str) -> Inspection:
     """Identify ``data``, decode it to raw sectors when possible and hash both."""
-    return _inspect(data, name, nested=False)
-
-
-def _inspect(data: bytes, name: str, *, nested: bool) -> Inspection:
-    kind = detect_format(data, name)
+    decoded = _decode(data, name)
+    raw, platform = decoded.raw, decoded.platform
     hashes = Hashes.of(data)
+    label, listing = directory(raw, platform) if raw is not None else ("", ())
+    return Inspection(
+        format=decoded.format,
+        platform=platform,
+        raw=raw,
+        geometry=decoded.geometry,
+        volume_label=label,
+        listing=listing,
+        hashes=hashes,
+        raw_hashes=hashes if raw is None or raw is data else Hashes.of(raw),
+        size=len(data),
+        problem=decoded.problem,
+        virus=detect_virus(raw, platform) if raw is not None and platform is not None else None,
+    )
+
+
+def boot_block(data: bytes, name: str) -> tuple[bytes, Platform] | None:
+    """The first kilobyte of an image's sectors and its platform, for checking the
+    boot block again: decoded as ``inspect_bytes`` decodes it, without hashing
+    or listing anything. None when the image does not decode to sectors of a
+    known platform."""
+    decoded = _decode(data, name)
+    if decoded.raw is None or decoded.platform is None:
+        return None
+    return decoded.raw[:BOOT_BLOCK_SIZE], decoded.platform
+
+
+@dataclass(frozen=True, slots=True)
+class _Decoded:
+    format: str
+    platform: Platform | None
+    raw: bytes | None
+    geometry: Geometry | None = None
+    problem: str = ""
+
+
+def _decode(data: bytes, name: str, *, nested: bool = False) -> _Decoded:
+    """The format, platform, raw sectors and layout of an image, or why it has no sectors."""
+    kind = detect_format(data, name)
     raw: bytes | None = None
     geometry: Geometry | None = None
-    platform = FORMAT_PLATFORMS.get(kind)
+    platform = format_platform(kind)
     problem = ""
     try:
         if kind == "st":
@@ -343,7 +402,7 @@ def _inspect(data: bytes, name: str, *, nested: bool) -> Inspection:
             else:
                 raw = sectors
         elif kind in ("gz", "adz") and not nested:
-            return _inspect_gzip(data, name, hashes)
+            return _decode_gzip(data, name)
         elif kind in ("ipf", "scp", "hfe"):
             platform, geometry = flux_details(data, kind)
         elif kind == "adf-ext":
@@ -353,49 +412,24 @@ def _inspect(data: bytes, name: str, *, nested: bool) -> Inspection:
     except DecodeError as error:
         raw = None
         problem = str(error)
-    label, listing = directory(raw, platform) if raw is not None else ("", ())
-    raw_hashes = hashes if raw is data or raw is None else Hashes.of(raw)
-    return Inspection(
-        format=kind,
-        platform=platform,
-        raw=raw,
-        geometry=geometry,
-        volume_label=label,
-        listing=listing,
-        hashes=hashes,
-        raw_hashes=raw_hashes,
-        size=len(data),
-        problem=problem,
-    )
+    return _Decoded(kind, platform, raw, geometry, problem)
 
 
-def _inspect_gzip(data: bytes, name: str, hashes: Hashes) -> Inspection:
+def _decode_gzip(data: bytes, name: str) -> _Decoded:
     named_adz = suffix_of(name) == ".adz"
     try:
         inner = gunzip(data)
     except DecodeError as error:
         kind = "adz" if named_adz else "gz"
-        platform = Platform.AMIGA if named_adz else None
-        return Inspection(kind, platform, None, None, "", (), hashes, hashes, len(data), str(error))
-    found = _inspect(inner, gzip_member_name(name), nested=True)
+        return _Decoded(kind, format_platform(kind), None, None, str(error))
+    found = _decode(inner, gzip_member_name(name), nested=True)
     kind = "adz" if named_adz or found.format == "adf" else "gz"
-    return Inspection(
-        format=kind,
-        platform=found.platform,
-        raw=found.raw,
-        geometry=found.geometry,
-        volume_label=found.volume_label,
-        listing=found.listing,
-        hashes=hashes,
-        raw_hashes=found.raw_hashes if found.raw is not None else hashes,
-        size=len(data),
-        problem=found.problem,
-    )
+    return _Decoded(kind, found.platform, found.raw, found.geometry, found.problem)
 
 
 def directory(raw: bytes, platform: Platform | None) -> tuple[str, tuple[str, ...]]:
     """Volume label and file paths of a raw sector image, or empty on any error."""
-    suffix = ".adf" if platform is Platform.AMIGA else ".st"
+    suffix = sector_suffix(platform)
     try:
         contents = open_data(raw, suffix)
     except Exception:

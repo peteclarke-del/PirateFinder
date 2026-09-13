@@ -42,11 +42,14 @@ MAX_MEMBER_SIZE = MAX_IMAGE_SIZE
 MAX_NESTED_SIZE = 256 * 1024 * 1024
 #: Listings longer than this are refused; floppy collections have thousands.
 MAX_MEMBERS = 100_000
+#: Separates an archive member from a member of an archive nested inside it.
 NESTED = "::"
 LIST_TIMEOUT = 600
 
-_SUFFIX_KINDS = {".zip": "zip", ".7z": "7z", ".gz": "gz", ".adz": "gz"}
+# Archives that are opened, in a library folder or inside another archive.
 _NESTED_SUFFIXES = {".zip": "zip", ".7z": "7z", ".gz": "gz"}
+ARCHIVE_SUFFIXES = frozenset(_NESTED_SUFFIXES)
+_SUFFIX_KINDS = {**_NESTED_SUFFIXES, ".adz": "gz"}
 _MAGIC = ((b"PK\x03\x04", "zip"), (b"PK\x05\x06", "zip"), (b"7z\xbc\xaf\x27\x1c", "7z"))
 _MAGIC += ((b"\x1f\x8b", "gz"),)
 _CHUNK = 1024 * 1024
@@ -104,8 +107,27 @@ def is_archive(path: str | os.PathLike[str]) -> bool:
     return archive_kind(path) != ""
 
 
+def base_name(name: str) -> str:
+    """The file name of a member, without its folders or outer archive.
+
+    "set/inner.zip::disks/game.st" is "game.st".
+    """
+    return PurePosixPath(name.rsplit(NESTED, 1)[-1].replace("\\", "/")).name
+
+
+def image_file_name(path: str | os.PathLike[str], member: str = "") -> str:
+    """The file name of a library image: the member's inside an archive, else the file's."""
+    return base_name(member) if member else Path(path).name
+
+
 def is_disk_image_name(name: str) -> bool:
-    return suffix_of(name.rsplit(NESTED, 1)[-1]) in IMAGE_SUFFIXES
+    """Whether a file or member name has a disk image suffix."""
+    return suffix_of(base_name(name)) in IMAGE_SUFFIXES
+
+
+def is_archive_name(name: str) -> bool:
+    """Whether a file or member name has the suffix of an archive that is opened."""
+    return suffix_of(base_name(name)) in ARCHIVE_SUFFIXES
 
 
 def members(path: str | os.PathLike[str]) -> list[Member]:

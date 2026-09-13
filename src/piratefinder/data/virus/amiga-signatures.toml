@@ -1,0 +1,294 @@
+# Amiga boot block virus signatures, read by piratefinder.images.virus.
+#
+# A signature is the SHA-1 of a stretch of the virus code: `length` bytes
+# starting at `offset` in the 1,024-byte boot block. It never covers the DOS
+# type, checksum and root pointer in the first 12 bytes, and it leaves out
+# the counters, saved vectors and keys a virus changes as it runs, so every
+# copy of the virus matches. No virus code is stored here.
+#
+# PirateFinder derived each window from a sample of the virus (the sample's
+# SHA-1 is given in `source`) by disassembling it and keeping only code that
+# does not change. Every window matches its sample, and none matches any of
+# the 318 labelled boot blocks that are not viruses (loaders, intros,
+# anti-virus and utility blocks, the standard install blocks). The names
+# agree with the virus tables of AntiCicloVir 2.4 (Matthias Gutt, public
+# domain) and VirusX 4.0 (Steve Tibbett and Dan James) where those list the
+# virus.
+#
+# Entries are tried in order and the first match names the virus, so a
+# window for one exact version comes before a shorter window its variants
+# share. A match makes the boot block removable when the disk has an intact
+# AmigaDOS root block, as for a virus the Amiga Bootblock Reader brainfile
+# names; the brainfile, when installed, is asked first.
+
+[[signature]]
+name = "SCA"
+offset = 0x00C
+length = 696
+sha1 = "3d713a0467312ce955cde8525b3db092beab17ca"
+source = "Derived from sample cb7a66373ec4; it also carries the AntiCicloVir 2.4 value for SCA and the VirusX 4.0 value for SCA"
+note = ""
+
+[[signature]]
+name = "SCA"
+offset = 0x00C
+length = 184
+sha1 = "5366b611604b7cc68238b478a3bd44c941233002"
+source = "Derived from sample cb7a66373ec4; it also carries the AntiCicloVir 2.4 value for SCA and the VirusX 4.0 value for SCA"
+note = "The same code is used by SCA and by clones that differ from it only in their message, such as AIDS, Assassin, Amiga-Master, Bamiga Sector One, Disk-Terminator, Iceman, Karl Marx, Muriel and Republikaner."
+
+[[signature]]
+name = "Byte Bandit 1"
+offset = 0x04C
+length = 828
+sha1 = "6028ecad4e2311916b6807fcfeb53c63fa61a349"
+source = "Derived from sample 837014bb8369; it also carries the AntiCicloVir 2.4 values for Byte Bandit, Byte Bandit 2, WAFT and the VirusX 4.0 value for Byte Bandit"
+note = ""
+
+[[signature]]
+name = "Byte Bandit"
+offset = 0x04C
+length = 98
+sha1 = "a62ffaa2a6417290e69b179e5acbba1d565699e9"
+source = "Derived from sample 837014bb8369; it also carries the AntiCicloVir 2.4 values for Byte Bandit, Byte Bandit 2, WAFT and the VirusX 4.0 value for Byte Bandit"
+note = "The same code is used by Byte Bandit and its variants, such as Forpib, Hauke, TBS, Riska, Starcom 3, Amida, Mad I, Shut Berlin and Coded Text."
+
+[[signature]]
+name = "Byte Warrior"
+offset = 0x00C
+length = 156
+sha1 = "2b12d9ecd3ea71c3af5c8523f53464d444cf54e0"
+source = "Derived from sample a90381ef6484; it also carries the AntiCicloVir 2.4 value for Byte Warrior and the VirusX 4.0 value for Byte Warrior"
+note = "This is the version that signs itself DASA."
+
+[[signature]]
+name = "Byte Warrior"
+offset = 0x040
+length = 104
+sha1 = "53dbb632d82959336f3adabbedd414a412d74930"
+source = "Derived from sample a90381ef6484; it also carries the AntiCicloVir 2.4 value for Byte Warrior and the VirusX 4.0 value for Byte Warrior"
+note = "The same code is used by Byte Warrior (DASA) and Paramount."
+
+[[signature]]
+name = "Lamer Exterminator 1"
+offset = 0x00C
+length = 66
+sha1 = "f77f4e33eb4701a888a2aa52715584fdeaa693a9"
+source = "Derived from sample ace18e76d35e; it also carries the AntiCicloVir 2.4 value for LAMER Exterminator I and the VirusX 4.0 value for Lamer II"
+note = ""
+
+[[signature]]
+name = "Lamer Exterminator 2"
+offset = 0x014
+length = 58
+sha1 = "bedc205142eb799614f6b3455c24074973d74c35"
+source = "Derived from sample 9dc54cb782a7; it also carries the AntiCicloVir 2.4 value for old LAMER Exterminator and the VirusX 4.0 values for Lamer II, Lamer Exterminator"
+note = ""
+
+[[signature]]
+name = "Lamer Exterminator 3"
+offset = 0x00C
+length = 66
+sha1 = "c637335a1a083943b7737bb3add5c345794942f8"
+source = "Derived from sample d1773f6be561; it also carries the AntiCicloVir 2.4 value for LAMER Exterminator V and the VirusX 4.0 value for Lamer II"
+note = ""
+
+[[signature]]
+name = "Lamer Exterminator 5"
+offset = 0x00C
+length = 66
+sha1 = "644f358cb3e2512a2e909a01b55cbce1d622a3fd"
+source = "Derived from sample bd420e2195a2; it also carries the AntiCicloVir 2.4 value for LAMER Exterminator IV and the VirusX 4.0 value for Lamer II"
+note = ""
+
+[[signature]]
+name = "Lamer Exterminator 9"
+offset = 0x00C
+length = 66
+sha1 = "72c59b7e1e0a1e9f5f32e28bc9de19efeb166617"
+source = "Derived from sample 8a1192a6783b; it also carries the AntiCicloVir 2.4 values for new Lamer Exterminator, LAMER Exterminator VI and the VirusX 4.0 value for Lamer II"
+note = ""
+
+[[signature]]
+name = "Obelisk 1"
+offset = 0x0B4
+length = 246
+sha1 = "26df79a91e80b9554c6d926b902049c18a046266"
+source = "Derived from sample a7efcc26f93c; it also carries the AntiCicloVir 2.4 value for OBELISK and the VirusX 4.0 value for Obelisk"
+note = ""
+
+[[signature]]
+name = "Revenge Bootloader"
+offset = 0x028
+length = 838
+sha1 = "fddfbb557bc9a8003358f4834d16e946f8fde545"
+source = "Derived from sample 40b054f546f7; it also carries the AntiCicloVir 2.4 value for Revenge Bootloader"
+note = ""
+
+[[signature]]
+name = "Disk Doktors"
+offset = 0x00C
+length = 184
+sha1 = "6c5536856588cdce2832bb86b9fb276cbb13bd8d"
+source = "Derived from sample 79725f202ce0; it also carries the AntiCicloVir 2.4 value for Disk-Doktors and the VirusX 4.0 value for DiskDoktors"
+note = "The same code is used by Disk Doktors and its clones BJH, MagicUltra, NoName, Crackright and Paratax II."
+
+[[signature]]
+name = "Pentagon Circle"
+offset = 0x00C
+length = 678
+sha1 = "f752910b9385c366eff51180e4cba0c8bdef4827"
+source = "Derived from sample 7d7f0b5b2cf9; it also carries the AntiCicloVir 2.4 value for Pentagon-Slayer 2"
+note = "This is the version that calls itself VirusSlayer 3."
+
+[[signature]]
+name = "Gremlin 1"
+offset = 0x064
+length = 508
+sha1 = "5fb024805b1bc61d6ecdbc104f14ef10e5c41bce"
+source = "Derived from sample c4c1bc91b645; it also carries the AntiCicloVir 2.4 value for Gremlin"
+note = ""
+
+[[signature]]
+name = "Blizzard Protector 1.0"
+offset = 0x00C
+length = 198
+sha1 = "77e0ccc0c44a265dc9efdbcaa1da0951389fafe9"
+source = "Derived from sample 552885c92a56"
+note = "Despite its name it is a virus, not an anti-virus."
+
+[[signature]]
+name = "Termigator"
+offset = 0x032
+length = 428
+sha1 = "5be56c4043c597fe0e98e27a0e4bc9e315a23fe5"
+source = "Derived from sample f1e98050b62d; it also carries the AntiCicloVir 2.4 value for Termigator"
+note = ""
+
+[[signature]]
+name = "Coder's Nightmare"
+offset = 0x094
+length = 226
+sha1 = "c9cd91a06eb5b4b177ea7eceec1cc83d2bad8bd9"
+source = "Derived from sample e1c8d27cc80c; it also carries the AntiCicloVir 2.4 value for Coders Nightmare"
+note = "The same code is used by Coder's Nightmare, Tomates-Gentechnic 2.0 and Twinz Santa Claus."
+
+[[signature]]
+name = "UltraFox"
+offset = 0x200
+length = 438
+sha1 = "34a828740ee7722a95fc15e26e54ef156d5cd4a1"
+source = "Derived from sample 76317c0d8325; it also carries the AntiCicloVir 2.4 value for Ultrafox and the VirusX 4.0 value for UltraFox"
+note = ""
+
+[[signature]]
+name = "Opapa"
+offset = 0x00C
+length = 264
+sha1 = "5f9b3136caa6ba7fa9c005aa55bc03c9d0f870d1"
+source = "Derived from sample dcbe49a8ba85; it also carries the AntiCicloVir 2.4 value for OPAPA and the VirusX 4.0 value for Opapa"
+note = ""
+
+[[signature]]
+name = "Warhawk"
+offset = 0x00C
+length = 780
+sha1 = "26bd681f29e4d4a315bad2fcf13a6df362235318"
+source = "Derived from sample 560efbe9bc60; it also carries the VirusX 4.0 value for WarHawk"
+note = "The same code is used by VHT-2.Warhawk, Starlight I, RAF and Disk Furunkel."
+
+[[signature]]
+name = "Digital Emotions"
+offset = 0x01E
+length = 502
+sha1 = "dd4162bbc837cb92cdd3783361f93bd454724fa5"
+source = "Derived from sample 3fa26a927581; it also carries the AntiCicloVir 2.4 value for DIGITAL EMOTIONS"
+note = ""
+
+[[signature]]
+name = "16-Bit Crew"
+offset = 0x00C
+length = 382
+sha1 = "4b08cc07bbef7dd3f938b6b691b5222d9fb65b43"
+source = "Derived from sample 25401522c25a; it also carries the AntiCicloVir 2.4 values for 16 Bit Crew, Virus Construction Set-Bootblock and the VirusX 4.0 value for 16 Bit Crew"
+note = "The same code is used by 16-Bit Crew and ZAccess 1.0."
+
+[[signature]]
+name = "Gadaffi"
+offset = 0x0C0
+length = 590
+sha1 = "08de7619f5daf53b7b249464067222fc78cbe092"
+source = "Derived from sample 37acc94e3e56; it also carries the AntiCicloVir 2.4 value for GADAFFI and the VirusX 4.0 value for Gadaffi"
+note = "The same code is used by Gadaffi and Khomeini."
+
+[[signature]]
+name = "H.C.S"
+offset = 0x030
+length = 430
+sha1 = "bb1a85c1aae7b0fc01707b896c62069bf43ff6f3"
+source = "Derived from sample 817aabd7ca24; it also carries the AntiCicloVir 2.4 value for H.C.S and the VirusX 4.0 value for HCS"
+note = ""
+
+[[signature]]
+name = "H.C.S II"
+offset = 0x034
+length = 464
+sha1 = "fb0e37e754c7e6d427ccf38f07dafecb044d3a22"
+source = "Derived from sample d6db2b34ed38; it also carries the AntiCicloVir 2.4 value for H.C.S II and the VirusX 4.0 value for HCS II"
+note = ""
+
+[[signature]]
+name = "Zombi I"
+offset = 0x01C
+length = 612
+sha1 = "08e68842143992ad0ce99c6504863d0d051948e5"
+source = "Derived from sample d3fc5a6392ee; it also carries the AntiCicloVir 2.4 value for Zombi I"
+note = ""
+
+[[signature]]
+name = "Julie"
+offset = 0x044
+length = 80
+sha1 = "ee4479f317f3ac8cd034892d425a84ef99c1c1af"
+source = "Derived from sample 1750fd99515f; it also carries the AntiCicloVir 2.4 value for Julie"
+note = "It is also known as Virus Predator or JulieTick."
+
+[[signature]]
+name = "PayDay"
+offset = 0x024
+length = 710
+sha1 = "1ac0d204592f575d5f55ccfa0d1a8a1e75c8af4c"
+source = "Derived from sample 0f833b509004; it also carries the AntiCicloVir 2.4 value for PayDay and the VirusX 4.0 value for Old NorthStar"
+note = ""
+
+[[signature]]
+name = "EastStar"
+offset = 0x028
+length = 798
+sha1 = "16cf6895429b1854cb6aa621ae530ac4c67d53d6"
+source = "Derived from sample aaa126cb8c63; it also carries the VirusX 4.0 value for NorthStar"
+note = "It is a clone of North Star."
+
+[[signature]]
+name = "Australian Parasite"
+offset = 0x00C
+length = 110
+sha1 = "214a2f3889c1c61542f14b4e59f12e693728ecc4"
+source = "Derived from sample ac260dd47cd4; it also carries the AntiCicloVir 2.4 value for Australian Parasite and the VirusX 4.0 value for Australian Parasite"
+note = ""
+
+[[signature]]
+name = "Sendarian #1"
+offset = 0x1CA
+length = 442
+sha1 = "cccdd3fcacfd2c7eb7794cdf82a803e7566cc9a5"
+source = "Derived from sample 1d6a7f969514; it also carries the AntiCicloVir 2.4 value for Sendarion #1 and the VirusX 4.0 value for Revenge"
+note = ""
+
+[[signature]]
+name = "Saddam"
+offset = 0x00C
+length = 144
+sha1 = "bb409b848c255f1d50c26436bfa0be3ec2850ed0"
+source = "Derived from sample 4ef45fc38209; it also carries the AntiCicloVir 2.4 value for SADDAM HUSSEIN"
+note = "This is the boot block part, which calls itself A2000 MB Memory Controller V2."

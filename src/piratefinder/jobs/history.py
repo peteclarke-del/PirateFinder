@@ -42,6 +42,7 @@ class History:
                     outcome.failed_tracks,
                     outcome.seconds,
                     source,
+                    outcome.notes,
                 )
                 for label, outcome, source in summary.items
             ],
@@ -52,11 +53,8 @@ class History:
         result = []
         for _id, started, finished, drive, rows in self.userdb.session_rows(limit):
             items = []
-            for label, status, text, diagnostic, retries, failed, seconds, source in rows:
-                try:
-                    tracks = tuple(str(track) for track in json.loads(failed or "[]"))
-                except ValueError:
-                    tracks = ()
+            for label, status, text, diagnostic, retries, failed, seconds, source, notes in rows:
+                tracks = _strings(failed)
                 try:
                     state = WriteStatus(status)
                 except ValueError:
@@ -68,6 +66,7 @@ class History:
                     retries=int(retries or 0),
                     failed_tracks=tracks,
                     seconds=float(seconds or 0.0),
+                    notes=_strings(notes),
                 )
                 items.append((label, outcome, source))
             result.append(SessionSummary(started, finished, drive, tuple(items)))
@@ -76,6 +75,15 @@ class History:
     def clear(self) -> None:
         """Forget every recorded session."""
         self.userdb.delete_sessions()
+
+
+def _strings(text: str | None) -> tuple[str, ...]:
+    """A JSON list of strings as stored in the history; () when it cannot be read."""
+    try:
+        values = json.loads(text or "[]")
+    except ValueError:
+        return ()
+    return tuple(str(value) for value in values) if isinstance(values, list) else ()
 
 
 def _when(text: str) -> str:
@@ -104,6 +112,7 @@ def report_text(summary: SessionSummary) -> str:
             lines.append(f"   Failed tracks: {', '.join(outcome.failed_tracks)}")
         if source:
             lines.append(f"   Source: {source}")
+        lines += [f"   Note: {note}" for note in outcome.notes]
     failed = summary.count(WriteStatus.FAILED, WriteStatus.WRITE_PROTECTED, WriteStatus.NO_DISK)
     skipped = summary.count(WriteStatus.SKIPPED, WriteStatus.CANCELLED)
     lines += [

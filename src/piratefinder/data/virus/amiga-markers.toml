@@ -1,0 +1,613 @@
+# Amiga boot block virus markers, read by piratefinder.images.virus.
+#
+# Each rule names a virus when every check holds: `checks` pairs an offset
+# in the 1,024-byte boot block with the bytes (hexadecimal) found there. A
+# rule with `code = true` also needs the boot block to show at least one of
+# the Amiga code patterns in indicators.toml (a reset vector, a disk write,
+# a device request and so on), since a single value is weak evidence on its
+# own. Rules are tried in order after the signatures in amiga-signatures.toml
+# and after the Amiga Bootblock Reader brainfile, when it is installed; the
+# first that holds names the virus, which is then removable like any other
+# identified boot virus when the disk has an intact AmigaDOS root block.
+#
+# Sources, used for their facts (offsets and values) only:
+#   - VirusX 4.0 by Steve Tibbett and Dan James (Fish disk 287): the two
+#     longwords its virus table checks on a boot block. VirusX is
+#     "Copyrighted, but freely redistributable ... Do what you want with it".
+#     All 25 rules are kept: none holds on any of the 318 labelled boot
+#     blocks that are not viruses. Rules for Pentagon Circle, BackFlash,
+#     Phantasmumble, Graffiti and VKill have no sample to confirm them.
+#   - AntiCicloVir 2.4 by Matthias Gutt (1994), whose assembler source is
+#     public domain ("you can do everything with the program and this
+#     source"): one longword at an offset per boot block virus. On their own
+#     five of its 184 values also hold on boot blocks that are not viruses
+#     (WAFT, GX.Team, BLF, Virus Construction Set, Incognito). A value is
+#     kept only when it holds on a labelled sample of the virus it names, it
+#     holds with the code check on that sample, and it holds on no labelled
+#     boot block that is not a virus; 58 of the 184 are kept. The rest were
+#     dropped: most name viruses with no sample to test them against, and
+#     the others hit samples of a different virus or fail the code check.
+#
+# `seen` lists the labelled virus samples the rule held on when it was
+# tested; it is for information and is not read.
+
+[[rule]]
+name = "Microsystems"
+checks = [{ offset = 0x040, bytes = "040000FE" }, { offset = 0x080, bytes = "00000200" }]
+code = false
+source = "VirusX 4.0, Microsystems"
+seen = ["Digital Life 2 Virus", "Starlight II Virus"]
+
+[[rule]]
+name = "H.C.S II"
+checks = [{ offset = 0x040, bytes = "010022D8" }, { offset = 0x080, bytes = "41F90007" }]
+code = false
+source = "VirusX 4.0, HCS II"
+seen = ["H.C.S 4420 2 Virus"]
+
+[[rule]]
+name = "Opapa"
+checks = [{ offset = 0x040, bytes = "03B04298" }, { offset = 0x080, bytes = "03114EAE" }]
+code = false
+source = "VirusX 4.0, Opapa"
+seen = ["Opapa Virus"]
+
+[[rule]]
+name = "Pentagon Circle"
+checks = [{ offset = 0x240, bytes = "FFFF9280" }, { offset = 0x250, bytes = "2C790000" }]
+code = false
+source = "VirusX 4.0, Pentagon Circle"
+seen = []
+
+[[rule]]
+name = "Gadaffi"
+checks = [{ offset = 0x040, bytes = "47414441" }, { offset = 0x080, bytes = "20202020" }]
+code = false
+source = "VirusX 4.0, Gadaffi"
+seen = ["Gadaffi Virus"]
+
+[[rule]]
+name = "16-Bit Crew"
+checks = [{ offset = 0x1E0, bytes = "43726577" }, { offset = 0x1E4, bytes = "20313938" }]
+code = false
+source = "VirusX 4.0, 16 Bit Crew"
+seen = ["16-Bit Crew Virus"]
+
+[[rule]]
+name = "BackFlash"
+checks = [{ offset = 0x040, bytes = "337C0002" }, { offset = 0x080, bytes = "4E752C79" }]
+code = false
+source = "VirusX 4.0, BackFlash"
+seen = []
+
+[[rule]]
+name = "Disk Doktors"
+checks = [{ offset = 0x040, bytes = "13FC00A0" }, { offset = 0x080, bytes = "303C0100" }]
+code = false
+source = "VirusX 4.0, DiskDoktors"
+seen = ["Crackright Virus (KS1.3)", "Disk Doktors Virus", "DiskDoktors.BJH Virus", "DiskDoktors.MagicUltra Virus", "DiskDoktors.NoName Virus", "Paratax 2 Virus"]
+
+[[rule]]
+name = "Lamer Exterminator"
+checks = [{ offset = 0x020, bytes = "4E7570FF" }, { offset = 0x030, bytes = "790048E7" }]
+code = false
+source = "VirusX 4.0, Lamer II"
+seen = ["Extreme FAT 2 (Stinkbomb 2) Virus", "Extreme Virus", "Lamer Exterminator 1 Virus", "Lamer Exterminator 2 Virus", "Lamer Exterminator 3 Virus", "Lamer Exterminator 5 Virus", "Lamer Exterminator 9 Virus"]
+
+[[rule]]
+name = "Revenge"
+checks = [{ offset = 0x040, bytes = "000443FA" }, { offset = 0x080, bytes = "00E02079" }]
+code = false
+source = "VirusX 4.0, Revenge"
+seen = ["Sendarian Virus"]
+
+[[rule]]
+name = "Australian Parasite"
+checks = [{ offset = 0x040, bytes = "43FAFFBE" }, { offset = 0x080, bytes = "62726172" }]
+code = false
+source = "VirusX 4.0, Australian Parasite"
+seen = ["Australian Parasite [KS1.3] Virus"]
+
+[[rule]]
+name = "Warhawk"
+checks = [{ offset = 0x084, bytes = "0007E63A" }, { offset = 0x080, bytes = "FFA24EB9" }]
+code = false
+source = "VirusX 4.0, WarHawk"
+seen = ["Disk Furunkel Virus", "RAF Virus", "Starlight I Virus", "VHT-2.Warhawk Virus"]
+
+[[rule]]
+name = "SCA"
+checks = [{ offset = 0x040, bytes = "00000004" }, { offset = 0x080, bytes = "EFDE2D48" }]
+code = false
+source = "VirusX 4.0, SCA"
+seen = ["2001 Virus", "AIDS Virus", "Amiga-Master Virus", "Assassin Virus", "Bamiga Sector One Virus", "Disk-Terminator Virus", "Iceman & IRQ Virus", "Karl Marx Virus", "Muriel Virus", "Republikaner Virus", "SCA Virus"]
+
+[[rule]]
+name = "North Star"
+checks = [{ offset = 0x040, bytes = "0C790002" }, { offset = 0x080, bytes = "20680016" }]
+code = false
+source = "VirusX 4.0, NorthStar"
+seen = ["EastStar Virus"]
+
+[[rule]]
+name = "Pentagon Circle"
+checks = [{ offset = 0x240, bytes = "FFA623C0" }, { offset = 0x250, bytes = "4EAEFE62" }]
+code = false
+source = "VirusX 4.0, Pentagon Circle"
+seen = []
+
+[[rule]]
+name = "Phantasmumble"
+checks = [{ offset = 0x040, bytes = "4240323C" }, { offset = 0x080, bytes = "EF2A0839" }]
+code = false
+source = "VirusX 4.0, Phantasmumble"
+seen = []
+
+[[rule]]
+name = "Byte Bandit"
+checks = [{ offset = 0x080, bytes = "41FAFF7E" }, { offset = 0x0C0, bytes = "20402068" }]
+code = false
+source = "VirusX 4.0, Byte Bandit"
+seen = ["Amida Virus", "Byte Bandit 1 Virus", "Byte Bandit.Coded Text Virus", "Byte Bandit.Forpib [Amiga Freak] Virus", "Byte Bandit.Forpib [Electro-Vision] Virus", "Byte Bandit.Forpib [Morbid Angel] Virus", "Byte Bandit.Forpib [ZAccess v2.0] Virus", "Byte Bandit.Hauke Virus", "Byte Bandit.NoHead Virus", "Byte Bandit.Shut Berlin Virus", "Byte Bandit.TBS Virus", "Mad I Virus", "Riska Virus", "Starcom 3 Virus"]
+
+[[rule]]
+name = "Graffiti"
+checks = [{ offset = 0x1E0, bytes = "0007A800" }, { offset = 0x2B0, bytes = "4E757E1E" }]
+code = false
+source = "VirusX 4.0, Graffiti"
+seen = []
+
+[[rule]]
+name = "H.C.S"
+checks = [{ offset = 0x2D0, bytes = "0007EF68" }, { offset = 0x080, bytes = "2D48FE3A" }]
+code = false
+source = "VirusX 4.0, HCS"
+seen = ["H.C.S 4420 1 Virus"]
+
+[[rule]]
+name = "Byte Warrior"
+checks = [{ offset = 0x040, bytes = "207C0007" }, { offset = 0x080, bytes = "00084EB9" }]
+code = false
+source = "VirusX 4.0, Byte Warrior"
+seen = ["Byte Warrior [DASA] Virus", "Paramount Virus"]
+
+[[rule]]
+name = "Obelisk"
+checks = [{ offset = 0x040, bytes = "01BB4EAE" }, { offset = 0x080, bytes = "00442D49" }]
+code = false
+source = "VirusX 4.0, Obelisk"
+seen = ["Obelisk 1 Virus"]
+
+[[rule]]
+name = "UltraFox"
+checks = [{ offset = 0x1B0, bytes = "E066601F" }, { offset = 0x1C0, bytes = "0C19B181" }]
+code = false
+source = "VirusX 4.0, UltraFox"
+seen = ["UltraFox Virus"]
+
+[[rule]]
+name = "Lamer Exterminator"
+checks = [{ offset = 0x03C, bytes = "0012123A" }, { offset = 0x040, bytes = "0361343C" }]
+code = false
+source = "VirusX 4.0, Lamer Exterminator"
+seen = ["Lamer Exterminator 2 Virus"]
+
+[[rule]]
+name = "North Star (old version)"
+checks = [{ offset = 0x040, bytes = "0007EC1A" }, { offset = 0x080, bytes = "4EAEFFA0" }]
+code = false
+source = "VirusX 4.0, Old NorthStar"
+seen = ["PayDay Virus"]
+
+[[rule]]
+name = "VKill"
+checks = [{ offset = 0x2D0, bytes = "204B656E" }, { offset = 0x2E0, bytes = "02010100" }]
+code = false
+source = "VirusX 4.0, VKill"
+seen = []
+
+[[rule]]
+name = "16-Bit Crew"
+checks = [{ offset = 0x1E0, bytes = "43726577" }]
+code = true
+source = "AntiCicloVir 2.4, 16 Bit Crew"
+seen = ["16-Bit Crew Virus"]
+
+[[rule]]
+name = "2001"
+checks = [{ offset = 0x3F0, bytes = "30303132" }]
+code = true
+source = "AntiCicloVir 2.4, 2001"
+seen = ["2001 Virus"]
+
+[[rule]]
+name = "A.H.C."
+checks = [{ offset = 0x2FC, bytes = "412E482E" }]
+code = true
+source = "AntiCicloVir 2.4, A.H.C."
+seen = ["AHC Virus"]
+
+[[rule]]
+name = "AIDS"
+checks = [{ offset = 0x3F0, bytes = "48495621" }]
+code = true
+source = "AntiCicloVir 2.4, AIDS (SCA)"
+seen = ["AIDS Virus"]
+
+[[rule]]
+name = "Amiga Freak"
+checks = [{ offset = 0x01E, bytes = "414D4947" }]
+code = true
+source = "AntiCicloVir 2.4, AMIGA Freak"
+seen = ["Byte Bandit.Forpib [Amiga Freak] Virus"]
+
+[[rule]]
+name = "Amiga-Master"
+checks = [{ offset = 0x37A, bytes = "4D617374" }]
+code = true
+source = "AntiCicloVir 2.4, AMIGA Master"
+seen = ["Amiga-Master Virus"]
+
+[[rule]]
+name = "Angel"
+checks = [{ offset = 0x054, bytes = "4EAEFF3A" }]
+code = true
+source = "AntiCicloVir 2.4, Angel"
+seen = ["Angel Virus"]
+
+[[rule]]
+name = "Australian Parasite"
+checks = [{ offset = 0x36C, bytes = "41757374" }]
+code = true
+source = "AntiCicloVir 2.4, Australian Parasite"
+seen = ["Australian Parasite [KS1.3] Virus"]
+
+[[rule]]
+name = "Bamiga Sector One"
+checks = [{ offset = 0x3F0, bytes = "42533121" }]
+code = true
+source = "AntiCicloVir 2.4, Bamiga Sector One"
+seen = ["Bamiga Sector One Virus"]
+
+[[rule]]
+name = "Byte Bandit"
+checks = [{ offset = 0x020, bytes = "42616E64" }]
+code = true
+source = "AntiCicloVir 2.4, Byte Bandit"
+seen = ["Byte Bandit 1 Virus"]
+
+[[rule]]
+name = "Byte Warrior"
+checks = [{ offset = 0x0C0, bytes = "44415341" }]
+code = true
+source = "AntiCicloVir 2.4, Byte Warrior"
+seen = ["Byte Warrior [DASA] Virus"]
+
+[[rule]]
+name = "Coder's Nightmare"
+checks = [{ offset = 0x05A, bytes = "434F4445" }]
+code = true
+source = "AntiCicloVir 2.4, Coders Nightmare"
+seen = ["Coder's Nightmare Virus"]
+
+[[rule]]
+name = "CopyLock"
+checks = [{ offset = 0x018, bytes = "0007F000" }]
+code = true
+source = "AntiCicloVir 2.4, CopyLock"
+seen = ["CopyLock Virus", "Nightmare Loader Virus"]
+
+[[rule]]
+name = "Cracker Exterminator"
+checks = [{ offset = 0x014, bytes = "43524143" }]
+code = true
+source = "AntiCicloVir 2.4, Cracker Exterminator"
+seen = ["Cracker Exterminator Virus", "Cracker Exterminator Virus [Decoded]"]
+
+[[rule]]
+name = "Digital Emotions"
+checks = [{ offset = 0x280, bytes = "454D4F54" }]
+code = true
+source = "AntiCicloVir 2.4, DIGITAL EMOTIONS"
+seen = ["Digital Emotions Virus"]
+
+[[rule]]
+name = "Disk Doktors"
+checks = [{ offset = 0x3E8, bytes = "20446973" }]
+code = true
+source = "AntiCicloVir 2.4, Disk-Doktors"
+seen = ["Crackright Virus (KS1.3)", "Disk Doktors Virus"]
+
+[[rule]]
+name = "Disk Furunkel"
+checks = [{ offset = 0x3B2, bytes = "4449534B" }]
+code = true
+source = "AntiCicloVir 2.4, DISK-Furunkel"
+seen = ["Disk Furunkel Virus"]
+
+[[rule]]
+name = "DiskGuard 1.0"
+checks = [{ offset = 0x2F4, bytes = "4449534B" }]
+code = true
+source = "AntiCicloVir 2.4, DISK GUARD V1.0"
+seen = ["DiskGuard v1.0 Virus"]
+
+[[rule]]
+name = "Disk-Terminator"
+checks = [{ offset = 0x3C6, bytes = "4449534B" }]
+code = true
+source = "AntiCicloVir 2.4, Disk-Terminator"
+seen = ["Disk-Terminator Virus"]
+
+[[rule]]
+name = "Dotty"
+checks = [{ offset = 0x018, bytes = "446F7474" }]
+code = true
+source = "AntiCicloVir 2.4, Dotty"
+seen = ["Dotty Virus"]
+
+[[rule]]
+name = "Electro-Vision"
+checks = [{ offset = 0x010, bytes = "454C4543" }]
+code = true
+source = "AntiCicloVir 2.4, ELECTRO.VISION"
+seen = ["Byte Bandit.Forpib [Electro-Vision] Virus"]
+
+[[rule]]
+name = "Extreme"
+checks = [{ offset = 0x274, bytes = "58545245" }]
+code = true
+source = "AntiCicloVir 2.4, EXTREME"
+seen = ["Extreme Virus"]
+
+[[rule]]
+name = "F.I.C.A."
+checks = [{ offset = 0x3F2, bytes = "462E492E" }]
+code = true
+source = "AntiCicloVir 2.4, FICA"
+seen = ["F.I.C.A. Virus"]
+
+[[rule]]
+name = "Gadaffi"
+checks = [{ offset = 0x040, bytes = "47414441" }]
+code = true
+source = "AntiCicloVir 2.4, GADAFFI"
+seen = ["Gadaffi Virus"]
+
+[[rule]]
+name = "Gremlin"
+checks = [{ offset = 0x360, bytes = "67726170" }]
+code = true
+source = "AntiCicloVir 2.4, Gremlin"
+seen = ["Gremlin 1 Virus"]
+
+[[rule]]
+name = "Hauke"
+checks = [{ offset = 0x010, bytes = "4861756B" }]
+code = true
+source = "AntiCicloVir 2.4, Hauke"
+seen = ["Byte Bandit.Hauke Virus"]
+
+[[rule]]
+name = "H.C.S"
+checks = [{ offset = 0x328, bytes = "482E432E" }]
+code = true
+source = "AntiCicloVir 2.4, H.C.S"
+seen = ["H.C.S 4420 1 Virus"]
+
+[[rule]]
+name = "H.C.S II"
+checks = [{ offset = 0x34E, bytes = "482E432E" }]
+code = true
+source = "AntiCicloVir 2.4, H.C.S II"
+seen = ["H.C.S 4420 2 Virus"]
+
+[[rule]]
+name = "Iceman"
+checks = [{ offset = 0x3F0, bytes = "494E4321" }]
+code = true
+source = "AntiCicloVir 2.4, ICE"
+seen = ["Iceman & IRQ Virus"]
+
+[[rule]]
+name = "JITR"
+checks = [{ offset = 0x008, bytes = "4A495452" }]
+code = true
+source = "AntiCicloVir 2.4, JITR"
+seen = ["JITR Virus"]
+
+[[rule]]
+name = "Julie"
+checks = [{ offset = 0x334, bytes = "E0014E75" }]
+code = true
+source = "AntiCicloVir 2.4, Julie"
+seen = ["Virus Predator - JulieTick Virus", "Virus Predator - JulieTick Virus [Decoded]"]
+
+[[rule]]
+name = "Mad"
+checks = [{ offset = 0x010, bytes = "496E6665" }]
+code = true
+source = "AntiCicloVir 2.4, MAD"
+seen = ["Mad I Virus"]
+
+[[rule]]
+name = "Derk Mallander 1.0"
+checks = [{ offset = 0x008, bytes = "4445524B" }]
+code = true
+source = "AntiCicloVir 2.4, MALLANDER V1.0"
+seen = ["Derk Mallander v1.0 Virus", "Derk Mallander v1.0 Virus [Decoded]"]
+
+[[rule]]
+name = "Megamaster (MGM 89)"
+checks = [{ offset = 0x282, bytes = "4D474D38" }]
+code = true
+source = "AntiCicloVir 2.4, MGM 89"
+seen = ["Megamaster - MGM89 Virus [Decoded]"]
+
+[[rule]]
+name = "Mutilator"
+checks = [{ offset = 0x2A0, bytes = "646F732E" }]
+code = true
+source = "AntiCicloVir 2.4, Mutilator"
+seen = ["Mutilator Virus [Decoded]"]
+
+[[rule]]
+name = "Obelisk"
+checks = [{ offset = 0x038, bytes = "47555255" }]
+code = true
+source = "AntiCicloVir 2.4, OBELISK"
+seen = ["Obelisk 1 Virus"]
+
+[[rule]]
+name = "Opapa"
+checks = [{ offset = 0x368, bytes = "204F5041" }]
+code = true
+source = "AntiCicloVir 2.4, OPAPA"
+seen = ["Opapa Virus"]
+
+[[rule]]
+name = "Paratax II"
+checks = [{ offset = 0x3B0, bytes = "41544158" }]
+code = true
+source = "AntiCicloVir 2.4, PARATAX II"
+seen = ["Paratax 2 Virus"]
+
+[[rule]]
+name = "PayDay"
+checks = [{ offset = 0x010, bytes = "50617944" }]
+code = true
+source = "AntiCicloVir 2.4, PayDay"
+seen = ["PayDay Virus"]
+
+[[rule]]
+name = "Republikaner"
+checks = [{ offset = 0x3F0, bytes = "52455021" }]
+code = true
+source = "AntiCicloVir 2.4, REP!"
+seen = ["Republikaner Virus"]
+
+[[rule]]
+name = "Revenge Bootloader"
+checks = [{ offset = 0x010, bytes = "52657665" }]
+code = true
+source = "AntiCicloVir 2.4, Revenge Bootloader"
+seen = ["Revenge Bootloader Virus"]
+
+[[rule]]
+name = "Sachsen 1"
+checks = [{ offset = 0x038, bytes = "00078400" }]
+code = true
+source = "AntiCicloVir 2.4, SACHSEN No.1"
+seen = ["Sachsen 1 Virus", "Sachsen 1 Virus [Decoded]"]
+
+[[rule]]
+name = "Saddam"
+checks = [{ offset = 0x012, bytes = "32303030" }]
+code = true
+source = "AntiCicloVir 2.4, SADDAM HUSSEIN"
+seen = ["Saddam Hussein Virus"]
+
+[[rule]]
+name = "Sao Paulo"
+checks = [{ offset = 0x2F0, bytes = "5041554C" }]
+code = true
+source = "AntiCicloVir 2.4, Sao Paulo"
+seen = ["Sao Paulo Virus"]
+
+[[rule]]
+name = "Satan"
+checks = [{ offset = 0x280, bytes = "53415441" }]
+code = true
+source = "AntiCicloVir 2.4, SATAN"
+seen = ["Satan Virus"]
+
+[[rule]]
+name = "SCA"
+checks = [{ offset = 0x3F0, bytes = "53434121" }]
+code = true
+source = "AntiCicloVir 2.4, SCA"
+seen = ["Devil Virus", "SCA Virus"]
+
+[[rule]]
+name = "Sendarian #1"
+checks = [{ offset = 0x3E2, bytes = "53656E64" }]
+code = true
+source = "AntiCicloVir 2.4, Sendarion #1"
+seen = ["Sendarian Virus"]
+
+[[rule]]
+name = "Sherlock 2.0"
+checks = [{ offset = 0x2F6, bytes = "4F525349" }]
+code = true
+source = "AntiCicloVir 2.4, Sherlock2.0"
+seen = ["Sherlock 2.0 Virus"]
+
+[[rule]]
+name = "Termigator"
+checks = [{ offset = 0x3EC, bytes = "696E7475" }]
+code = true
+source = "AntiCicloVir 2.4, Termigator"
+seen = ["Termigator Virus", "Termigator Virus [Decoded]"]
+
+[[rule]]
+name = "TFC Revenge"
+checks = [{ offset = 0x02C, bytes = "20313939" }]
+code = true
+source = "AntiCicloVir 2.4, T.F.C. Revenge"
+seen = ["TFC Revenge v2.14 Virus"]
+
+[[rule]]
+name = "Tomates-Gentechnic 1.0"
+checks = [{ offset = 0x182, bytes = "4F4D4154" }]
+code = true
+source = "AntiCicloVir 2.4, TOMATES GENTECHNIC 1.0"
+seen = ["Tomates-Gentechnic Virus"]
+
+[[rule]]
+name = "Tomates-Gentechnic 2.0"
+checks = [{ offset = 0x040, bytes = "546F6D61" }]
+code = true
+source = "AntiCicloVir 2.4, TOMATES GENTECHNIC 2.0"
+seen = ["Tomates-Gentechnic 2.0 Virus"]
+
+[[rule]]
+name = "UltraFox"
+checks = [{ offset = 0x036, bytes = "4EF900FC" }]
+code = true
+source = "AntiCicloVir 2.4, Ultrafox"
+seen = ["UltraFox Virus"]
+
+[[rule]]
+name = "Viphs"
+checks = [{ offset = 0x022, bytes = "56495048" }]
+code = true
+source = "AntiCicloVir 2.4, VIPHS"
+seen = ["Viphs Virus"]
+
+[[rule]]
+name = "Virus V1"
+checks = [{ offset = 0x322, bytes = "73696E64" }]
+code = true
+source = "AntiCicloVir 2.4, Virus V1"
+seen = ["Virus 1 - Wieder Da Virus", "Virus V1 Virus"]
+
+[[rule]]
+name = "ZAccess 1.0"
+checks = [{ offset = 0x1D6, bytes = "5A414343" }]
+code = true
+source = "AntiCicloVir 2.4, ZACCESS V1.0"
+seen = ["ZAccess v1.0 Virus"]
+
+[[rule]]
+name = "ZAccess 2.0"
+checks = [{ offset = 0x016, bytes = "5A414343" }]
+code = true
+source = "AntiCicloVir 2.4, ZACCESS V2.0"
+seen = ["Byte Bandit.Forpib [ZAccess v2.0] Virus"]
+
+[[rule]]
+name = "Zombi I"
+checks = [{ offset = 0x184, bytes = "075A6F6D" }]
+code = true
+source = "AntiCicloVir 2.4, Zombi I"
+seen = ["Zombi I Virus", "Zombi Virus"]

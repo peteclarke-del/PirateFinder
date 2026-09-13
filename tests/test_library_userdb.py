@@ -8,10 +8,13 @@ import unittest
 from pathlib import Path
 
 from piratefinder.library.userdb import (
+    MIGRATIONS,
     SCHEMA_VERSION,
+    CorrectedDisc,
     LibraryEntry,
     UserDatabase,
     UserDatabaseError,
+    _split_script,
     fts_query,
 )
 
@@ -120,21 +123,83 @@ class UserDatabaseTests(unittest.TestCase):
         self.db.store_file("/b/z.st", 1, 1.0, [entry("/b/z.st", raw_md5="cc", md5="cc")])
         self.assertEqual(
             self.db.library_counts(),
-            {"images": 3, "matched": 2, "unmatched": 1, "duplicates": 1, "folders": 2},
+            {
+                "images": 3,
+                "matched": 2,
+                "unmatched": 1,
+                "duplicates": 1,
+                "folders": 2,
+                "infected": 0,
+            },
         )
         self.assertEqual(self.db.counts_under("/b"), (2, 1))
         self.assertEqual(self.db.disks_present([1, 2]), {1})
 
-    def test_corrections(self) -> None:
-        self.db.set_correction(5, "label", "Automation 250 (fixed)")
-        self.db.set_correction(5, "label", "Automation 250 B")
-        self.db.set_correction(6, "notes", "Side B is blank")
-        self.assertEqual(
-            self.db.corrections([5, 6, 7]),
-            {5: {"label": "Automation 250 B"}, 6: {"notes": "Side B is blank"}},
+    def test_infected_entries_come_from_the_boot_columns(self) -> None:
+        def infected(path: str, member: str, name: str, status: str = "virus") -> LibraryEntry:
+            return entry(path, member, display_name=name, boot_status=status, boot_name="SCA")
+
+        self.db.store_file("/a/b.adf", 1, 1.0, [infected("/a/b.adf", "", "B")])
+        self.db.store_file(
+            "/a/a.zip",
+            1,
+            1.0,
+            [
+                infected("/a/a.zip", "one.adf", "A"),
+                infected("/a/a.zip", "two.adf", "A2", "antivirus"),
+            ],
         )
-        self.db.remove_correction(5, "label")
-        self.assertEqual(self.db.corrections([5]), {})
+        self.db.store_file("/a/c.st", 1, 1.0, [infected("/a/c.st", "", "C", "clean")])
+        found = [(e.path, e.member, e.to_local().virus) for e in self.db.infected_entries()]
+        self.assertEqual(found, [("/a/a.zip", "one.adf", "SCA"), ("/a/b.adf", "", "SCA")])
+        self.assertEqual([e.display_name for e in self.db.infected_entries(limit=1)], ["A"])
+        self.assertEqual(self.db.infected_count(), 2)
+
+    def test_corrections(self) -> None:
+        disc = CorrectedDisc(series_id="automation", number=250, disk_id=5, catalogue="build 1")
+        self.db.store_corrections(disc, {"label": "Automation 250 (fixed)"}, {})
+        self.db.store_corrections(disc, {"label": "Automation 250 B"}, {("Necron", 1): "Necronom"})
+        other = CorrectedDisc(platform="amiga", title="Pack", disk_id=6, catalogue="build 1")
+        self.db.store_corrections(other, {"notes": "Side B is blank"}, {})
+        self.assertEqual(
+            self.db.corrections([5, 6, 7], "build 1"),
+            {
+                5: ({"label": "Automation 250 B"}, {("Necron", 1): "Necronom"}),
+                6: ({"notes": "Side B is blank"}, {}),
+            },
+        )
+        # Another catalogue build knows nothing until the discs are found in it.
+        self.assertEqual(self.db.corrections([5, 6], "build 2"), {})
+        first, second = self.db.corrected_discs()
+        self.assertEqual((first.series_id, first.number, first.disk_id), ("automation", 250, 5))
+        self.db.relink_corrected_discs([(first.id, 9, "build 2"), (second.id, None, "build 2")])
+        self.assertEqual(
+            self.db.corrections([5, 9], "build 2"),
+            {9: ({"label": "Automation 250 B"}, {("Necron", 1): "Necronom"})},
+        )
+        self.db.delete_corrections(9, "build 2")
+        self.assertEqual(self.db.corrections([9], "build 2"), {})
+        # Deleting the disc takes its fields and titles with it.
+        count = self.db.connection().execute("SELECT COUNT(*) FROM title_corrections").fetchone()
+        self.assertEqual(count[0], 0)
+
+    def test_version_4_replaces_the_corrections_keyed_by_catalogue_ids(self) -> None:
+        self.db.close()
+        old = self.path.with_name("old.sqlite")
+        connection = sqlite3.connect(old)
+        for statement in _split_script(MIGRATIONS[0] + MIGRATIONS[1] + MIGRATIONS[2]):
+            connection.execute(statement)
+        connection.execute("INSERT INTO corrections VALUES (5, 'label', 'Old')")
+        connection.execute("PRAGMA user_version = 3")
+        connection.commit()
+        connection.close()
+        upgraded = UserDatabase.open(old)
+        self.addCleanup(upgraded.close)
+        self.assertEqual(upgraded.corrected_discs(), [])
+        columns = [
+            row[1] for row in upgraded.connection().execute("PRAGMA table_info(corrections)")
+        ]
+        self.assertEqual(columns, ["disc", "field", "value"])
 
     def test_threads_get_their_own_connections(self) -> None:
         errors: list[BaseException] = []

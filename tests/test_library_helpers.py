@@ -23,12 +23,15 @@ from piratefinder.catalogue.naming import normalise
 from piratefinder.models import (
     Content,
     ContentKind,
+    CrewInfo,
     Disk,
     DiskKind,
     ImageRecord,
     Link,
     Location,
+    MediaItem,
     Platform,
+    TriviaItem,
 )
 
 SECTOR = 512
@@ -132,6 +135,7 @@ class CatalogueBuilder:
         series: tuple[str, str] | None = None,
         number: int | None = None,
         contents: Iterable[str] = (),
+        crew: str = "",
     ) -> None:
         """Add a disk with its contents in menu order."""
         series_id = None
@@ -144,9 +148,9 @@ class CatalogueBuilder:
                     (series_id, name, str(platform), str(kind)),
                 )
         self.connection.execute(
-            """INSERT INTO disks(id, series_id, number, label, title, platform, kind)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (disk_id, series_id, number, label, label, str(platform), str(kind)),
+            """INSERT INTO disks(id, series_id, number, label, title, platform, kind, crew)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (disk_id, series_id, number, label, label, str(platform), str(kind), crew),
         )
         contents = list(contents)
         for position, title in enumerate(contents):
@@ -177,13 +181,14 @@ class CatalogueBuilder:
         rank: int = 0,
         bad: bool = False,
         sha512: str = "",
+        virus: str = "",
     ) -> None:
         """Add a dump; the chosen hashes are those of ``data`` (the raw sectors)."""
         values = hashes(data) if data is not None else {}
         kinds = set(hash_kinds)
         self.connection.execute(
             """INSERT INTO images(id, disk_id, name, format, size, crc32, md5, sha1, sha512,
-                   bad, rank) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   bad, rank, virus) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 image_id,
                 disk_id,
@@ -196,6 +201,7 @@ class CatalogueBuilder:
                 sha512,
                 int(bad),
                 rank,
+                virus,
             ),
         )
 
@@ -213,10 +219,13 @@ class CatalogueBuilder:
         hash_value: str = "",
         priority: int = 100,
     ) -> None:
-        """Add a download location."""
+        """Add a download location (the whole address after the empty prefix, see
+        schema.py)."""
+        self.connection.execute("INSERT OR IGNORE INTO address_prefix(id, text) VALUES (0, '')")
         self.connection.execute(
-            """INSERT INTO locations(id, disk_id, image_id, provider, url, container, member,
-                   hash_kind, hash_value, priority) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO locations(id, disk_id, image_id, provider, url_prefix, url, container,
+                   member, hash_kind, hash_value, priority)
+               VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)""",
             (
                 location_id,
                 disk_id,
@@ -230,6 +239,59 @@ class CatalogueBuilder:
                 priority,
             ),
         )
+
+    def media(
+        self,
+        disk_id: int,
+        url: str,
+        *,
+        kind: str = "menu",
+        source: str = "test",
+        content_id: int | None = None,
+        rank: int = 100,
+    ) -> None:
+        """Add a picture of a disk, or of one title on it (the whole address
+        after the empty prefix, see schema.py)."""
+        self.connection.execute("INSERT OR IGNORE INTO address_prefix(id, text) VALUES (0, '')")
+        credit_id = self.connection.execute(
+            "INSERT INTO media_credit(source, credit) VALUES (?, '')", (source,)
+        ).lastrowid
+        self.connection.execute(
+            """INSERT INTO media(disk_id, content_id, kind, url_prefix, url, credit_id, rank)
+               VALUES (?, ?, ?, 0, ?, ?, ?)""",
+            (disk_id, content_id, kind, url, credit_id, rank),
+        )
+
+    def trivia(self, disk_id: int, kind: str, text: str, *, content_id: int | None = None) -> None:
+        """Add a fact, a note or a Wikipedia article title."""
+        self.connection.execute(
+            "INSERT INTO trivia(disk_id, content_id, kind, text, source) VALUES (?, ?, ?, ?, ?)",
+            (disk_id, content_id, kind, text, "test"),
+        )
+
+    def crew(
+        self,
+        name: str,
+        *,
+        disks: Iterable[int] = (),
+        platform: Platform = Platform.ATARI_ST,
+        notes: str = "",
+        wikipedia: str = "",
+    ) -> None:
+        """Add a crew's history on one platform, as the history of ``disks``."""
+        crew_id = self.connection.execute(
+            "INSERT INTO crews(name, platform, notes, source, wikipedia) VALUES (?, ?, ?, ?, ?)",
+            (name, str(platform), notes, "test", wikipedia),
+        ).lastrowid
+        self.connection.executemany(
+            "UPDATE disks SET crew_id = ? WHERE id = ?", [(crew_id, disk) for disk in disks]
+        )
+
+    def content_id(self, disk_id: int, position: int) -> int:
+        """The contents.id of one title."""
+        return self.connection.execute(
+            "SELECT id FROM contents WHERE disk_id = ? AND position = ?", (disk_id, position)
+        ).fetchone()[0]
 
     def source(self, source_id: str, name: str) -> None:
         """Add a provenance row, which also names a provider."""
@@ -261,6 +323,10 @@ class SqlCatalogue:
         with self._lock:
             return self._connection.execute(sql, tuple(values)).fetchall()
 
+    def query(self, sql: str, parameters: Iterable[object] = ()) -> list[tuple]:
+        """A read-only query, as ``Catalogue.query`` runs it."""
+        return self._query(sql, parameters)
+
     def close(self) -> None:
         self._connection.close()
 
@@ -272,7 +338,7 @@ class SqlCatalogue:
         for disk_id in ids:
             rows = self._query(
                 """SELECT d.id, d.label, d.platform, d.kind, d.series_id,
-                          COALESCE(s.name, ''), d.number, d.title
+                          COALESCE(s.name, ''), d.number, d.title, d.crew
                    FROM disks d LEFT JOIN series s ON s.id = d.series_id WHERE d.id = ?""",
                 (disk_id,),
             )
@@ -286,22 +352,24 @@ class SqlCatalogue:
                     series_name=row[5],
                     number=row[6],
                     title=row[7],
+                    crew=row[8],
                 )
         return result
 
     def contents(self, disk_id: int) -> list[Content]:
         rows = self._query(
-            "SELECT title, kind, position FROM contents WHERE disk_id = ? ORDER BY position",
+            "SELECT title, kind, position, id FROM contents WHERE disk_id = ? ORDER BY position",
             (disk_id,),
         )
         return [
-            Content(disk_id, title, ContentKind(kind), position) for title, kind, position in rows
+            Content(disk_id, title, ContentKind(kind), position, id=content_id)
+            for title, kind, position, content_id in rows
         ]
 
     def _image_rows(self, where: str, values: Iterable[object]) -> list[ImageRecord]:
         rows = self._query(
             f"""SELECT id, disk_id, name, format, flags, size, crc32, md5, sha1, sha512, bad,
-                       rank, source FROM images WHERE {where} ORDER BY rank, id""",
+                       rank, source, virus FROM images WHERE {where} ORDER BY rank, id""",
             values,
         )
         return [
@@ -319,6 +387,7 @@ class SqlCatalogue:
                 bad=bool(row[10]),
                 rank=row[11],
                 source=row[12],
+                virus=row[13],
             )
             for row in rows
         ]
@@ -332,9 +401,10 @@ class SqlCatalogue:
 
     def locations(self, disk_id: int) -> list[Location]:
         rows = self._query(
-            """SELECT id, disk_id, provider, url, image_id, container, member, size, hash_kind,
-                      hash_value, page_url, priority
-               FROM locations WHERE disk_id = ? ORDER BY priority, id""",
+            """SELECT l.id, l.disk_id, l.provider, p.text || l.url, l.image_id, l.container,
+                      l.member, l.size, l.hash_kind, l.hash_value, l.page_url, l.priority
+               FROM locations l JOIN address_prefix p ON p.id = l.url_prefix
+               WHERE l.disk_id = ? ORDER BY l.priority, l.id""",
             (disk_id,),
         )
         return [Location(*row) for row in rows]
@@ -342,6 +412,31 @@ class SqlCatalogue:
     def links(self, disk_id: int) -> list[Link]:
         rows = self._query("SELECT disk_id, label, url FROM links WHERE disk_id = ?", (disk_id,))
         return [Link(*row) for row in rows]
+
+    def media(self, disk_id: int) -> list[MediaItem]:
+        rows = self._query(
+            """SELECT m.kind, p.text || m.url, c.source, m.content_id FROM media m
+               JOIN address_prefix p ON p.id = m.url_prefix
+               JOIN media_credit c ON c.id = m.credit_id WHERE m.disk_id = ?
+               ORDER BY m.rank, m.id""",
+            (disk_id,),
+        )
+        return [MediaItem(kind, url, source, content_id=cid) for kind, url, source, cid in rows]
+
+    def trivia(self, disk_id: int) -> list[TriviaItem]:
+        rows = self._query(
+            "SELECT kind, text, source, content_id FROM trivia WHERE disk_id = ? ORDER BY id",
+            (disk_id,),
+        )
+        return [TriviaItem(kind, text, source, content_id=cid) for kind, text, source, cid in rows]
+
+    def crew_for_disk(self, disk_id: int) -> CrewInfo | None:
+        rows = self._query(
+            "SELECT c.name, c.notes, c.wikipedia FROM disks d JOIN crews c ON c.id = d.crew_id "
+            "WHERE d.id = ?",
+            (disk_id,),
+        )
+        return CrewInfo(rows[0][0], notes=rows[0][1], wikipedia=rows[0][2]) if rows else None
 
     def match_image(self, *, md5="", sha1="", sha512="", crc32="", size=None):
         self.match_calls.append(

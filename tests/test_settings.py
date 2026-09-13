@@ -30,6 +30,7 @@ class SettingsTests(unittest.TestCase):
         self.assertTrue(settings.check_catalogue_updates)
         self.assertEqual(settings.catalogue_feed_url, DEFAULT_FEED_URL)
         self.assertTrue(settings.prompt_between_disks)
+        self.assertTrue(settings.fetch_media)
         self.assertFalse(self.path.exists())
 
     def test_default_path_follows_xdg_config_home(self) -> None:
@@ -92,6 +93,15 @@ class SettingsTests(unittest.TestCase):
         self.path.write_text("[1, 2]")
         Settings.load(self.path)
         self.assertTrue(self.path.with_name("settings.json.bak").exists())
+
+    def test_media_downloads_can_be_switched_off(self) -> None:
+        settings = Settings.load(self.path)
+        settings.fetch_media = False
+        settings.save()
+        self.assertFalse(json.loads(self.path.read_text())["fetch_media"])
+        self.assertFalse(Settings.load(self.path).fetch_media)
+        self.path.write_text(json.dumps({"fetch_media": "no"}))
+        self.assertTrue(Settings.load(self.path).fetch_media, "a wrong type keeps the default")
 
     def test_enabled_providers(self) -> None:
         settings = Settings(providers={"d-bug": False, "atari-legend": True})

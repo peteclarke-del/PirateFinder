@@ -10,7 +10,7 @@ import zlib
 from piratefinder.images import inspect
 from piratefinder.images.inspect import Hashes, detect_format, inspect_bytes
 from piratefinder.images.vendor import msa as vendor_msa
-from piratefinder.models import Geometry, Platform
+from piratefinder.models import Geometry, LocalFile, Platform
 from tests.test_images_synthetic import (
     adf_image,
     dms_archive,
@@ -249,6 +249,53 @@ class InspectTests(unittest.TestCase):
         found = inspect_bytes(bytes(raw), "x.st")
         self.assertEqual(found.format, "st")
         self.assertIsNotNone(found.raw)
+
+
+class PlatformTests(unittest.TestCase):
+    """The one table of which platform a format belongs to, used by every layer."""
+
+    def test_every_recognised_format_maps_to_its_platform(self) -> None:
+        amiga, st = Platform.AMIGA, Platform.ATARI_ST
+        expected = {
+            **dict.fromkeys(("adf", "adf-ext", "adz", "dms"), amiga),
+            **dict.fromkeys(("st", "msa", "stx"), st),
+            # Flux images and plain gzip hold either platform; only the contents tell.
+            **dict.fromkeys(("ipf", "scp", "hfe", "gz"), None),
+        }
+        suffixes = {suffix.lstrip(".") for suffix in inspect.IMAGE_SUFFIXES}
+        self.assertLessEqual(suffixes, set(expected), "a new image suffix needs a platform here")
+        for image_format, platform in expected.items():
+            with self.subTest(format=image_format):
+                self.assertIs(inspect.format_platform(image_format), platform)
+                self.assertIs(inspect.format_platform(image_format.upper()), platform)
+                local = LocalFile(path=f"/nas/Game.{image_format}", format=image_format)
+                self.assertIs(inspect.local_platform(local), platform)
+
+    def test_a_sector_image_is_an_adf_on_the_amiga_and_an_st_otherwise(self) -> None:
+        self.assertEqual(inspect.sector_suffix(Platform.AMIGA), ".adf")
+        self.assertEqual(inspect.sector_suffix(Platform.ATARI_ST), ".st")
+        self.assertEqual(inspect.sector_suffix(None), ".st")
+
+    def test_a_file_without_a_format_goes_by_its_suffix(self) -> None:
+        for suffix in inspect.IMAGE_SUFFIXES:
+            with self.subTest(suffix=suffix):
+                bare = LocalFile(path="/nas/menus.zip", member=f"Menus/Game{suffix.upper()}")
+                self.assertIs(inspect.local_platform(bare), inspect.format_platform(suffix[1:]))
+
+    def test_decoded_images_agree_with_the_table(self) -> None:
+        cases = [
+            (adf_image(), "x.adf"),
+            (dms_archive(adf_image()), "x.dms"),
+            (gzip_bytes(adf_image()), "x.adz"),
+            (st_image(), "x.st"),
+            (msa_archive(st_image(), 80, 2, 10), "x.msa"),
+            (stx_archive(st_image(), 80, 2, 10), "x.stx"),
+        ]
+        for data, name in cases:
+            with self.subTest(name=name):
+                found = inspect_bytes(data, name)
+                self.assertIsNotNone(found.raw, found.problem)
+                self.assertIs(found.platform, inspect.format_platform(found.format))
 
 
 class DMSChecksumTests(unittest.TestCase):
