@@ -3,7 +3,7 @@
 ## menu disk finder
 
 PirateFinder is a GNOME application for Linux that keeps a catalogue of about
-66,600 Amiga and Atari ST disks: the numbered menu disks, compacts and packs
+61,800 Amiga and Atari ST disks: the numbered menu disks, compacts and packs
 that crews such as Automation, Pompey Pirates, Medway Boys, D-Bug and Skid Row
 released, together with single-game cracks. You search it for a game, a crew
 or a disc number, filter and sort the results, and read what is on each disc
@@ -331,20 +331,20 @@ its default.
 ## The catalogue
 
 The catalogue is a read-only SQLite database built from public sources. The
-build of 13 September 2026 holds:
+build of 14 September 2026 holds:
 
 | | Atari ST | Amiga |
 | --- | --- | --- |
-| Menu disks and compacts | 10,630 | 1,693 |
-| Packs | 3,984 | 26,786 |
+| Menu disks and compacts | 10,684 | 1,712 |
+| Packs | 4,088 | 21,737 |
 | Single disks | 8,769 | 14,463 |
 | Compilations | 241 | 98 |
 
-That is 66,664 discs in 1,394 series, with 117,699 titles listed on 42,866 of
-them, 82,601 known dumps with their checksums, 88,362 download locations for
-47,347 discs, 1,288 dumps that TOSEC flags with a virus, the addresses of
-205,463 pictures, 20,772 facts, notes and Wikipedia article titles, and the
-histories of 2,313 crews. It takes 249 MB installed and 73 MB compressed.
+That is 61,792 discs in 1,395 series, with 117,611 titles listed on 42,818 of
+them, 82,623 known dumps with their checksums, 225,888 download locations for
+57,600 discs, 1,288 dumps that TOSEC flags with a virus, the addresses of
+207,232 pictures, 20,811 facts, notes and Wikipedia article titles, and the
+histories of 2,196 crews. It takes 329 MB installed and 88 MB compressed.
 
 A new catalogue is built every week by a GitHub Actions workflow and published
 as a release tagged `catalogue-YYYY-MM-DD`. PirateFinder can check for one at

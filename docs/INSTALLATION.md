@@ -16,7 +16,7 @@ Each package contains:
 
 - the application, under `/usr/lib/piratefinder`;
 - the newest published catalogue at the time of the release, as
-  `/usr/share/piratefinder/catalogue.sqlite` (about 249 MB);
+  `/usr/share/piratefinder/catalogue.sqlite` (about 329 MB);
 - a private copy of Greaseweazle Host Tools 1.23 and its Python dependencies,
   run as `/usr/lib/piratefinder/bin/gw`;
 - the Greaseweazle udev rules, as
