@@ -2,7 +2,8 @@
 
 The canned output uses the message strings of Greaseweazle 1.23: the Ack
 strings in ``usb.py``, the verification lines in ``tools/write.py`` and the
-fatal error banner in ``cli.py``.
+fatal error banner in ``cli.py``. ``fixtures/greaseweazle`` holds output
+recorded from real hardware (see ``RealHardwareTests``).
 """
 
 from __future__ import annotations
@@ -20,6 +21,8 @@ from piratefinder.greaseweazle import client
 from piratefinder.greaseweazle.runner import OperationController, ProcessResult
 from piratefinder.models import Geometry, Platform, PreparedImage, WriteProgress, WriteStatus
 from tests.test_greaseweazle_runner import fake_gw
+
+FIXTURES = Path(__file__).parent / "fixtures" / "greaseweazle"
 
 
 def track_lines(cylinders: int, heads: int) -> list[str]:
@@ -279,6 +282,50 @@ class OutcomeTests(ClientTestCase):
         outcome = client.write(self.prepared, drive="A", timeout=0.5, executable=command)
         self.assertEqual(outcome.status, WriteStatus.FAILED)
         self.assertIn("did not finish within 1 second and", outcome.summary)
+
+
+class RealHardwareTests(ClientTestCase):
+    """Output of the packaged gw 1.23 on a Greaseweazle F1 (firmware 1.6), drive
+    A at 300 rpm, recorded on 14 September 2026 with the serial number
+    blanked. The disk was Vectronix 834, an Atari ST disk of 81
+    cylinders, 2 sides and 9 sectors, written through PirateFinder's generated
+    disk definition; read back, its sectors matched the TOSEC dump exactly."""
+
+    def test_an_81_cylinder_st_disk_written_on_a_greaseweazle_f1(self) -> None:
+        lines = (FIXTURES / "f1-write-st_81_2_9.txt").read_text().splitlines()
+        cfg = self.folder / "st_81_2_9.cfg"
+        cfg.write_text("disk st_81_2_9\nend\n")
+        prepared = PreparedImage(
+            "Vectronix 834",
+            Platform.ATARI_ST,
+            str(self.image),
+            Geometry(81, 2, 9),
+            "st_81_2_9",
+            diskdefs_path=str(cfg),
+        )
+        outcome, progress = self.write(lines, prepared=prepared)
+        self.assertEqual(outcome.status, WriteStatus.VERIFIED)
+        self.assertEqual((outcome.retries, outcome.failed_tracks), (0, ()))
+        self.assertEqual(progress[0].track_count, 162)
+        # One step per track, then the verified whole.
+        self.assertEqual(len(progress), 163)
+        last_track = progress[-2]
+        self.assertEqual(
+            (last_track.cylinder, last_track.head, last_track.track_number), (80, 1, 162)
+        )
+        self.assertEqual(progress[-1].fraction, 1.0)
+        fractions = [item.fraction for item in progress]
+        self.assertEqual(fractions, sorted(fractions))
+
+    def test_gw_info_of_a_greaseweazle_f1(self) -> None:
+        text = (FIXTURES / "f1-info.txt").read_text()
+        status = client.parse_info(ProcessResult(0, text, False, False))
+        self.assertTrue(status.connected)
+        self.assertEqual(
+            (status.model, status.firmware, status.port, status.host_tools),
+            ("Greaseweazle F1", "1.6", "/dev/ttyACM0", "1.23"),
+        )
+        self.assertEqual(status.message, "Greaseweazle F1 connected on /dev/ttyACM0.")
 
 
 class ProbeTests(unittest.TestCase):
