@@ -91,8 +91,17 @@ class SeriesMatch:
 
 
 class SeriesRegistry:
+    """The series, looked up by id, by a source's patterns and by name.
+
+    TOSEC and Atari Legend register thousands of series while they collect,
+    before the other sources run, so ``match`` and ``by_name`` use indexes
+    kept in registration order, and rebuilt when a series is added.
+    """
+
     def __init__(self, definitions: dict[str, SeriesDef]) -> None:
         self._series = definitions
+        self._by_source: dict[str, list[SeriesDef]] = {}
+        self._by_name: dict[str, list[SeriesDef]] | None = None
 
     @classmethod
     def load(cls, directory: Path = DATA_DIR) -> SeriesRegistry:
@@ -131,11 +140,32 @@ class SeriesRegistry:
 
     def add(self, definition: SeriesDef) -> SeriesDef:
         """Register a series discovered in a source rather than declared."""
+        if definition.id not in self._series:
+            self._by_source.clear()
+            self._by_name = None
         return self._series.setdefault(definition.id, definition)
+
+    def _with_patterns(self, source: str) -> list[SeriesDef]:
+        found = self._by_source.get(source)
+        if found is None:
+            found = self._by_source[source] = [
+                series for series in self._series.values() if series.patterns.get(source)
+            ]
+        return found
+
+    def _names(self) -> dict[str, list[SeriesDef]]:
+        if self._by_name is None:
+            index: dict[str, list[SeriesDef]] = {}
+            for series in self._series.values():
+                keys = dict.fromkeys([normalise(series.name), *map(normalise, series.aliases)])
+                for key in keys:
+                    index.setdefault(key, []).append(series)
+            self._by_name = index
+        return self._by_name
 
     def match(self, source: str, text: str, platform: str | None = None) -> SeriesMatch | None:
         """Recognise ``text`` using the patterns declared for ``source``."""
-        for series in self._series.values():
+        for series in self._with_patterns(source):
             if platform is not None and series.platform != platform:
                 continue
             for pattern in series.patterns.get(source, ()):
@@ -154,11 +184,8 @@ class SeriesRegistry:
 
     def by_name(self, name: str, platform: str | None = None) -> SeriesDef | None:
         """Find a series whose name or alias equals ``name`` once normalised."""
-        wanted = normalise(name)
-        for series in self._series.values():
-            if platform is not None and series.platform != platform:
-                continue
-            if wanted == normalise(series.name) or wanted in (normalise(a) for a in series.aliases):
+        for series in self._names().get(normalise(name), ()):
+            if platform is None or series.platform == platform:
                 return series
         return None
 
