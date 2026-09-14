@@ -64,7 +64,7 @@ class LibraryPage(Adw.PreferencesPage):
         self.folders_group = Adw.PreferencesGroup(
             title="Library Folders",
             description=(
-                "PirateFinder looks for disk images in these folders and in the zip and 7z "
+                "PirateFinder looks for disk images in these folders and in the zip, 7z and LZH "
                 "archives inside them. Folders on a NAS work while they are mounted."
             ),
         )

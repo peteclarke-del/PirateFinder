@@ -59,8 +59,8 @@ Rodrigues de la Rocha, which its author placed in the public domain.
 
 GTK 4, libadwaita, PyGObject and Python come from the distribution and keep
 their own copyright records under `/usr/share/doc`. The package recommends
-the distribution's `7zip` package, used to read `.7z` archives; it is not
-bundled.
+the distribution's `7zip` package, used to read `.7z` and `.lzh` archives; it
+is not bundled.
 
 ## Catalogue data
 

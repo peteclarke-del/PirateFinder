@@ -70,7 +70,7 @@ class FakeLibrary:
             raise OSError(f"{local.path} is on a network share that is not mounted")
         return self.files[local.path]
 
-    def add_file(self, path: Path) -> list[LocalFile]:
+    def add_download(self, path: Path, disk_id: int | None, source: str) -> list[LocalFile]:
         self.added.append(Path(path))
         return []
 

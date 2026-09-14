@@ -141,12 +141,15 @@ histories. It takes 249 MB installed and 73 MB compressed.
 
 - Incremental scans of library folders and the download folder, including
   local and mounted network folders, with cancellation
-- Images inside zip, 7z and gzip archives, with one level of nesting
+- Images inside zip, 7z, gzip and LZH archives, with one level of nesting
 - Matching by raw sector hashes after decoding MSA, DMS, ADZ and unprotected
   STX, then by file hashes
 - Boot block checks during the scan
 - Unmatched files searchable by file name, volume label and the names of the
   files on Atari TOS and AmigaDOS disks
+- A copy cleaned of a boot block virus, and a download of a disc whose dumps
+  have no checksum, kept with their disc for as long as the file is
+  unchanged, and found again after a catalogue update like corrections
 - Counts of images, matched and unmatched files, duplicates and files with a
   virus
 
@@ -157,7 +160,8 @@ histories. It takes 249 MB installed and 73 MB compressed.
 - An HTTP client that sends an identifying User-Agent, makes at most one
   request a second per host, honours `Retry-After`, backs off on 429 and 5xx,
   and resumes partial downloads
-- Single members taken from large Internet Archive zip and 7z sets
+- Single members taken from large Internet Archive zip and 7z sets, and the
+  Vectronix disks from the LZH files inside the Vectronix CD image
 - Every download checked against the catalogue hash before it is kept, and
   deleted when it does not match, after which the next source is tried
 - A download with no hash of its own and no dump tied to it (D-Bug and

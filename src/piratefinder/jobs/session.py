@@ -166,6 +166,9 @@ def fetch_source(
 ) -> Path:
     """Download one online source into the download folder and add it to the library.
 
+    A download no checksum could check stays with its disc in the library
+    (``Library.add_download``).
+
     The fetcher checks the download against the location's checksum, its dump,
     or else every dump of the disc (``source.dumps``); a download that fails
     raises FetchError, so ``download_for_item`` and the session try the next
@@ -188,7 +191,7 @@ def fetch_source(
         )
     )
     with contextlib.suppress(Exception):  # a failure to index must not lose the download
-        library.add_file(path)
+        library.add_download(path, source.location.disk_id, source.location.url)
     return path
 
 

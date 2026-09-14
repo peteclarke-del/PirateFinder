@@ -32,6 +32,11 @@ one download location, placed in one of three ways, tried in this order:
 The Archive publishes hashes of the zips, not of the images inside them, so
 only the old DATs give a location a hash.
 
+The Vectronix CD (``atarist-vectronix-1``) is an ISO of the crew's disks as
+LZH files, one MSA image in each, named by the disk number ("AREA.3/604.LZH").
+An LZH is placed only by a series rule, like a short menu zip, and its
+location says ``container="lzh"``; the application reads it with 7-Zip.
+
 Some archives hold the raw images of a whole TOSEC set rather than a zip per
 image, as ``Name/Name.st`` or ``Set/Name.st``. A raw member is its own image:
 its file name is its TOSEC name, and its location has no container. Sets
@@ -134,6 +139,13 @@ FIX_2025_DIR = "TOSEC Main Update Pack 2024-05-17 to 2025-05-17 (TOSEC-v2025-03-
 ROUNDUP = "TOSEC_2020_Roundup"
 FULL_2022 = "tosec-full-2022-07-10"
 NEWPAIN = "tosec-databases-newpain-in-work-2023-11-07_202311"
+# Vectronix CD #1: disks 000 to 999 as LZH files in AREA.1 to AREA.4. AREA.5
+# holds Falcon disks ("F011.LZH") outside the numbered series, and TOOLS the
+# archivers. Tried after the TOSEC sets, which carry checksums; audit of
+# 2026-09-14: 389 of the 390 Vectronix disks without a download are on it,
+# and all 12 sampled images of disks with a TOSEC dump match it sector for
+# sector, 3 of them once their MSA's extra track record is left out.
+VECTRONIX = "atarist-vectronix-1"
 
 
 def _fix_2025(folder: str, dat: str) -> str:
@@ -243,6 +255,14 @@ ARCHIVE_SETS = (
         25,
         include=("Atari ST [TOSEC]/Compilations/", "Atari ST [TOSEC]/Games/"),
     ),
+    ArchiveSet(
+        VECTRONIX,
+        "VECTRONIX1.iso",
+        "atari-st",
+        "menu",
+        27,
+        include=tuple(f"AREA.{area}/" for area in range(1, 5)),
+    ),
 )
 ITEM_SETS = (
     ItemSet("ROMs_-_Atari_ST_-_Compilations-Demos-20050110-Update", "atari-st", "compilation", 25),
@@ -261,6 +281,7 @@ DISCOVERIES = (
 # say otherwise. A TOSEC folder named after its format ("[STX]") overrides it.
 DEFAULT_FORMAT = {"atari-st": "st", "amiga": "adf"}
 IMAGE_FORMATS = frozenset({"st", "stx", "msa", "adf", "dms", "adz", "ipf"})
+LZH_SUFFIXES = (".lzh", ".lha")
 _FOLDER_FORMAT = re.compile(r"\[(?P<format>[A-Za-z0-9]+)\]")
 
 
@@ -364,6 +385,11 @@ def parse_listing(text: str, base_url: str) -> list[Member]:
 def raw_image(path: str) -> bool:
     """Whether an archive member is a disk image itself rather than a zip of one."""
     return PurePosixPath(path).suffix.lower().lstrip(".") in IMAGE_FORMATS
+
+
+def lzh_file(path: str) -> bool:
+    """Whether an archive member is an LZH file, which holds a disk under a short name."""
+    return PurePosixPath(path).suffix.lower() in LZH_SUFFIXES
 
 
 def repair_paths(members: list[Member], how: str, listing_url: str) -> list[Member]:
@@ -591,8 +617,9 @@ def series_record(
     item: str,
     size: int | None,
     priority: int,
+    container: str = "zip",
 ) -> DiskRecord | None:
-    """A keyed record for a zip whose path a series rule recognises, else None.
+    """A keyed record for a zip or LZH whose path a series rule recognises, else None.
 
     The record only attaches to a disc another source describes; its
     location names no image and carries no hash.
@@ -614,7 +641,7 @@ def series_record(
             LocationRecord(
                 provider=INFO.id,
                 url=url,
-                container="zip",
+                container=container,
                 member="",
                 size=size,
                 page_url=details_url(item),
@@ -637,7 +664,18 @@ def zip_record(
     old: OldNames | None,
     uploaded: datetime.date | None,
 ) -> DiskRecord | None:
-    """The record for one zip or raw image of an item: by hash, by series or by name."""
+    """The record for one zip, LZH or raw image of an item: by hash, by series or by name."""
+    if lzh_file(path):
+        return series_record(
+            ctx,
+            path=path,
+            url=url,
+            platform=platform,
+            item=item,
+            size=size,
+            priority=priority,
+            container="lzh",
+        )
     raw = raw_image(path)
     name = PurePosixPath(path).name if raw else image_name(path, platform)
     if name is None:

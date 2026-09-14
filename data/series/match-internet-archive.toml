@@ -5,8 +5,9 @@
 # "[Menus]/P/Pompey Pirates/PP_054.zip". These names are not TOSEC names, so
 # the zips cannot be placed by name; a rule here gives the series, number,
 # part and version instead. The patterns are matched, without case, against
-# the member path without ".zip". A recognised zip only joins a disc another
-# source describes; it never makes a disc of its own.
+# the member path without its suffix (".zip", or ".LZH" on the Vectronix CD).
+# A recognised file only joins a disc another source describes; it never
+# makes a disc of its own.
 #
 # Suffixes follow the crews' own habits: a letter after the number is the
 # part ("ZUUL032A", "med_013a"), "V2" is the second version and "vbis" the
@@ -458,3 +459,10 @@ patterns = ['^\[Menus\]/S/Share Wares/SHARE0*(?P<number>\d+)$']
 series = "pulse"
 source = "internet-archive"
 patterns = ['^\[Menus\]/P/Pulse/PULSE0*(?P<number>\d+)$']
+
+# The Vectronix CD (atarist-vectronix-1) names each disk by its number in one
+# of four folders, as "AREA.3/604.LZH".
+[[match]]
+series = "vectronix"
+source = "internet-archive"
+patterns = ['^AREA\.[1-4]/(?P<number>\d{3})$']
