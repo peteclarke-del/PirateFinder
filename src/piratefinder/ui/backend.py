@@ -257,6 +257,17 @@ class Backend:
         """Remove a boot block virus from a library file, keeping the original as a backup."""
         raise NotImplementedError
 
+    def link_file(self, local: LocalFile, disk_id: int) -> LocalFile:
+        """Keep a library file that matches no dump with the disc the user chose.
+
+        Raises an error with a sentence for the user when it cannot be linked.
+        """
+        raise NotImplementedError
+
+    def unlink_file(self, local: LocalFile) -> LocalFile:
+        """Stop keeping a library file with the disc it was linked or downloaded for."""
+        raise NotImplementedError
+
     def brainfile_status(self) -> BrainfileStatus:
         raise NotImplementedError
 
@@ -417,6 +428,12 @@ class UnavailableBackend(Backend):
 
     def clean_file(self, local: LocalFile) -> LocalFile:
         raise RuntimeError(f"The file cannot be cleaned: {self.error}")
+
+    def link_file(self, local: LocalFile, disk_id: int) -> LocalFile:
+        raise RuntimeError(f"The file cannot be linked: {self.error}")
+
+    def unlink_file(self, local: LocalFile) -> LocalFile:
+        raise RuntimeError(f"The file cannot be unlinked: {self.error}")
 
     def brainfile_status(self) -> BrainfileStatus:
         from .real_backend import brainfile_status
