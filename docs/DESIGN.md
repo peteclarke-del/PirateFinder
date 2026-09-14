@@ -41,7 +41,7 @@ src/piratefinder/            the application
     update.py                check for and install a newer catalogue snapshot
   images/
     vendor/                  code lifted from the File Forges and Greaseweazle-GUI
-    archives.py              list and read members of zip, 7z and gzip files
+    archives.py              list and read members of zip, 7z, gzip and LZH files
     inspect.py               identify an image, decode it to raw sectors, hash it
     virus.py                 boot block virus detection and removal
     prepare.py               turn any supported image into something gw can write
@@ -53,6 +53,7 @@ src/piratefinder/            the application
   library/
     userdb.py                user database: library index, history, corrections, meta
     corrections.py           the user's corrections, kept across catalogue builds
+    discs.py                 a disc as any catalogue build can find it again
     scanner.py               incremental scan of library folders
     library.py               matching, availability and unmatched-file search
   online/
@@ -284,6 +285,9 @@ class Library:
     def search_unmatched(self, text: str, limit: int = 200) -> list[LocalFile]
     def infected_files(self, limit: int = 200) -> list[LocalFile]
     def add_file(self, path: Path) -> list[LocalFile]
+    def add_download(self, path: Path, disk_id, source="") -> list[LocalFile]
+        # a download that matches no dump stays with the disc it was fetched for
+    def relink_files(self, catalogue) -> str   # finds the discs of kept files again
     def rematch(self) -> int
     def stats(self) -> dict[str, int]
 
@@ -355,7 +359,7 @@ disks for tests and screenshots.
 | `.stx` | Converted to `.st` only when the Pasti image carries no protection; otherwise refused with an explanation and an alternative dump offered where the catalogue has one |
 | `.ipf` | Written directly when gw can load the SPS Decoder Library (`caps.status().usable`); otherwise refused with `CapsStatus.problem`, which points to IPF Support in Preferences or says no build exists for this processor |
 | `.scp`, `.hfe` | Written directly; Greaseweazle cannot verify flux writes, and the summary says so. Without `--format`, gw writes cylinders 0 to 81 only, so images with more cylinders get an explicit `--tracks` range |
-| Inside `.zip` or `.7z` | The disk image member is read, then handled as above |
+| Inside `.zip`, `.7z` or `.lzh` | The disk image member is read, then handled as above |
 
 The Greaseweazle host tool reports some hardware failures, such as a
 write-protected disk, with `Command Failed` and an exit status of zero. The
@@ -625,7 +629,8 @@ Queue page while the disk is written, in the summary, the history and the
 report, and after Download Only. The HTTP client identifies itself, keeps at
 most one request a second per host, honours `Retry-After`, and backs off on 429 and
 5xx responses. The Internet Archive serves single members from inside large
-zip and 7z archives, which is how one disk is taken from a multi-gigabyte set.
+zip and 7z archives, and inside ISO images, which is how one disk is taken from
+a multi-gigabyte set or one LZH file from the Vectronix CD.
 
 The catalogue itself is updated by downloading a newer catalogue published as
 a GitHub release asset named by its layout, `catalogue-layout<N>.sqlite.gz`
@@ -759,7 +764,7 @@ MediaCache.wikipedia_summary(title, *, cancel=None) -> TriviaItem | None
 
 Files and settings added since version 0.1.0:
 
-- The user database is at version 5. Version 2: `library_files` gains
+- The user database is at version 6. Version 2: `library_files` gains
   `boot_status` and `boot_name`, and a `cleaned_files` table remembers which
   disc a cleaned file came from, because a cleaned image no longer matches
   any catalogue checksum. That upgrade makes the next scan read every file
@@ -770,7 +775,15 @@ Files and settings added since version 0.1.0:
   the first `corrections` table, which was keyed by catalogue disc ids and
   was never written to (see User corrections). Version 5: a `meta` table,
   which holds the virus data fingerprint (`boot_fingerprint`); a database
-  without one has its boot blocks checked again (see Viruses).
+  without one has its boot blocks checked again (see Viruses). Version 6:
+  `file_discs` replaces `cleaned_files` and holds every file that stays with
+  a disc whose dumps it does not match: a cleaned copy, and a download no
+  checksum could check (`Library.add_download`). Each row keeps the disc as
+  `corrected_discs` does, by series and number or by the checksums of its
+  dumps (`library/discs.py`), with the sectors SHA-1 of the file, so the
+  file is let go when it changes. `Library.relink_files` finds every disc
+  again in a new catalogue. Rows carried over from `cleaned_files` knew only
+  a disc id, and take the disc of that id in the catalogue in use.
 - The Amiga Bootblock Reader brainfile, when the user downloads it, lives in
   `~/.local/share/piratefinder/virus/abr/` with a `release.json` recording
   the release. Installing it changes the virus data fingerprint, so the

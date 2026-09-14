@@ -1,4 +1,4 @@
-"""Listing and reading zip, gzip and 7z archives, nested one level deep."""
+"""Listing and reading zip, gzip, 7z and LZH archives, nested one level deep."""
 
 from __future__ import annotations
 
@@ -11,7 +11,14 @@ from unittest import mock
 
 from piratefinder.images import archives
 from piratefinder.images.archives import ArchiveError, Member
-from tests.test_images_synthetic import adf_image, gzip_bytes, msa_archive, st_image, zip_bytes
+from tests.test_images_synthetic import (
+    adf_image,
+    gzip_bytes,
+    lzh_bytes,
+    msa_archive,
+    st_image,
+    zip_bytes,
+)
 
 
 class ArchiveTestCase(unittest.TestCase):
@@ -218,6 +225,41 @@ class SevenZipTests(ArchiveTestCase):
             archives.members(path)
 
 
+@unittest.skipUnless(archives.find_7z(), "7-Zip is not installed")
+class LzhTests(ArchiveTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.disk = msa_archive(st_image(80, 2, 10), 80, 2, 10)
+
+    def test_the_msa_in_an_lzh_is_read(self) -> None:
+        # One MSA per archive, as on the Vectronix CD.
+        path = self.write("159.LZH", lzh_bytes({"159.MSA": self.disk, "README.TXT": b"hi"}))
+        self.assertEqual(archives.archive_kind(path), "lzh")
+        self.assertEqual(
+            archives.members(path),
+            [Member("159.MSA", len(self.disk)), Member("README.TXT", 2)],
+        )
+        self.assertEqual(archives.read_member(path, "159.MSA"), self.disk)
+        self.assertEqual(archives.read_member(path, ""), self.disk)
+        found = {member.name: data for member, data in archives.iter_members(path)}
+        self.assertEqual(found, {"159.MSA": self.disk})
+
+    def test_an_lzh_without_its_suffix_is_recognised_by_its_header(self) -> None:
+        path = self.write("download", lzh_bytes({"1.MSA": self.disk}))
+        self.assertEqual(archives.archive_kind(path), "lzh")
+        self.assertEqual(archives.read_member(path, "1.MSA"), self.disk)
+
+    def test_an_lzh_inside_a_zip(self) -> None:
+        path = self.write(
+            "set.zip", zip_bytes({"AREA.1/001.LZH": lzh_bytes({"001.MSA": self.disk})})
+        )
+        self.assertEqual(
+            [member.name for member in archives.disk_image_members(path)],
+            ["AREA.1/001.LZH::001.MSA"],
+        )
+        self.assertEqual(archives.read_member(path, "AREA.1/001.LZH::001.MSA"), self.disk)
+
+
 class MissingSevenZipTests(ArchiveTestCase):
     def test_a_7z_without_7zip_explains_what_to_install(self) -> None:
         path = self.write("x.7z", b"7z\xbc\xaf\x27\x1c" + bytes(64))
@@ -226,6 +268,14 @@ class MissingSevenZipTests(ArchiveTestCase):
                 archives.members(path)
             with self.assertRaisesRegex(ArchiveError, "needs 7-Zip"):
                 archives.read_member(path, "a.st")
+
+    def test_an_lzh_without_7zip_explains_what_to_install(self) -> None:
+        path = self.write("001.LZH", lzh_bytes({"001.MSA": b"\x0e\x0f"}))
+        with (
+            mock.patch.object(archives, "find_7z", return_value=None),
+            self.assertRaisesRegex(ArchiveError, "001.LZH is an LZH file, .* needs 7-Zip"),
+        ):
+            archives.read_member(path, "001.MSA")
 
 
 class MemberNameTests(unittest.TestCase):

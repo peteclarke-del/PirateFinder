@@ -26,15 +26,13 @@ from typing import Any
 
 from .. import paths
 from ..archive_layout import DEFAULT_FOLDERS, platform_folder
-from ..images.archives import base_name, is_archive_name, is_disk_image_name
+from ..images.archives import base_name, header_kind, is_archive_name, is_disk_image_name
 from ..library.scanner import entry_from_bytes
 from ..library.userdb import LibraryEntry
 from ..models import ImageRecord, Location, Platform
 from .http import DownloadCancelled, Downloader, DownloadError, DownloadProgress
 
 HASH_KINDS = ("sha512", "sha1", "md5", "crc32")
-_ZIP_MAGIC = b"PK\x03\x04"
-_SEVEN_ZIP_MAGIC = b"7z\xbc\xaf\x27\x1c"
 _UNSAFE = set('<>:"/\\|?*')
 
 
@@ -127,7 +125,8 @@ def _looks_like_archive(path: Path, location: Location) -> bool:
         return True
     with path.open("rb") as handle:
         head = handle.read(8)
-    return head.startswith((_ZIP_MAGIC, _SEVEN_ZIP_MAGIC))
+    # A gzip file is left to inspect_bytes, which decodes ADZ and gzipped images.
+    return header_kind(head) not in ("", "gz")
 
 
 def _extract(

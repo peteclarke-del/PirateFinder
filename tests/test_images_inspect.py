@@ -148,6 +148,18 @@ class InspectTests(unittest.TestCase):
         self.assertNotEqual(found.hashes, found.raw_hashes)
         self.assertEqual(found.volume_label, "DISK")
 
+    def test_an_msa_with_a_record_past_its_last_track_holds_the_declared_tracks(self) -> None:
+        # Some archives on the Vectronix CD carry one more track record than
+        # their header declares; the declared tracks match the TOSEC dumps.
+        raw = st_image(80, 2, 10, files={"A.PRG": bytes(9000)})
+        extra = vendor_msa.pack_track(bytes(10 * 512))
+        packed = msa_archive(raw, 80, 2, 10) + len(extra).to_bytes(2, "big") + extra
+        found = inspect_bytes(packed, "disk.msa")
+        self.assertEqual(found.problem, "")
+        self.assertEqual(found.raw, raw)
+        self.assertEqual(found.geometry, Geometry(80, 2, 10))
+        self.assertEqual(vendor_msa.parse_msa(packed).trailing, 2 + len(extra))
+
     def test_damaged_msa_reports_a_problem_without_raising(self) -> None:
         packed = msa_archive(st_image(), 80, 2, 10)
         found = inspect_bytes(packed[: len(packed) // 2], "cut.msa")

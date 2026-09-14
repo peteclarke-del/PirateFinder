@@ -230,6 +230,15 @@ than a local build.
   and version from the path, and the location joins that disc when another
   source describes it. These locations carry no hash; the application checks
   a download against the disc's known dumps.
+- The Vectronix CD (`atarist-vectronix-1`) is an ISO image of the Vectronix
+  disks 000 to 999 as LZH files, one MSA image in each, and the Archive
+  serves each LZH on its own. A rule in the same file reads the disc number
+  from the path ("AREA.3/604.LZH"), so each location joins its Vectronix
+  disc. The Falcon disks in `AREA.5` are outside the numbered series and are
+  left out. The CD is the only download for 389 Vectronix disks. Of the 12
+  images checked on 14 September 2026 whose disks also have a TOSEC dump, all
+  matched it sector for sector: 9 as they are, and 3 once the extra track
+  record their MSA carries was left out.
 - Terms: the Internet Archive's terms of use apply to the items it hosts.
   Items are uploaded by third parties. Recorded as "archive.org terms of use".
 - Requests: the builder uses the Archive's metadata API, its scrape search API

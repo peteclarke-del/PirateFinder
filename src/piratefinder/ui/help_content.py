@@ -1150,10 +1150,11 @@ HELP_TOPICS = (
             HelpSection(
                 "Archives",
                 (
-                    "PirateFinder looks inside zip, 7z and gzip files as well as plain images, "
-                    "and follows one level of nesting, such as a 7z file holding one zip for "
-                    "each disk. Reading 7z files needs the `7z` command from the 7zip package, "
-                    "which the PirateFinder package recommends and apt installs by default.",
+                    "PirateFinder looks inside zip, 7z, gzip and LZH files as well as plain "
+                    "images, and follows one level of nesting, such as a 7z file holding one zip "
+                    "for each disk. Reading 7z and LZH files needs the `7z` command from the "
+                    "7zip package, which the PirateFinder package recommends and apt installs by "
+                    "default.",
                 ),
             ),
             HelpSection(
@@ -1239,7 +1240,8 @@ HELP_TOPICS = (
                     (
                         "Internet Archive",
                         "TOSEC-named Atari ST and Amiga images, including single disks taken "
-                        "from inside large zip and 7z sets.",
+                        "from inside large zip and 7z sets, and the Vectronix disks from the "
+                        "LZH files on the Vectronix CD.",
                     ),
                     ("Atari Legend", "MSA dumps of Atari ST menu disks."),
                     ("D-Bug search engine", "MSA files of D-Bug's own menus."),
@@ -1272,7 +1274,7 @@ HELP_TOPICS = (
             HelpSection(
                 "Checks",
                 (
-                    "A download is taken out of its zip or 7z file and compared with the "
+                    "A download is taken out of its zip, 7z or LZH file and compared with the "
                     "checksum in the catalogue before it is kept. An image that does not match "
                     "is deleted, and the next provider is tried.",
                     "Some sources, such as the D-Bug and crew list MSA files, publish images "
@@ -1282,7 +1284,9 @@ HELP_TOPICS = (
                     "which dump it matched. When it matches none of them it is deleted, and the "
                     "next provider is tried. Only when the catalogue knows no checksum for any "
                     "dump of the disc is the download kept unchecked, and while the disc is "
-                    "written a note on the Queue page says so.",
+                    "written a note on the Queue page says so. The library keeps such a download "
+                    "with its disc, so the disc shows as in your library, for as long as the "
+                    "file is unchanged.",
                     "PirateFinder names itself to every server, sends at most one request a "
                     "second to each server, waits when a server asks it to, and resumes a download "
                     "that was interrupted.",
@@ -1687,7 +1691,10 @@ HELP_TOPICS = (
                         "Written directly as flux. Greaseweazle cannot verify a flux write, so "
                         "these discs are reported as Written, not verified.",
                     ),
-                    ("`.zip`, `.7z`", "The disk image inside is read, then handled as above."),
+                    (
+                        "`.zip`, `.7z`, `.lzh`",
+                        "The disk image inside is read, then handled as above.",
+                    ),
                 ),
                 columns=("Format", "Written as"),
             ),
