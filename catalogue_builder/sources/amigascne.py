@@ -228,6 +228,9 @@ def records_from_index(ctx: BuildContext, entries: Iterable[IndexEntry]) -> Iter
                     platform=PLATFORM,
                     kind="pack",
                     title=title_for(pack.folder, pack.stem),
+                    # The group the title names, so the disk is not filed under
+                    # "Unknown crew"; the merge expands a tag through groups.toml.
+                    publisher=group_and_name(pack.folder, pack.stem)[0],
                 )
         if image is not None and all(known.crc32 != image.crc32 for known in record.images):
             record.images.append(image)
