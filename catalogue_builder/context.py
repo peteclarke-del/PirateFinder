@@ -86,11 +86,13 @@ class BuildContext:
         name: str | None = None,
         max_age_days: float = 7.0,
         retries: int = 4,
+        headers: dict[str, str] | None = None,
     ) -> Path:
         """Download ``url`` into the cache unless a fresh copy is already there.
 
         Requests to one host are kept ``hosts.interval`` apart, retries
-        included.
+        included. ``headers`` are sent with the request (a JSON listing asks
+        with Accept); give such a download its own ``name`` in the cache.
         """
         target = self.cache_path(url, name)
         if target.exists():
@@ -108,7 +110,9 @@ class BuildContext:
             if wait > 0:
                 time.sleep(wait)
             self._last_request[host] = time.monotonic()
-            request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+            request = urllib.request.Request(
+                url, headers={**(headers or {}), "User-Agent": USER_AGENT}
+            )
             try:
                 with urllib.request.urlopen(request, timeout=120) as response:
                     partial = target.with_suffix(target.suffix + ".part")

@@ -1243,6 +1243,15 @@ HELP_TOPICS = (
                         "Amiga pack disks: game compacts and demo, music and tool packs, "
                         "downloaded from its mirror on ftp.scene.org.",
                     ),
+                    (
+                        "scene.org",
+                        "Amiga packs Demozoo names on the main scene.org archive.",
+                    ),
+                    (
+                        "Fujiology",
+                        "Atari ST packs and a few menus Demozoo names on fujiology.org, only "
+                        "files the size of a disk image.",
+                    ),
                 ),
                 columns=("Provider", "Hosts"),
             ),
