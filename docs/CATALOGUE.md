@@ -68,8 +68,12 @@ updated catalogue in `~/.local/share/piratefinder`, the packaged copy in
 Each module in `catalogue_builder/sources/` that defines `INFO` and
 `collect(ctx)` is a source; the builder finds them itself. A module may also
 set `CONTENT_PRIORITY` (lower wins when several sources list the contents of
-a disk; 90 when unset) and `DEFAULT_ENABLED` (False for heavy optional
-sources), and define `collect_crews(ctx)`, which returns `CrewRecord`s for
+a disk; 90 when unset), `DEFAULT_ENABLED` (False for heavy optional
+sources) and `REGISTERS_SERIES` (True for a source that adds series to the
+registry while it collects: TOSEC and Atari Legend). Sources that register
+series run first, so the others can key their records by those series; the
+merge still takes the sources in content priority order. A module may also
+define `collect_crews(ctx)`, which returns `CrewRecord`s for
 the `crews` table: one record per crew of that source, with the source's own
 id for the crew (`id`) and the number of releases the source credits it with
 on each platform (`platforms`). The source's disk records list the ids of

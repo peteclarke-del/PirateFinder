@@ -9,7 +9,11 @@ Every module in ``catalogue_builder/sources`` that defines ``INFO`` and
 wins when several sources list a disk's contents, default 90) and
 ``DEFAULT_ENABLED`` (False for heavy optional sources, which then run only
 when named with ``--with`` or ``--only``), and define
-``collect_crews(ctx)`` returning ``CrewRecord``s for the crews table.
+``collect_crews(ctx)`` returning ``CrewRecord``s for the crews table. A
+source that adds series to the registry while it collects sets
+``REGISTERS_SERIES = True``: those run before the others, so every source
+can recognise the series they add; the merge still takes the sources in
+content priority order.
 
 A source that fails is logged and left out, unless ``--strict`` is given.
 The catalogue is written to a temporary file, optimised and renamed into
@@ -188,7 +192,11 @@ def main(
     started = time.monotonic()
     batches: list[SourceBatch] = []
     statuses: dict[str, str] = {f"source:{name}": f"failed: {e}" for name, e in broken.items()}
-    for source in chosen:
+    # Sources that add series run first ("800 Degrees (Scoopex)" from TOSEC),
+    # so Demozoo and amigascne key their packs by those series too instead of
+    # making a second disk beside each one.
+    running = sorted(chosen, key=lambda source: not registers_series(source))
+    for source in running:
         log(f"{source.info.id}: collecting")
         begun = time.monotonic()
         try:
@@ -218,6 +226,8 @@ def main(
     if not batches:
         log("every source failed; no catalogue written")
         return 1
+    order = {source.info.id: index for index, source in enumerate(chosen)}
+    batches.sort(key=lambda batch: order[batch.info.id])
 
     result = merge_records(batches, registry, log)
     built_at = datetime.datetime.now(datetime.UTC).replace(microsecond=0).isoformat()
@@ -227,6 +237,10 @@ def main(
     _report(stats, log)
     log(f"catalogue written to {args.output} in {time.monotonic() - started:.1f} s")
     return 0
+
+
+def registers_series(source: Source) -> bool:
+    return bool(getattr(source.module, "REGISTERS_SERIES", False))
 
 
 def collect_crews(

@@ -53,6 +53,8 @@ MODULES = {
 
 
 class BuilderCommandTest(unittest.TestCase):
+    modules = MODULES
+
     def setUp(self) -> None:
         self.folder = tempfile.TemporaryDirectory()
         self.addCleanup(self.folder.cleanup)
@@ -60,7 +62,7 @@ class BuilderCommandTest(unittest.TestCase):
         self.name = f"fake_sources_{id(self)}"
         package = root / self.name
         package.mkdir()
-        for file_name, source in MODULES.items():
+        for file_name, source in self.modules.items():
             (package / file_name).write_text(textwrap.dedent(source))
         sys.path.insert(0, str(root))
         self.addCleanup(sys.path.remove, str(root))
@@ -168,3 +170,56 @@ class SourceLicenceTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+REGISTERING = {
+    "__init__.py": "",
+    "early.py": """
+        from catalogue_builder.records import ContentRecord, DiskRecord, SourceInfo
+        INFO = SourceInfo("early", "Early source", "https://early.example")
+        CONTENT_PRIORITY = 35
+        def collect(ctx):
+            # A pack list that can only be keyed by a series another source adds.
+            found = ctx.series.by_name("Glenz Pack (Mad Elks)", "amiga")
+            yield DiskRecord("early", "amiga", "pack", found.id if found else "", 10,
+                             title="Glenz Pack 10", contents=[ContentRecord("Glenz Demo")])
+    """,
+    "registrar.py": """
+        from catalogue_builder.records import DiskRecord, ImageRecordIn, SourceInfo
+        from catalogue_builder.series import SeriesDef
+        INFO = SourceInfo("registrar", "Registering source", "https://registrar.example")
+        CONTENT_PRIORITY = 90
+        REGISTERS_SERIES = True
+        def collect(ctx):
+            ctx.series.add(SeriesDef("glenz-pack", "Glenz Pack (Mad Elks)", "amiga", "pack",
+                                     label="Glenz Pack {number}"))
+            yield DiskRecord("registrar", "amiga", "pack", "glenz-pack", 10,
+                             images=[ImageRecordIn("g10.adf", "adf", md5="cc")])
+    """,
+}
+
+
+class RunOrderTest(BuilderCommandTest):
+    """Sources that add series run first, so the others can key records by them."""
+
+    modules = REGISTERING
+
+    def test_a_series_another_source_adds_keys_an_earlier_sources_records(self) -> None:
+        self.assertEqual(self.run_main(), 0)
+        with sqlite3.connect(self.output) as connection:
+            disks = connection.execute("SELECT id, label FROM disks").fetchall()
+            titles = connection.execute("SELECT title FROM contents").fetchall()
+            images = connection.execute("SELECT count(*) FROM images").fetchone()[0]
+        self.assertEqual(len(disks), 1, disks)  # one disk, not a pack list beside a dump
+        self.assertEqual((titles, images), ([("Glenz Demo",)], 1))
+        order = [line.split(":")[0] for line in self.logged if line.endswith(": collecting")]
+        self.assertEqual(order, ["registrar", "early"])
+
+    # The command tests above are for the other fake sources.
+    test_discovery_and_selection = None
+    test_a_failing_source_is_skipped_and_the_catalogue_published = None
+    test_strict_stops_at_a_failing_source = None
+    test_only_skip_and_with = None
+    test_list_sources = None
+    test_input_must_name_a_source = None
+    test_every_source_states_its_licence_or_terms = None
