@@ -49,6 +49,17 @@
     <keyword>compact</keyword>
   </keywords>
   <releases>
+    <release version="0.2.4" date="2026-09-14">
+      <description>
+        <p>Link to Disc, for menu disks downloaded by hand.</p>
+        <ul>
+          <li>Link to Disc counts a library file that matches no dump, such as a menu disk downloaded from a forum or dumped from your own floppy, as the disc you choose, also inside a zip or 7z file and after a catalogue update</li>
+          <li>A disc's details list Your Copies: the files that count as the disc although they match none of its dumps, each with Unlink</li>
+          <li>The filter lists on the Find page show whole names, where Applications showed as "Ap..."</li>
+          <li>The bundled catalogue is the first with the Vectronix disks from the Vectronix CD</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.3" date="2026-09-14">
       <description>
         <p>More discs found, and more ways to spell a title.</p>
