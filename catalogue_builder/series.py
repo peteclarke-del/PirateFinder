@@ -199,9 +199,10 @@ class GroupRegistry:
     ``expand("QTX")`` gives "Quartex"; a tag that is not listed comes back as
     it was. ``expand`` also accepts several groups joined by " - ", the TOSEC
     way of writing a joint release, and expands each of them. A group entry
-    may list ``platforms``: its abbreviations then mean it only on those
-    platforms ("ICS" is one crew on the Atari ST and another on the Amiga),
-    and are expanded only when the caller names the platform.
+    may list ``platforms``: its abbreviations and aliases then mean it only on
+    those platforms ("ICS" is one crew on the Atari ST and another on the
+    Amiga), and are expanded only when the caller names the platform; a
+    caller that names none gets the aliases of any platform.
     """
 
     def __init__(
@@ -209,16 +210,22 @@ class GroupRegistry:
         abbreviations: dict[str, str],
         aliases: dict[str, str],
         platform_abbreviations: dict[tuple[str, str], str] | None = None,
+        platform_aliases: dict[tuple[str, str], str] | None = None,
     ) -> None:
         self._abbreviations = abbreviations
         self._aliases = aliases
         self._platform_abbreviations = platform_abbreviations or {}
+        self._platform_aliases = platform_aliases or {}
+        self._any_platform_aliases = {
+            key: name for (key, _p), name in self._platform_aliases.items()
+        }
 
     @classmethod
     def load(cls, path: Path = GROUPS_FILE) -> GroupRegistry:
         abbreviations: dict[str, str] = {}
         aliases: dict[str, str] = {}
         by_platform: dict[tuple[str, str], str] = {}
+        aliases_by_platform: dict[tuple[str, str], str] = {}
         if path.exists():
             with path.open("rb") as handle:
                 document = tomllib.load(handle)
@@ -234,8 +241,12 @@ class GroupRegistry:
                             raise ValueError(f"{path.name}: {target!r} names two groups")
                         table[target] = name
                 for alias in entry.get("aliases", []):
-                    aliases[normalise(alias)] = name
-        return cls(abbreviations, aliases, by_platform)
+                    if platforms:
+                        for platform in platforms:
+                            aliases_by_platform[(normalise(alias), platform)] = name
+                    else:
+                        aliases[normalise(alias)] = name
+        return cls(abbreviations, aliases, by_platform, aliases_by_platform)
 
     def expand_one(self, tag: str, platform: str = "") -> str:
         text = tag.strip()
@@ -243,7 +254,12 @@ class GroupRegistry:
             return self._platform_abbreviations[(text, platform)]
         if text in self._abbreviations:
             return self._abbreviations[text]
-        return self._aliases.get(normalise(text), text)
+        key = normalise(text)
+        if platform:
+            found = self._platform_aliases.get((key, platform))
+        else:
+            found = self._any_platform_aliases.get(key)
+        return found or self._aliases.get(key, text)
 
     def expand(self, text: str, platform: str = "") -> str:
         names = [self.expand_one(part, platform) for part in text.split(" - ") if part.strip()]
