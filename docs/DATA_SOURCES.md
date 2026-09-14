@@ -65,6 +65,12 @@ than a local build.
   number, issue, version, disk part, condition, scroll text and what is on
   each disk), the SHA-512 of each menu disk's MSA dump, and the dump downloads
   as locations. Links to Demozoo productions are taken from the same data.
+- Format: the export of 2026-09-13 renamed some tables and columns
+  (`companies`, `individual_nickname`, `game_screenshot`, `position`,
+  `sort_direction`, `company_id`) and moved the link between a menu disk and
+  its dump onto the dump (`menu_disk_dumps.menu_disk_id`). The importer reads
+  exports from before and after that change and maps the newer names to the
+  older ones.
 - Details pane: the menu's release date where the site has one (about 500
   disks, to the day); the addresses of the site's menu screenshots (about
   3,950, `storage/images/menu_screenshots/<id>.<ext>`, credited "Screenshot:
