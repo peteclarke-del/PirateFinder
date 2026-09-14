@@ -198,8 +198,8 @@ Merge the reviewed release pull request, then create and push a tag that
 exactly matches the version:
 
 ```sh
-git tag -s v0.2.3 -m "PirateFinder v0.2.3"
-git push origin v0.2.3
+git tag -s v0.2.4 -m "PirateFinder v0.2.4"
+git push origin v0.2.4
 ```
 
 The **Release** workflow (`.github/workflows/release.yml`) then:
