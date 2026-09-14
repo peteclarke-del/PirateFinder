@@ -21,11 +21,11 @@ reason, and PirateFinder then tries the next image of the same disk.
 | `.dms` | Decoded to ADF in memory with the vendored DiskMasher decoder, which checks every track's checksum, then written as ADF. |
 | `.adz`, `.gz` | Decompressed, then handled by what is inside (normally an ADF). An image compressed twice is refused. |
 | `.st` | The layout comes from the boot sector, checked against the file size. The standard 80-cylinder layouts use `atarist.360` to `atarist.880` and `ibm.1440`. Any other layout, such as 82 or 83 cylinders or 11 sectors on one side, gets a generated disk definition so no track is dropped. When the boot sector does not describe the disk, the layout is taken from the file size, with a note saying so. |
-| `.msa` | Unpacked to raw sectors, then written exactly as an `.st`, so the layout handling is identical. |
+| `.msa` | Unpacked to raw sectors, then written exactly as an `.st`, so the layout handling is identical. Bytes after the last track the header declares are left out: some archivers wrote one track record too many, and the declared tracks are the disk. |
 | `.stx` | Converted to `.st` only when the Pasti image records no copy protection. A protected STX is refused, because a sector image cannot hold the protection and Greaseweazle cannot write STX files; choose an IPF, SCP or HFE dump instead. |
 | `.ipf` | Written directly when `gw` can load the SPS Decoder Library (CAPSImg, `libcapsimage.so.5`): the copy PirateFinder installs from Preferences, Greaseweazle page, IPF Support, or one installed by other means. Its licence allows only non-commercial use, so it is not shipped with PirateFinder. Without it the image is refused with a sentence that points to IPF Support, or that says PirateFinder has no build for this computer's processor. See [IPF support](#ipf-support). |
 | `.scp`, `.hfe` | Written directly as flux. Greaseweazle cannot read back and verify a flux write, so the result is reported as written, not verified. |
-| Inside `.zip` or `.7z` | The disk image member is read into memory, then handled as above. Reading `.7z` needs the `7z` command from the 7zip package. |
+| Inside `.zip`, `.7z` or `.lzh` | The disk image member is read into memory, then handled as above. Reading `.7z` and `.lzh` needs the `7z` command from the 7zip package. |
 
 ### Generated disk definitions
 
@@ -115,7 +115,7 @@ disk and match it to the catalogue:
 | `.st`, `.adf` | Hashes of the raw sectors, which are the hashes TOSEC lists. |
 | `.msa`, `.dms`, `.adz`, unprotected `.stx` | Decoded to raw sectors first, so they match the TOSEC entry for the same disk whatever the container. The file's own hashes are kept too. |
 | `.ipf`, `.scp`, `.hfe`, protected `.stx` | File hashes only; there are no raw sectors to hash. |
-| `.zip`, `.7z`, `.gz` | Each disk image inside is read and matched as above. One level of nesting is followed, such as a 7z holding one zip per disk. |
+| `.zip`, `.7z`, `.gz`, `.lzh` | Each disk image inside is read and matched as above. One level of nesting is followed, such as a 7z holding one zip per disk. |
 
 Matching tries raw MD5, raw SHA-1, raw CRC32 with size, then the file SHA-512
 and file MD5, because Atari Legend lists the SHA-512 of its `.msa` files.

@@ -187,6 +187,38 @@ MIGRATIONS: tuple[str, ...] = (
         value TEXT NOT NULL
     );
     """,
+    # Version 6: files that stay with a disc whose dumps they do not match: a
+    # copy cleaned of a boot block virus, and a download no checksum could
+    # check. The disc is kept as corrections keep theirs (library/discs.py),
+    # so a catalogue update, which numbers the discs afresh, finds it again.
+    # Cleaned copies recorded before kept only the disc's id in the catalogue
+    # of the day; the next relink takes that disc of the catalogue in use.
+    """
+    CREATE TABLE file_discs (
+        path TEXT PRIMARY KEY,
+        sha1 TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        series_id TEXT,
+        number INTEGER,
+        part TEXT NOT NULL DEFAULT '',
+        version TEXT NOT NULL DEFAULT '',
+        platform TEXT NOT NULL DEFAULT '',
+        title TEXT NOT NULL DEFAULT '',
+        hashes TEXT NOT NULL DEFAULT '[]',
+        disk_id INTEGER,
+        catalogue TEXT NOT NULL DEFAULT '',
+        source TEXT NOT NULL DEFAULT '',
+        source_member TEXT NOT NULL DEFAULT '',
+        virus TEXT NOT NULL DEFAULT '',
+        recorded REAL NOT NULL DEFAULT 0
+    );
+
+    INSERT INTO file_discs(path, sha1, reason, disk_id, source, source_member, virus, recorded)
+        SELECT path, sha1, 'cleaned', disk_id, source_path, source_member, virus, cleaned
+        FROM cleaned_files;
+
+    DROP TABLE cleaned_files;
+    """,
 )
 
 SCHEMA_VERSION = len(MIGRATIONS)
@@ -280,13 +312,14 @@ class LibraryEntry:
 
 
 @dataclass(frozen=True, slots=True)
-class CorrectedDisc:
-    """A disc the user corrected, and how to find it in any catalogue build.
+class DiscIdentity:
+    """A catalogue disc, and how to find it in any catalogue build (``discs.find_disc``).
 
     ``series_id``, ``number``, ``part`` and ``version`` name a numbered disc;
     ``hashes`` holds the ``match_image`` arguments of its dumps, best first.
     ``disk_id`` is its id in the catalogue named by ``catalogue`` (see
-    ``corrections.catalogue_stamp``), None when that catalogue has no such disc.
+    ``discs.catalogue_stamp``), None when that catalogue has no such disc.
+    ``id`` is the row of a corrected disc.
     """
 
     series_id: str | None = None
@@ -299,6 +332,58 @@ class CorrectedDisc:
     disk_id: int | None = None
     catalogue: str = ""
     id: int | None = None
+
+
+# The columns a DiscIdentity is stored in, in corrected_discs and file_discs.
+_DISC_COLUMNS = "series_id, number, part, version, platform, title, hashes, disk_id, catalogue"
+
+
+def _disc_values(disc: DiscIdentity) -> tuple[Any, ...]:
+    return (
+        disc.series_id,
+        disc.number,
+        disc.part,
+        disc.version,
+        disc.platform,
+        disc.title,
+        json.dumps(list(disc.hashes)),
+        disc.disk_id,
+        disc.catalogue,
+    )
+
+
+def _disc_from_row(row: Sequence[Any], row_id: int | None = None) -> DiscIdentity:
+    """A DiscIdentity from the values of ``_DISC_COLUMNS``, in that order."""
+    try:
+        hashes = tuple(item for item in json.loads(row[6] or "[]") if isinstance(item, dict))
+    except (ValueError, TypeError):
+        hashes = ()
+    return DiscIdentity(
+        series_id=row[0],
+        number=row[1],
+        part=row[2],
+        version=row[3],
+        platform=row[4],
+        title=row[5],
+        hashes=hashes,
+        disk_id=row[7],
+        catalogue=row[8],
+        id=row_id,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class FileDisc:
+    """A file that stays with a disc whose dumps it does not match.
+
+    ``sha1`` is of the file's sectors when it was recorded, so the file is let
+    go once it changes; ``reason`` is ``"cleaned"`` or ``"downloaded"``.
+    """
+
+    path: str
+    sha1: str
+    reason: str
+    disc: DiscIdentity
 
 
 def _entry_from_row(row: Sequence[Any]) -> LibraryEntry:
@@ -497,7 +582,7 @@ class UserDatabase:
             for path in paths:
                 removed += db.execute("DELETE FROM library_files WHERE path = ?", (path,)).rowcount
                 db.execute("DELETE FROM scanned_files WHERE path = ?", (path,))
-                db.execute("DELETE FROM cleaned_files WHERE path = ?", (path,))
+                db.execute("DELETE FROM file_discs WHERE path = ?", (path,))
         return removed
 
     def entries(
@@ -632,40 +717,75 @@ class UserDatabase:
                 (key, value),
             )
 
-    # Cleaned files ---------------------------------------------------------
+    # Files that stay with a disc ---------------------------------------------
 
-    def record_cleaned(
+    def record_file_disc(
         self,
         path: str,
         sha1: str,
-        disk_id: int,
+        reason: str,
+        disc: DiscIdentity,
         *,
-        source_path: str = "",
+        source: str = "",
         source_member: str = "",
         virus: str = "",
     ) -> None:
-        """Remember that ``path`` (raw SHA-1 ``sha1``) is a cleaned copy of a disk."""
+        """Keep ``path`` (sectors SHA-1 ``sha1``) with ``disc``, replacing any earlier record.
+
+        ``source`` is the file a cleaned copy was made from, or the address a
+        download came from.
+        """
         with self.transaction() as db:
             db.execute(
-                """INSERT INTO cleaned_files(path, sha1, disk_id, source_path, source_member,
-                       virus, cleaned) VALUES (?, ?, ?, ?, ?, ?, ?)
-                   ON CONFLICT(path) DO UPDATE SET sha1 = excluded.sha1,
-                       disk_id = excluded.disk_id, source_path = excluded.source_path,
-                       source_member = excluded.source_member, virus = excluded.virus,
-                       cleaned = excluded.cleaned""",
-                (path, sha1.lower(), disk_id, source_path, source_member, virus, time.time()),
+                f"""INSERT OR REPLACE INTO file_discs(path, sha1, reason, {_DISC_COLUMNS},
+                       source, source_member, virus, recorded)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    path,
+                    sha1.lower(),
+                    reason,
+                    *_disc_values(disc),
+                    source,
+                    source_member,
+                    virus,
+                    time.time(),
+                ),
             )
 
-    def cleaned_origins(self) -> dict[str, tuple[str, int]]:
-        """Cleaned copies: path -> (raw SHA-1, disk id they were made from)."""
-        rows = self.connection().execute("SELECT path, sha1, disk_id FROM cleaned_files")
+    def file_discs(self) -> list[FileDisc]:
+        """Every file that stays with a disc."""
+        rows = self.connection().execute(
+            f"SELECT path, sha1, reason, {_DISC_COLUMNS} FROM file_discs ORDER BY path"
+        )
+        return [FileDisc(row[0], row[1], row[2], _disc_from_row(row[3:])) for row in rows]
+
+    def relink_file_discs(self, changes: Iterable[tuple[str, DiscIdentity]]) -> None:
+        """Store where the discs of these files are in another catalogue: (path, disc)."""
+        columns = ", ".join(f"{name.strip()} = ?" for name in _DISC_COLUMNS.split(","))
+        with self.transaction() as db:
+            db.executemany(
+                f"UPDATE file_discs SET {columns} WHERE path = ?",
+                [(*_disc_values(disc), path) for path, disc in changes],
+            )
+
+    def file_disc_origins(self, catalogue: str) -> dict[str, tuple[str, int]]:
+        """Files kept with a disc of ``catalogue``: path -> (sectors SHA-1, disk id)."""
+        rows = self.connection().execute(
+            "SELECT path, sha1, disk_id FROM file_discs "
+            "WHERE catalogue = ? AND disk_id IS NOT NULL",
+            (catalogue,),
+        )
         return {path: (sha1, disk_id) for path, sha1, disk_id in rows}
 
-    def cleaned_origin(self, path: str) -> tuple[str, int] | None:
-        """(raw SHA-1, disk id) when ``path`` is a cleaned copy, else None."""
+    def file_disc_origin(self, path: str, catalogue: str) -> tuple[str, int] | None:
+        """(sectors SHA-1, disk id) when ``path`` is kept with a disc of ``catalogue``."""
         row = (
             self.connection()
-            .execute("SELECT sha1, disk_id FROM cleaned_files WHERE path = ?", (path,))
+            .execute(
+                "SELECT sha1, disk_id FROM file_discs "
+                "WHERE path = ? AND catalogue = ? AND disk_id IS NOT NULL",
+                (path, catalogue),
+            )
             .fetchone()
         )
         return (row[0], row[1]) if row else None
@@ -720,35 +840,12 @@ class UserDatabase:
 
     # Corrections -----------------------------------------------------------
 
-    def corrected_discs(self) -> list[CorrectedDisc]:
+    def corrected_discs(self) -> list[DiscIdentity]:
         """Every disc the user corrected."""
         rows = self.connection().execute(
-            """SELECT id, series_id, number, part, version, platform, title, hashes, disk_id,
-                      catalogue FROM corrected_discs ORDER BY id"""
+            f"SELECT id, {_DISC_COLUMNS} FROM corrected_discs ORDER BY id"
         )
-        discs = []
-        for row in rows:
-            try:
-                hashes = tuple(
-                    item for item in json.loads(row[7] or "[]") if isinstance(item, dict)
-                )
-            except (ValueError, TypeError):
-                hashes = ()
-            discs.append(
-                CorrectedDisc(
-                    series_id=row[1],
-                    number=row[2],
-                    part=row[3],
-                    version=row[4],
-                    platform=row[5],
-                    title=row[6],
-                    hashes=hashes,
-                    disk_id=row[8],
-                    catalogue=row[9],
-                    id=row[0],
-                )
-            )
-        return discs
+        return [_disc_from_row(row[1:], row[0]) for row in rows]
 
     def relink_corrected_discs(self, changes: Iterable[tuple[int, int | None, str]]) -> None:
         """Record where corrected discs are in a catalogue: (row id, disk id or None, stamp)."""
@@ -825,7 +922,7 @@ class UserDatabase:
 
     def store_corrections(
         self,
-        disc: CorrectedDisc,
+        disc: DiscIdentity,
         fields: Mapping[str, str],
         titles: Mapping[tuple[str, int], str],
     ) -> None:
@@ -837,19 +934,8 @@ class UserDatabase:
                 (disc.disk_id, disc.catalogue),
             )
             cursor = db.execute(
-                """INSERT INTO corrected_discs(series_id, number, part, version, platform,
-                       title, hashes, disk_id, catalogue) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    disc.series_id,
-                    disc.number,
-                    disc.part,
-                    disc.version,
-                    disc.platform,
-                    disc.title,
-                    json.dumps(list(disc.hashes)),
-                    disc.disk_id,
-                    disc.catalogue,
-                ),
+                f"INSERT INTO corrected_discs({_DISC_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                _disc_values(disc),
             )
             row_id = int(cursor.lastrowid or 0)
             db.executemany(

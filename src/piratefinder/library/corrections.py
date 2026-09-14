@@ -25,8 +25,9 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-from ..models import Content, Disk, ImageRecord
-from .userdb import CorrectedDisc, UserDatabase
+from ..models import Content, Disk
+from .discs import catalogue_stamp, find_disc, identify
+from .userdb import UserDatabase
 
 # The disc fields the user may correct, in the order the Edit Details dialog shows them.
 EDITABLE_FIELDS = ("label", "title", "crew", "date", "publisher", "cracker", "notes")
@@ -188,33 +189,6 @@ def correction_from_form(
     return Correction(fields, changed)
 
 
-def identify(disk: Disk, images: Iterable[ImageRecord]) -> CorrectedDisc:
-    """How a corrected disc is found again in another catalogue."""
-    hashes: list[dict[str, Any]] = []
-    for record in sorted(images, key=lambda item: (item.bad, item.rank, item.id)):
-        for kind in ("md5", "sha1", "sha512"):
-            value = getattr(record, kind)
-            if value:
-                hashes.append({kind: value.lower()})
-        if record.crc32 and record.size:
-            hashes.append({"crc32": record.crc32.lower(), "size": record.size})
-    return CorrectedDisc(
-        series_id=disk.series_id,
-        number=disk.number,
-        part=disk.part,
-        version=disk.version,
-        platform=str(disk.platform),
-        title=disk.title or disk.label,
-        hashes=tuple(hashes),
-        disk_id=disk.id,
-    )
-
-
-def catalogue_stamp(catalogue: Any) -> str:
-    """What names one catalogue build: its build time, else its path."""
-    return str(getattr(catalogue, "built_at", "") or getattr(catalogue, "path", "") or "")
-
-
 class Corrections:
     """Reads and stores corrections for the catalogue in use."""
 
@@ -270,28 +244,3 @@ class Corrections:
                 self.userdb.relink_corrected_discs(changes)
             self._linked = stamp
         return stamp
-
-
-def find_disc(catalogue: Any, disc: CorrectedDisc) -> int | None:
-    """The id of a corrected disc in ``catalogue``, or None when it has no such disc.
-
-    A numbered disc is found by its series, number, part and version. Any
-    other disc, and a numbered one the catalogue no longer numbers that way,
-    is the disc of the same platform that owns one of its dumps.
-    """
-    if disc.series_id:
-        # The catalogue reader has no lookup by series and number, so ask it directly.
-        rows = catalogue.query(
-            "SELECT id FROM disks WHERE series_id = ? AND number IS ? AND part = ? AND version = ?",
-            (disc.series_id, disc.number, disc.part, disc.version),
-        )
-        if rows:
-            return int(rows[0][0])
-    for hashes in disc.hashes:
-        record = catalogue.match_image(**hashes)
-        if record is None:
-            continue
-        disk = catalogue.disk(record.disk_id)
-        if disk is not None and str(disk.platform) == disc.platform:
-            return disk.id
-    return None

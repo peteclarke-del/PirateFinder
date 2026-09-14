@@ -2,6 +2,8 @@
 # Copyright (c) 2026 Pete Clarke. MIT licence, full text in vendor/__init__.py.
 # unpack_track copies literal runs with bytes.find instead of one byte at a
 # time, because library scans unpack thousands of archives. Output unchanged.
+# parse_msa ignores bytes after the last track the header declares, and
+# counts them in MSAImage.trailing, where the original refuses the archive.
 
 """Magic Shadow Archiver images: a whole floppy, one track at a time.
 
@@ -72,6 +74,7 @@ class MSAImage:
     start_track: int
     end_track: int
     tracks: tuple[MSATrack, ...]
+    trailing: int = 0  # bytes after the last track, which are not part of the disk
 
     @property
     def track_count(self) -> int:
@@ -168,7 +171,11 @@ def pack_track(raw: bytes) -> bytes:
 
 
 def parse_msa(data: bytes) -> MSAImage:
-    """Read an archive completely, refusing anything that does not add up."""
+    """Read an archive completely, refusing anything that does not add up.
+
+    Bytes after the last declared track are left out and counted in
+    ``trailing``.
+    """
     if not is_msa(data):
         raise MSAError("The file does not start with the MSA identifier 0x0E0F.")
     sectors_per_track = int.from_bytes(data[2:4], "big")
@@ -210,11 +217,13 @@ def parse_msa(data: bytes) -> MSAImage:
             tracks.append(
                 MSATrack(track, side, length, track_size, compressed, bytes(unpacked))
             )
-    if index != len(data):
-        raise MSAError(
-            f"{len(data) - index:,} bytes follow the last track of the archive."
-        )
-    return MSAImage(sectors_per_track, sides, start_track, end_track, tuple(tracks))
+    # Some archivers wrote one more track record than the header declares,
+    # as on the Vectronix CD. The tracks the header declares are the disk:
+    # rebuilt without the extra record, those images match their TOSEC dumps.
+    trailing = len(data) - index
+    return MSAImage(
+        sectors_per_track, sides, start_track, end_track, tuple(tracks), trailing
+    )
 
 
 def msa_to_st(data: bytes) -> bytes:

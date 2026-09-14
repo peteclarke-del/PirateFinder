@@ -277,8 +277,8 @@ loader boot blocks, as a plain fact.
 
 Add the folders that hold your images on the Library page. Folders on a NAS
 work while they are mounted, through GNOME Files or `/etc/fstab`. PirateFinder
-reads plain images and the images inside zip, 7z and gzip files, with one
-level of nesting, and rescans only files that changed. Each image is decoded
+reads plain images and the images inside zip, 7z, gzip and LZH files, with
+one level of nesting, and rescans only files that changed. Each image is decoded
 to raw sectors and matched to the catalogue by checksum, so an `.msa` matches
 the TOSEC entry for the same `.st` disk whatever the file is called. Files
 that match nothing stay searchable by file name, volume label and the names of
@@ -379,7 +379,7 @@ records are merged.
 | `.stx` | Converted to ST when the image carries no protection, otherwise refused |
 | `.ipf` | Written when the SPS Decoder Library is available: IPF Support in Preferences installs it on amd64 and armhf; otherwise refused |
 | `.scp`, `.hfe` | Written as flux; Greaseweazle cannot verify these writes |
-| Inside `.zip`, `.7z` | The disk image inside is read, then as above |
+| Inside `.zip`, `.7z`, `.lzh` | The disk image inside is read, then as above |
 
 Images with extra cylinders get a disk definition with their real cylinder
 count, because `gw` writes only the cylinders its format names.
@@ -452,7 +452,7 @@ asking for help.
 The launcher adds `src` to `PYTHONPATH` and runs `python3 -m piratefinder`. It
 needs Python 3.12 or newer, GTK 4, libadwaita 1.5 or newer and PyGObject
 (`python3-gi`, `gir1.2-gtk-4.0` and `gir1.2-adw-1` on Debian and Ubuntu), `7z`
-from the 7zip package for 7z archives, and the Greaseweazle host tools to write.
+from the 7zip package for 7z and LZH archives, and the Greaseweazle host tools to write.
 PirateFinder runs `PIRATEFINDER_GW` when it is set, otherwise the first `gw`
 on `PATH`, otherwise the packaged copy in `/usr/lib/piratefinder/bin`. From a
 source tree it reads `build/catalogue.sqlite`; set `PIRATEFINDER_CATALOGUE` to

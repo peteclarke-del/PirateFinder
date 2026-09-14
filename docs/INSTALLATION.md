@@ -25,7 +25,7 @@ Each package contains:
 
 The distribution supplies Python, GTK 4, libadwaita 1.5 or newer and PyGObject
 (`python3-gi`, `gir1.2-gtk-4.0` and `gir1.2-adw-1`). The package recommends
-`7zip`, which is needed to read `.7z` archives, and apt installs recommended
+`7zip`, which is needed to read `.7z` and `.lzh` archives, and apt installs recommended
 packages by default.
 
 ### Choosing the package

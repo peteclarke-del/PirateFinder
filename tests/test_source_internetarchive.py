@@ -464,6 +464,27 @@ class SeriesRuleTest(unittest.TestCase):
         self.assertTrue(location.url.endswith("%2FPP_054.zip"))
         self.assertEqual(location.page_url, "https://archive.org/details/atari-st-collection")
 
+    def test_a_vectronix_lzh_joins_its_disc_by_number(self) -> None:
+        offline = Offline(self)
+        spec = next(spec for spec in ia.ARCHIVE_SETS if spec.item == ia.VECTRONIX)
+        paths = ["AREA.1/159.LZH", "AREA.3/604.LZH", "AREA.5/F011.LZH", "TOOLS/LZH.TTP"]
+        seed_listing(offline, spec, listing(spec, paths))
+        records = list(ia.archive_records(offline.ctx, spec))
+        from catalogue_builder.merge import canonical_key
+
+        # The Falcon disks and the tools are outside the numbered series.
+        self.assertEqual(
+            [canonical_key(record) for record in records],
+            [("vectronix", 159, "", ""), ("vectronix", 604, "", "")],
+        )
+        self.assertTrue(all(record.attach_only for record in records))
+        [location] = records[1].locations
+        self.assertEqual(
+            (location.container, location.image_name, location.hash_value), ("lzh", "", "")
+        )
+        self.assertTrue(location.url.endswith("VECTRONIX1.iso/AREA.3%2F604.LZH"))
+        self.assertEqual(location.page_url, f"https://archive.org/details/{ia.VECTRONIX}")
+
     def test_rules_give_parts_and_versions(self) -> None:
         ctx = Offline(self).ctx
         cases = {

@@ -10,7 +10,7 @@ from pathlib import Path
 from piratefinder.library.userdb import (
     MIGRATIONS,
     SCHEMA_VERSION,
-    CorrectedDisc,
+    DiscIdentity,
     LibraryEntry,
     UserDatabase,
     UserDatabaseError,
@@ -156,10 +156,10 @@ class UserDatabaseTests(unittest.TestCase):
         self.assertEqual(self.db.infected_count(), 2)
 
     def test_corrections(self) -> None:
-        disc = CorrectedDisc(series_id="automation", number=250, disk_id=5, catalogue="build 1")
+        disc = DiscIdentity(series_id="automation", number=250, disk_id=5, catalogue="build 1")
         self.db.store_corrections(disc, {"label": "Automation 250 (fixed)"}, {})
         self.db.store_corrections(disc, {"label": "Automation 250 B"}, {("Necron", 1): "Necronom"})
-        other = CorrectedDisc(platform="amiga", title="Pack", disk_id=6, catalogue="build 1")
+        other = DiscIdentity(platform="amiga", title="Pack", disk_id=6, catalogue="build 1")
         self.db.store_corrections(other, {"notes": "Side B is blank"}, {})
         self.assertEqual(
             self.db.corrections([5, 6, 7], "build 1"),

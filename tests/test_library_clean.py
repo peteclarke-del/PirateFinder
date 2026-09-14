@@ -15,6 +15,7 @@ import sqlite3
 import tempfile
 import unittest
 import zipfile
+from dataclasses import replace
 from pathlib import Path
 from unittest import mock
 
@@ -130,13 +131,32 @@ class CleanFileTests(VirusEnvironment, unittest.TestCase):
         self.assertEqual(self.library.files_for_disk(2), [])
         self.assertEqual(self.library.rematch(), 0)
 
+    def test_a_cleaned_file_stays_with_its_disk_in_a_catalogue_update(self) -> None:
+        # A new build numbers its discs afresh: Crew 2 is disc 7 in it.
+        (self.files / "crew2.adf").write_bytes(self.other)
+        self.scan()
+        cleaned = self.library.clean_file(self.only(2))
+        [kept] = self.db.file_discs()
+        self.assertEqual(
+            (kept.reason, kept.disc.series_id, kept.disc.number), ("cleaned", "crew", 2)
+        )
+        builder = CatalogueBuilder(self.folder / "newer.sqlite", built_at="2026-10-01")
+        builder.disk(7, "Crew 2", platform=Platform.AMIGA, series=("crew", "Crew"), number=2)
+        builder.disk(8, "Crew 1", platform=Platform.AMIGA, series=("crew", "Crew"), number=1)
+        newer = SqlCatalogue(builder.close())
+        self.addCleanup(newer.close)
+        self.library.set_catalogue(newer)
+        self.assertEqual(self.library.rematch(), 1)
+        self.assertEqual(self.library.files_for_disk(7), [replace(cleaned, disk_id=7)])
+        self.assertEqual(self.library.files_for_disk(2), [])
+
     def test_a_forgotten_file_forgets_its_origin(self) -> None:
         (self.files / "crew2.adf").write_bytes(self.other)
         self.scan()
         self.library.clean_file(self.only(2))
-        self.assertEqual(len(self.db.cleaned_origins()), 1)
+        self.assertEqual(len(self.db.file_discs()), 1)
         self.library.forget_folder(self.files)
-        self.assertEqual(self.db.cleaned_origins(), {})
+        self.assertEqual(self.db.file_discs(), [])
 
     def test_an_msa_is_packed_again(self) -> None:
         path = self.files / "menu3.msa"
@@ -391,6 +411,42 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(db.meta(library_module.BOOT_FINGERPRINT), "")
         self.assertIsNotNone(Library(db, None).recheck_boot_blocks())
         self.assertEqual(db.meta(library_module.BOOT_FINGERPRINT), virus.fingerprint())
+
+    def test_cleaned_copies_recorded_by_disk_id_take_the_disc_of_the_catalogue_in_use(
+        self,
+    ) -> None:
+        folder = Path(tempfile.mkdtemp(prefix="pf-migrate-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        path = folder / "user.sqlite"
+        connection = sqlite3.connect(path)
+        for script in MIGRATIONS[:5]:
+            connection.executescript(script)
+        connection.execute("PRAGMA user_version = 5")
+        connection.execute(
+            "INSERT INTO cleaned_files(path, sha1, disk_id, source_path, virus) "
+            "VALUES ('/nas/crew1 (cleaned).adf', 'ab12', 1, '/nas/crew1.adf', 'Lamer')"
+        )
+        connection.commit()
+        connection.close()
+        db = UserDatabase.open(path)
+        self.addCleanup(db.close)
+        [kept] = db.file_discs()
+        self.assertEqual(
+            (kept.path, kept.sha1, kept.reason), ("/nas/crew1 (cleaned).adf", "ab12", "cleaned")
+        )
+        self.assertEqual(
+            (kept.disc.disk_id, kept.disc.catalogue, kept.disc.series_id), (1, "", None)
+        )
+        builder = CatalogueBuilder(folder / "catalogue.sqlite")
+        builder.disk(1, "Crew 1", platform=Platform.AMIGA, series=("crew", "Crew"), number=1)
+        catalogue = SqlCatalogue(builder.close())
+        self.addCleanup(catalogue.close)
+        stamp = Library(db, catalogue).relink_files(catalogue)
+        [kept] = db.file_discs()
+        self.assertEqual(
+            (kept.disc.series_id, kept.disc.number, kept.disc.catalogue), ("crew", 1, stamp)
+        )
+        self.assertEqual(db.file_disc_origins(stamp), {"/nas/crew1 (cleaned).adf": ("ab12", 1)})
 
     def test_an_old_database_gains_boot_columns_and_is_scanned_again(self) -> None:
         folder = Path(tempfile.mkdtemp(prefix="pf-migrate-"))
