@@ -499,6 +499,8 @@ The catalogue lists where each dump can be downloaded from:
 | D-Bug search engine | MSA files of D-Bug's own menus. |
 | exxos Atari pages | The Persistence of Vision demo compilation disks. |
 | amigascne archive | Amiga pack disks: game compacts and demo, music and tool packs, downloaded from its mirror on ftp.scene.org. |
+| scene.org | Amiga packs Demozoo names on the main scene.org archive. |
+| Fujiology | Atari ST packs and a few menus Demozoo names on fujiology.org, only files the size of a disk image. |
 
 Each provider has a switch in Preferences, and Online Downloads switches them all off at once. With online downloads off, only your library is used, and discs that are not in it show as Missing.
 
