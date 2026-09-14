@@ -99,7 +99,9 @@ and corrected where the catalogue is wrong.
 - IPF on arm64, once a Linux aarch64 build of the SPS Decoder Library is
   published; watch fs-uae.net for newer CAPSImg releases.
 - Record real-hardware results for every format and layout in the tests'
-  fixtures, starting with 82-cylinder ST disks and Amiga HD disks.
+  fixtures, starting with 82-cylinder ST disks and Amiga HD disks. The first
+  is recorded: an 81-cylinder, 9-sector Atari ST disk written and verified on
+  a Greaseweazle F1 on 14 September 2026 (`tests/fixtures/greaseweazle`).
 
 Complete when every format in [Format support](docs/FORMAT_SUPPORT.md) has
 been written and verified on real hardware.
