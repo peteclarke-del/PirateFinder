@@ -251,8 +251,11 @@ class DiskNameSearchTest(unittest.TestCase):
         self.assertEqual((len(page.rows), page.total), (2, 4))
 
 
-def write_find_sample(path: Path) -> None:
-    """A small catalogue for the Find screen: menus, a compact, singles and a pack."""
+def write_find_sample(path: Path, extra: tuple[tuple[str, str, str, str], ...] = ()) -> None:
+    """A small catalogue for the Find screen: menus, a compact, singles and a pack.
+
+    ``extra`` adds singles as (title, platform, date, publisher).
+    """
     registry = SeriesRegistry(
         {
             "automation": SeriesDef(
@@ -342,6 +345,10 @@ def write_find_sample(path: Path) -> None:
         single("Speedball", "amiga", "1989-06", publisher="Image Works"),
         single("The Chaos Engine", "atari-st", "1993", publisher="Renegade"),
         DiskRecord("tosec", "amiga", "pack", title="Some Demo Pack"),
+        *(
+            single(title, platform, date, publisher=publisher)
+            for title, platform, date, publisher in extra
+        ),
     ]
     result = merge_records(
         [SourceBatch(SourceInfo("tosec", "TOSEC", "https://t"), records)], registry
@@ -358,11 +365,13 @@ def write_find_sample(path: Path) -> None:
 
 
 class SearchPageTest(unittest.TestCase):
+    EXTRA: tuple[tuple[str, str, str, str], ...] = ()
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.folder = tempfile.TemporaryDirectory()
         path = Path(cls.folder.name) / "catalogue.sqlite"
-        write_find_sample(path)
+        write_find_sample(path, cls.EXTRA)
         cls.catalogue = Catalogue.open(path)
         cls.ids = {disk.label: disk.id for disk in cls.catalogue.disks(range(1, 50)).values()}
 
@@ -466,6 +475,13 @@ class SearchPageTest(unittest.TestCase):
             self.titles(text="a250 xenon"), [("Automation 250", "Xenon 2 - Megablast")]
         )
         self.assertEqual(self.discs(text="a250", platform=Platform.AMIGA), [])
+
+    def test_a_word_of_letters_and_digits_before_another_word(self) -> None:
+        # FTS5 refused "(...) phrase" without AND between them: a syntax error.
+        self.assertEqual(
+            self.titles(text="xenon2 megablast"), [("Automation 250", "Xenon 2 - Megablast")]
+        )
+        self.assertEqual(self.titles(text="megablast xenon2"), self.titles(text="xenon2 megablast"))
 
     def test_a_reference_by_a_long_alias_also_finds_its_words(self) -> None:
         rows = self.page(text="lemmings 2").rows
@@ -698,6 +714,30 @@ class SearchPageTest(unittest.TestCase):
         self.assertEqual(found.years, ((1989, 3), (1990, 4), (1991, 1), (1992, 1), (1993, 2)))
         self.assertEqual(found.categories, (("Demos", 1), ("Games", 11)))
         self.assertIs(facets(self.catalogue), found)
+
+
+class ShortAliasTest(unittest.TestCase):
+    """A one or two letter alias with more words may begin a name: "A10 Tank Killer"."""
+
+    EXTRA = (("A10 Tank Killer", "amiga", "1989", "Dynamix"),)
+    setUpClass = SearchPageTest.__dict__["setUpClass"]
+    tearDownClass = SearchPageTest.__dict__["tearDownClass"]
+    page = SearchPageTest.page
+    label = SearchPageTest.label
+    titles = SearchPageTest.titles
+    discs = SearchPageTest.discs
+
+    def test_a_short_alias_with_more_words_may_begin_a_name(self) -> None:
+        # "a" is an alias of Automation, but "A10 Tank Killer" is a game.
+        self.assertEqual(
+            self.titles(text="a10 tank killer"), [("A10 Tank Killer", "A10 Tank Killer")]
+        )
+        self.assertEqual(self.discs(text="a10 tank"), ["A10 Tank Killer"])
+        # The disk reference still counts when its words match it.
+        self.assertEqual(
+            self.titles(text="a250 xenon"), [("Automation 250", "Xenon 2 - Megablast")]
+        )
+        self.assertEqual(self.discs(text="a10 rick"), ["Automation 10"])
 
 
 class WordRuleTest(unittest.TestCase):
