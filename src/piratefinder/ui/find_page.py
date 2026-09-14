@@ -89,6 +89,7 @@ class FindPage(Gtk.Box):
         self.results: list[ResultRow] = []
         self.unmatched: list[LocalFile] = []
         self.unmatched_dialog: Adw.Dialog | None = None
+        self.pinned_disc: int | None = None  # a disc show_disc keeps open (Link to Disc)
         # Ticked rows by key, with the query page they were ticked on.
         self.checked: dict[str, tuple[ResultRow, tuple]] = {}
         self.searching = False
@@ -538,9 +539,18 @@ class FindPage(Gtk.Box):
 
     # Searching
 
-    def search(self, *, reset_page: bool = True, page: int | None = None) -> None:
+    def search(
+        self, *, reset_page: bool = True, page: int | None = None, keep_pinned: bool = False
+    ) -> None:
+        """Search with the text and filters shown.
+
+        A search the user starts lets go of a disc ``show_disc`` pinned; a
+        refresh (``keep_pinned``) keeps it open although no row shows it.
+        """
         if self._info is not None and not self._info.available:
             return
+        if not keep_pinned:
+            self.pinned_disc = None
         if page is not None:
             self.page_index = page
         elif reset_page:
@@ -557,7 +567,8 @@ class FindPage(Gtk.Box):
             self.table.set_rows([], self.mode, [])
             self.unmatched = []
             self.unmatched_banner.set_revealed(False)
-            self.close_detail()
+            if self.pinned_disc is None:
+                self.close_detail()
             self.stack.set_visible_child_name("welcome")
             return
         backend = self._host.backend
@@ -599,7 +610,7 @@ class FindPage(Gtk.Box):
             return  # a newer search has started since
         if page.total and not page.rows and page.query.page > 0:
             # Fewer results than before, for example after a download: go to the last page.
-            self.search(reset_page=False, page=page.pages - 1)
+            self.search(reset_page=False, page=page.pages - 1, keep_pinned=True)
             return
         self.searching = False
         self.pager.set_busy(False)
@@ -614,11 +625,12 @@ class FindPage(Gtk.Box):
         if page.total:
             self.pager.update(page)
             self.stack.set_visible_child_name("results")
-            if keys and not self.table.select_key(keys):
+            if keys and not self.table.select_key(keys) and self.pinned_disc is None:
                 self.close_detail()
             self._update_action_bar()
             return
-        self.close_detail()
+        if self.pinned_disc is None:
+            self.close_detail()
         self.no_results.set_title("No Results")
         if page.query.text:
             quoted = fmt.escape(page.query.text)
@@ -634,7 +646,7 @@ class FindPage(Gtk.Box):
 
     def refresh(self) -> None:
         """Search again on the same page, for example after a download."""
-        self.search(reset_page=False)
+        self.search(reset_page=False, keep_pinned=True)
 
     # Unmatched library files
 
@@ -684,13 +696,28 @@ class FindPage(Gtk.Box):
         if self.unmatched_dialog is not None:
             self.unmatched_dialog.close()
         self._detail_generation += 1  # a disc still loading must not replace the file
+        self.pinned_disc = None
         self.table.unselect()
         self.split_view.set_show_sidebar(True)
         self.detail.show_local(local)
 
+    def show_disc(self, disk_id: int) -> None:
+        """Show one disc in the details pane, whether or not it is in the results.
+
+        The disc stays pinned open through refreshes until the user searches,
+        picks a row or closes the pane.
+        """
+        if self.unmatched_dialog is not None:
+            self.unmatched_dialog.close()
+        self.table.unselect()
+        self.pinned_disc = disk_id
+        self.split_view.set_show_sidebar(True)
+        self._load_detail(disk_id, None, loading=True)
+
     # Selection and details
 
     def show_row(self, row: ResultRow) -> None:
+        self.pinned_disc = None
         showing = self.split_view.get_show_sidebar()
         if showing and self.detail.key() == row.key:
             return
@@ -737,6 +764,7 @@ class FindPage(Gtk.Box):
             self.table.select_key((f"title:{content_id}",))
 
     def close_detail(self) -> None:
+        self.pinned_disc = None
         self.split_view.set_show_sidebar(False)
         self.table.unselect()
         self.detail.detail = None

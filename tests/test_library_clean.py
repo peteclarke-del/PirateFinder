@@ -446,7 +446,33 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(
             (kept.disc.series_id, kept.disc.number, kept.disc.catalogue), ("crew", 1, stamp)
         )
-        self.assertEqual(db.file_disc_origins(stamp), {"/nas/crew1 (cleaned).adf": ("ab12", 1)})
+        self.assertEqual(
+            db.file_disc_origins(stamp), {("/nas/crew1 (cleaned).adf", ""): ("ab12", 1)}
+        )
+
+    def test_kept_files_of_version_6_become_plain_files_of_version_7(self) -> None:
+        folder = Path(tempfile.mkdtemp(prefix="pf-migrate-"))
+        self.addCleanup(shutil.rmtree, folder, True)
+        path = folder / "user.sqlite"
+        connection = sqlite3.connect(path)
+        for script in MIGRATIONS[:6]:
+            connection.executescript(script)
+        connection.execute("PRAGMA user_version = 6")
+        connection.execute(
+            "INSERT INTO file_discs(path, sha1, reason, series_id, number, disk_id, catalogue) "
+            "VALUES ('/nas/v159.msa', 'cd34', 'downloaded', 'vectronix', 159, 7, 'build 1')"
+        )
+        connection.commit()
+        connection.close()
+        db = UserDatabase.open(path)
+        self.addCleanup(db.close)
+        [kept] = db.file_discs()
+        self.assertEqual((kept.path, kept.member, kept.reason), ("/nas/v159.msa", "", "downloaded"))
+        self.assertEqual((kept.disc.series_id, kept.disc.number), ("vectronix", 159))
+        self.assertEqual(db.file_disc_origin("/nas/v159.msa", "", "build 1"), ("cd34", 7))
+        # The same archive now holds a kept image beside the plain file's record.
+        db.record_file_disc("/nas/v159.msa", "ef56", "linked", kept.disc, member="inner.st")
+        self.assertEqual(len(db.file_discs()), 2)
 
     def test_an_old_database_gains_boot_columns_and_is_scanned_again(self) -> None:
         folder = Path(tempfile.mkdtemp(prefix="pf-migrate-"))

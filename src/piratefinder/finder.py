@@ -483,6 +483,14 @@ class Finder:
             key=image_key,
         )
 
+    def link_file(self, local: LocalFile, disk_id: int) -> LocalFile:
+        """Keep an unmatched library image with a disc; see ``Library.link_file``."""
+        return self.library.link_file(local, disk_id)
+
+    def unlink_file(self, local: LocalFile) -> LocalFile:
+        """Stop keeping a library image with its disc; see ``Library.unlink_file``."""
+        return self.library.unlink_file(local)
+
     def clean_file(self, local: LocalFile) -> LocalFile:
         """Remove the boot block virus from a library file; see ``Library.clean_file``.
 

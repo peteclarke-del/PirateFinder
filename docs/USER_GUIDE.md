@@ -176,6 +176,8 @@ Ticked titles on the same disc make one queue entry for that disc, written from 
 
 Images in your library that match no catalogue disc are searched by file name, volume label and the names of the files on the disk. After a search with text, a bar above the results says how many such files match it. Show Files lists them. Choose one to see its location, archive member, volume label, any virus, its checksums and the files on it in the details pane, or use Add to Queue beside it.
 
+A disc you downloaded by hand, from a forum for example, or dumped from a floppy of your own, matches no dump the catalogue knows. When you know which disc it is, open it and choose Link to Disc in the menu beside the buttons. The search starts from the file's volume label or name; choose the disc and press Link. The file then counts as that disc in your library, also after a catalogue update, for as long as it is unchanged. It works for an image inside a zip or 7z file too. The file itself is not changed.
+
 ![The bar above the results that offers library files matching no catalogue disc](images/find-unmatched.png)
 
 ## The Details Pane
@@ -207,6 +209,7 @@ Under the pictures are the title and its disc, or the disc label with its series
 | Copy Label Text | Copies a short line for a floppy label, such as Automation 250: Necron, Boulderdash Construction Kit. |
 | Edit Details | In the same menu. Opens a form to correct the disc's details and the names of its titles; see Correcting the details below. |
 | Revert to Catalogue | In the same menu, once you have corrected the disc. Forgets your corrections, after asking, so the catalogue's values show again. |
+| Link to Disc | In the same menu, for a library file that matches no disc. Counts it as the disc you choose; see Files that match no disc above. |
 
 ### Details
 
@@ -239,6 +242,8 @@ A note laid out like a menu screen, or drawn with symbols, is shown in a fixed-w
 Every known dump of the disc, with its format, its TOSEC flags, the source that lists it, any virus, and where it is: in your library, with the path, or online at a provider. A warning icon marks a dump with a virus.
 
 When there is more than one dump, the round buttons choose which one is written. Best Available, the default, lets PirateFinder choose: a good dump in your library first, then a download from a provider you have switched on, preferring formats Greaseweazle can write and dumps without a virus.
+
+Your Copies lists the files in your library that count as this disc although they match none of its dumps: a file you linked with Link to Disc, a download no checksum could check, or a copy cleaned of a virus. Unlink, after asking, stops counting a file as the disc; the file itself is not changed.
 
 ### Notes and Credits, Scroll Text and Links
 
@@ -474,7 +479,7 @@ When a scan, or a check after the virus data changed, finds boot block viruses, 
 
 ### Unmatched files
 
-Unmatched Files lists up to 200 images that match no catalogue disc, and says how many there are when there are more. They can still be found on the Find page by file name, volume label and the names of the files on the disk, which are read from Atari TOS and AmigaDOS directories. Each one can be added to the queue and written like any other disc.
+Unmatched Files lists up to 200 images that match no catalogue disc, and says how many there are when there are more. They can still be found on the Find page by file name, volume label and the names of the files on the disk, which are read from Atari TOS and AmigaDOS directories. Each one can be added to the queue and written like any other disc. Choose one to open it on the Find page, where Link to Disc files it under the disc it is.
 
 ### What PirateFinder writes to your folders
 

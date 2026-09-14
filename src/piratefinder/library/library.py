@@ -7,10 +7,10 @@ matched with their file hashes in the raw steps, since for those formats the
 catalogue hashes the file itself.
 
 A file PirateFinder wrote by removing a boot block virus (``clean_file``)
-usually matches no catalogue dump any more, and a download of a disc whose
-dumps have no checksum (``add_download``) never matched one. Each stays with
-the disc it was made or downloaded for, for as long as its sectors are
-unchanged. The disc is kept as corrections keep theirs (``discs``), so it is
+usually matches no catalogue dump any more, a download of a disc whose dumps
+have no checksum (``add_download``) never matched one, and the user may link
+any unmatched image to a disc (``link_file``), such as one downloaded by hand.
+Each stays with its disc for as long as its sectors are unchanged. The disc is kept as corrections keep theirs (``discs``), so it is
 found again in every catalogue update.
 
 Each image's boot block is checked when it is scanned, with the virus data
@@ -200,6 +200,10 @@ def display_name(path: str, member: str = "") -> tuple[str, dict[str, Any]]:
     return tidy_label(name) or readable, fields
 
 
+class LinkError(ValueError):
+    """A file could not be linked to a disc or unlinked; the message is for the user."""
+
+
 class Library:
     """Local images: scanning, matching, availability and unmatched-file search."""
 
@@ -362,10 +366,52 @@ class Library:
             return found
         return self.add_file(path)
 
+    def link_file(self, local: LocalFile, disk_id: int) -> LocalFile:
+        """Keep an unmatched image with a disc the user chose; return it as it is now.
+
+        Raises LinkError with a sentence for the user when the image is not
+        indexed, already matches a dump, or the disc is not in the catalogue.
+        """
+        entry = self._entry(local)
+        if entry.image_id is not None:
+            raise LinkError(
+                f"{image_file_name(entry.path, entry.member)} matches a dump in the catalogue, "
+                "so it is already filed with its disc."
+            )
+        if not self._keep_with_disc(
+            entry.path, _sector_sha1(entry), "linked", disk_id, member=entry.member
+        ):
+            raise LinkError("That disc is not in the catalogue in use.")
+        return self._match_again(entry)
+
+    def unlink_file(self, local: LocalFile) -> LocalFile:
+        """Stop keeping an image with its disc; return it as it is now, usually unmatched."""
+        entry = self._entry(local)
+        self.userdb.forget_file_disc(entry.path, entry.member)
+        return self._match_again(entry)
+
+    def _entry(self, local: LocalFile) -> LibraryEntry:
+        for entry in self.userdb.entries(path=local.path):
+            if entry.member == local.member:
+                return entry
+        raise LinkError(
+            f"{image_file_name(local.path, local.member)} is not in the library index. "
+            "Scan its folder and try again."
+        )
+
+    def _match_again(self, entry: LibraryEntry) -> LocalFile:
+        found = self._identify(entry)
+        if entry.id is not None:
+            self.userdb.set_matches([(entry.id, found.image_id, found.disk_id)])
+        return found.to_local()
+
     def _keep_with_disc(
         self, path: str, sha1: str, reason: str, disk_id: int, **source: str
     ) -> bool:
-        """Record that ``path`` stays with a disc of the catalogue in use; False without one."""
+        """Record that an image stays with a disc of the catalogue in use; False without one.
+
+        ``source`` passes ``member`` and the other ``record_file_disc`` details.
+        """
         with self._lock:
             catalogue = self.catalogue
         disc = identify_id(catalogue, disk_id) if catalogue is not None else None
@@ -395,7 +441,7 @@ class Library:
                     disc = replace(disc, disk_id=find_disc(catalogue, disc))
                 elif disc.disk_id is not None:
                     disc = identify_id(catalogue, disc.disk_id) or replace(disc, disk_id=None)
-                changes.append((kept.path, replace(disc, catalogue=stamp)))
+                changes.append((kept.path, kept.member, replace(disc, catalogue=stamp)))
             self.userdb.relink_file_discs(changes)
             self._linked = stamp
         return stamp
@@ -414,8 +460,8 @@ class Library:
         for entry in self.userdb.entries():
             record = match_entry(catalogue, entry)
             image_id, disk_id = (record.id, record.disk_id) if record else (None, None)
-            if record is None and not entry.member:
-                origin = origins.get(entry.path)
+            if record is None:
+                origin = origins.get((entry.path, entry.member))
                 if origin is not None and origin[0] == _sector_sha1(entry):
                     disk_id = origin[1]
             matched += disk_id is not None
@@ -462,8 +508,9 @@ class Library:
         name, parsed = display_name(entry.path, entry.member)
         record = match_entry(catalogue, entry) if catalogue is not None else None
         disk_id = record.disk_id if record else None
-        if record is None and not entry.member and catalogue is not None:
-            origin = self.userdb.file_disc_origin(entry.path, self.relink_files(catalogue))
+        if record is None and catalogue is not None:
+            stamp = self.relink_files(catalogue)
+            origin = self.userdb.file_disc_origin(entry.path, entry.member, stamp)
             if origin is not None and origin[0] == _sector_sha1(entry):
                 disk_id = origin[1]
         return replace(

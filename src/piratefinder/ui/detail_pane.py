@@ -2,7 +2,9 @@
 
 From the top: pictures, the title and disc, the write buttons, any virus on
 the dump that would be written, the facts, the other titles on the disc,
-the crew, trivia with its sources, the known dumps, notes and links.
+the crew, trivia with its sources, the known dumps, the user's copies that
+match none of them, notes and links. An unmatched library file can be
+linked to its disc from the More Actions menu (``link_disc``).
 """
 
 from __future__ import annotations
@@ -33,6 +35,7 @@ from ..models import (  # noqa: E402
 from . import formatting as fmt  # noqa: E402
 from .bridge import run_in_thread  # noqa: E402
 from .edit_details import EDITED, EditDetailsDialog, edited_label  # noqa: E402
+from .link_disc import LinkDiscDialog  # noqa: E402
 from .log import LOG  # noqa: E402
 from .media_view import MediaView  # noqa: E402
 from .widgets import (  # noqa: E402
@@ -110,7 +113,7 @@ class DetailPane(Gtk.Box):
     ``host`` is the main window: it provides ``backend``, ``add_to_queue``,
     ``write_now``, ``download(item, on_progress, on_done)``,
     ``provider_names()``, ``source_names()``, ``close_detail()``, ``toast``,
-    ``library_changed()`` and ``details_changed()``. ``on_title_selected(content_id)`` is called
+    ``library_changed()``, ``details_changed()`` and ``show_disc(disk_id)``. ``on_title_selected(content_id)`` is called
     when a title is picked in "On This Disc".
     """
 
@@ -134,6 +137,7 @@ class DetailPane(Gtk.Box):
         self.fact_values: dict[str, str] = {}
         self.edited_facts: dict[str, str] = {}  # fact name -> the catalogue's value
         self.edit_dialog: EditDetailsDialog | None = None
+        self.link_dialog: LinkDiscDialog | None = None
 
         top = Gtk.Box(margin_top=6, margin_bottom=0, margin_start=6, margin_end=6)
         top.append(Gtk.Box(hexpand=True))
@@ -225,6 +229,18 @@ class DetailPane(Gtk.Box):
         self.dump_rows = GroupRows(self.dumps_group)
         body.append(self.dumps_group)
 
+        self.copies_group = Adw.PreferencesGroup(
+            title="Your Copies",
+            description=(
+                "Files in your library that count as this disc although they match none of "
+                "its dumps: linked by you, downloaded where no checksum could check them, or "
+                "cleaned of a virus."
+            ),
+            visible=False,
+        )
+        self.copy_rows = GroupRows(self.copies_group)
+        body.append(self.copies_group)
+
         self.notes_group = Adw.PreferencesGroup()
         self.notes_expander = Adw.ExpanderRow(title="Notes and Credits")
         self.notes_box = Gtk.Box(
@@ -287,6 +303,7 @@ class DetailPane(Gtk.Box):
             ("copy-label", self._on_copy_label),
             ("edit-details", self.edit_details),
             ("revert-details", lambda: self.confirm_revert()),
+            ("link-disc", self.link_disc),
         ):
             action = Gio.SimpleAction.new(name, None)
             action.connect("activate", lambda _action, _parameter, run=callback: run())
@@ -299,6 +316,7 @@ class DetailPane(Gtk.Box):
         edits = Gio.Menu()
         edits.append("_Edit Details…", "detail.edit-details")
         edits.append("_Revert to Catalogue", "detail.revert-details")
+        edits.append("_Link to Disc…", "detail.link-disc")
         menu.append_section(None, edits)
         self.more_button = Gtk.MenuButton(
             icon_name="view-more-symbolic",
@@ -400,6 +418,7 @@ class DetailPane(Gtk.Box):
         self._fill_titles(detail)
         self._fill_crew(detail)
         self._fill_dumps(detail)
+        self._fill_copies(detail)
         self._update_virus()
 
         disk = detail.disk
@@ -443,6 +462,7 @@ class DetailPane(Gtk.Box):
         self._actions.lookup_action("revert-details").set_enabled(
             bool(detail.edited or detail.edited_titles)
         )
+        self._actions.lookup_action("link-disc").set_enabled(False)
         self.select_title(content_id, notify=False, scroll=not same_disc)
         self._stack.set_visible_child_name("content")
 
@@ -953,7 +973,13 @@ class DetailPane(Gtk.Box):
             self.title_rows.add(_row(name))
         self.titles_group.set_visible(bool(local.listing))
         self.titles_group.set_description(None)
-        for group in (self.crew_group, self.trivia_group, self.dumps_group, self.notes_group):
+        for group in (
+            self.crew_group,
+            self.trivia_group,
+            self.dumps_group,
+            self.copies_group,
+            self.notes_group,
+        ):
             group.set_visible(False)
         self.link_rows.clear()
         self.links_group.set_visible(False)
@@ -965,6 +991,7 @@ class DetailPane(Gtk.Box):
         self._actions.lookup_action("copy-label").set_enabled(True)
         self._actions.lookup_action("edit-details").set_enabled(False)
         self._actions.lookup_action("revert-details").set_enabled(False)
+        self._actions.lookup_action("link-disc").set_enabled(not local.matched)
         self._stack.set_visible_child_name("content")
 
     def _load_local_boot_block(self, local: LocalFile) -> None:
@@ -1026,6 +1053,79 @@ class DetailPane(Gtk.Box):
             return
         copy_text(self, text)
         toast(self, f"Copied “{text}”")
+
+    # Your copies and Link to Disc
+
+    def _fill_copies(self, detail: DiskDetail) -> None:
+        """The library files kept with this disc although they match none of its dumps."""
+        self.copy_rows.clear()
+        copies = [local for local in detail.local_files if local.image_id is None]
+        for local in copies:
+            row = _row(local_name(local), fmt.local_file_location(local))
+            button = text_button("_Unlink", None, style="flat")
+            button.set_valign(Gtk.Align.CENTER)
+            button.set_tooltip_text("Stop counting this file as a copy of this disc")
+            button.connect("clicked", lambda _button, file=local: self.confirm_unlink(file))
+            row.add_suffix(button)
+            self.copy_rows.add(row)
+        self.copies_group.set_visible(bool(copies))
+
+    def confirm_unlink(self, local: LocalFile) -> None:
+        """Ask, then stop counting ``local`` as a copy of the disc shown."""
+        label = self.detail.disk.label if self.detail is not None else "this disc"
+
+        def respond(response: str) -> None:
+            if response == "unlink":
+                self.unlink(local)
+
+        alert(
+            self,
+            "Unlink This File?",
+            f"{local_name(local)} will no longer count as a copy of {label}. The file itself is "
+            "not changed, and Link to Disc can link it again.",
+            (("cancel", "_Cancel", ""), ("unlink", "_Unlink", "destructive")),
+            respond,
+        )
+
+    def unlink(self, local: LocalFile) -> None:
+        backend = self._host.backend
+
+        def done(_result) -> None:
+            toast(self, f"{local_name(local)} is no longer linked")
+            self._host.library_changed()
+
+        def failed(error: BaseException) -> None:
+            alert(self, "The File Could Not Be Unlinked", str(error))
+
+        run_in_thread(lambda: backend.unlink_file(local), done, failed, name="unlink-file")
+
+    def link_disc(self) -> LinkDiscDialog | None:
+        """Open Link to Disc for the unmatched file shown."""
+        if self.local is None or self.local.matched:
+            return None
+        dialog = LinkDiscDialog(self.local, self._host.backend, self._link_chosen)
+        dialog.connect("closed", lambda _dialog: setattr(self, "link_dialog", None))
+        dialog.present(self.get_root())
+        self.link_dialog = dialog
+        return dialog
+
+    def _link_chosen(self, dialog: LinkDiscDialog, disk) -> None:
+        """Link the dialog's file to ``disk`` on a worker thread, then show the disc."""
+        local = dialog.local
+        backend = self._host.backend
+        dialog.set_busy(True)
+
+        def done(_result) -> None:
+            dialog.close()
+            toast(self, f"{local_name(local)} is linked to {disk.label}")
+            self._host.library_changed()
+            self._host.show_disc(disk.id)
+
+        def failed(error: BaseException) -> None:
+            dialog.set_busy(False)
+            dialog.show_problem(str(error))
+
+        run_in_thread(lambda: backend.link_file(local, disk.id), done, failed, name="link-file")
 
     # Edit Details
 

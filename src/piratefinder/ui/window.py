@@ -17,7 +17,7 @@ from ..greaseweazle.client import NOT_CONNECTED  # noqa: E402
 from ..images.virus import BRAINFILE_PROJECT  # noqa: E402
 from ..jobs.cancellation import Cancellation  # noqa: E402
 from ..jobs.queue import queue_key  # noqa: E402
-from ..models import DeviceStatus, QueueItem, SessionSummary  # noqa: E402
+from ..models import DeviceStatus, LocalFile, QueueItem, SessionSummary  # noqa: E402
 from . import formatting as fmt  # noqa: E402
 from .app_updater import (  # noqa: E402
     RESTART_WHILE_WRITING,
@@ -295,6 +295,15 @@ class MainWindow(Adw.ApplicationWindow):
         """Library files changed: search again and reload the details."""
         self.find_page.refresh()
         self.find_page.reload_detail()
+
+    def show_file(self, local: LocalFile) -> None:
+        """Open an unmatched library file in the Find page's details pane."""
+        self.show_page("find")
+        self.find_page.show_file(local)
+
+    def show_disc(self, disk_id: int) -> None:
+        """Open one disc in the Find page's details pane."""
+        self.find_page.show_disc(disk_id)
 
     def details_changed(self) -> None:
         """The user corrected a disc or reverted it: the search, the details and the
