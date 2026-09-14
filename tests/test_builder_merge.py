@@ -505,6 +505,38 @@ class DiskColumnsTest(unittest.TestCase):
             },
         )
 
+    def test_one_spelling_of_a_crew_on_each_platform(self) -> None:
+        records = [
+            single("tosec", "A [cr FLD]", "amiga", cracker="Flashlight Design"),
+            single("tosec", "B [cr FLD]", "amiga", cracker="Flashlight Design"),
+            single("tosec", "C", "amiga", cracker="Flash Light Design"),
+            single("tosec", "D", "amiga", cracker="the flash-light design"),
+            single("tosec", "E", "atari-st", cracker="Flash Light Design"),
+            # A compilation's publisher is a tag like a crack's.
+            DiskRecord("tosec", "atari-st", "pack", title="Some Pack", publisher="QTX"),
+        ]
+        connection, stats, _ = build(SourceBatch(TOSEC, records))
+        crews = dict(rows(connection, "SELECT label, crew FROM disks"))
+        self.assertEqual(
+            crews,
+            {
+                "A [cr FLD]": "Flashlight Design",
+                "B [cr FLD]": "Flashlight Design",
+                "C": "Flashlight Design",
+                "D": "Flashlight Design",
+                "E": "Flash Light Design",  # another platform keeps its own
+                "Some Pack": "Quartex",
+            },
+        )
+        self.assertEqual(stats["crew spellings joined"], 2)
+        # The written spelling is searchable on every disk it was joined for.
+        found = rows(
+            connection,
+            "SELECT d.label FROM disk_fts f JOIN disks d ON d.id = f.rowid "
+            "WHERE disk_fts MATCH 'crew : flashlight' ORDER BY d.label",
+        )
+        self.assertEqual([label for (label,) in found], ["A [cr FLD]", "B [cr FLD]", "C", "D"])
+
     def test_the_most_precise_release_date_wins(self) -> None:
         batches = [
             SourceBatch(TOSEC, [automation_250("tosec", date="1990")], priority=90),

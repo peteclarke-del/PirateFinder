@@ -72,7 +72,7 @@ from .records import (
     normalise_part,
     normalise_version,
 )
-from .series import CrewChoice, GroupRegistry, SeriesDef, SeriesRegistry
+from .series import CrewChoice, GroupRegistry, SeriesDef, SeriesRegistry, crew_key
 
 DEFAULT_PRIORITY = 90
 CATALOGUE_LICENCE = "CC BY-NC-SA 4.0"
@@ -810,6 +810,50 @@ class _Writer:
         self.titles: dict[tuple[str, str], list[tuple[int, int, bool]]] = defaultdict(list)
         self.crews = _Crews(result.batches, groups, crew_choice)
         self.media_sources: Counter[str] = Counter()
+        # (platform, crew as the disk gives it) -> the spelling written; see settle_crews.
+        self.crew_names: dict[tuple[str, str], str] = {}
+
+    # -- crews -----------------------------------------------------------------
+
+    def disk_crew(
+        self, disk: _Disk, records: list[DiskRecord], definition: SeriesDef | None
+    ) -> str:
+        """The crew of a disk as its records give it, a tag expanded through groups.toml."""
+        model = Disk(
+            id=disk.id,
+            label="",
+            platform=_enum(Platform, disk.platform, Platform.ATARI_ST),
+            kind=_enum(DiskKind, disk.kind, DiskKind.MENU),
+            series_id=disk.series_key or None,
+            series_name=definition.name if definition else "",
+            publisher=_first(records, "publisher"),
+            cracker=_first(records, "cracker"),
+        )
+        crew = archive_crew(model, definition.group if definition else "")
+        return crew if crew == UNKNOWN_CREW else self.groups.expand(crew, disk.platform)
+
+    def settle_crews(self, crews: Iterable[tuple[str, str]]) -> None:
+        """One spelling for each crew on each platform.
+
+        Spellings that differ only in case, "The", spaces or punctuation
+        ("Flash Light Design" and "Flashlight Design", "The Replicants" and
+        "Replicants") are one crew: the most common spelling is written for
+        all of them, so the Crew filter and the download folders show one.
+        """
+        counts = Counter(crews)
+        spellings: dict[tuple[str, str], Counter[str]] = defaultdict(Counter)
+        for (platform, crew), count in counts.items():
+            spellings[(platform, spelling_key(crew))][crew] += count
+        joined = 0
+        for (platform, _key), found in spellings.items():
+            if len(found) < 2:
+                continue
+            chosen = min(found, key=lambda crew: (-found[crew], crew))
+            for crew in found:
+                if crew != chosen:
+                    self.crew_names[(platform, crew)] = chosen
+                    joined += 1
+        self.stats["crew spellings joined"] = joined
 
     # -- one disk --------------------------------------------------------------
 
@@ -840,7 +884,8 @@ class _Writer:
                 for content, _source in contents
             ],
         )
-        crew = archive_crew(model, definition.group if definition else "")
+        crew = self.disk_crew(disk, records, definition)
+        crew = self.crew_names.get((disk.platform, crew), crew)
         credited = {(record.source, crew_id) for record in records for crew_id in record.crew_ids}
         crew_id = self.crews.row_for(crew, disk.platform, credited)
         year, month, day = release_date(records)
@@ -1521,6 +1566,11 @@ class _Crews:
         }
 
 
+def spelling_key(crew: str) -> str:
+    """A crew name with case, "The", spaces and punctuation left out."""
+    return re.sub(r"[^0-9a-z]", "", crew_key(crew).casefold()) or crew.casefold()
+
+
 def write_catalogue(
     connection: sqlite3.Connection,
     result: MergeResult,
@@ -1566,6 +1616,10 @@ def write_catalogue(
         )
 
     writer = _Writer(connection, result, groups, log, crew_choice)
+    writer.settle_crews(
+        (disk.platform, writer.disk_crew(disk, records, series.get(disk.series_key)))
+        for disk, records, _title, _label in prepared
+    )
     for disk, records, title, label in prepared:
         writer.write_disk(disk, records, title, label, series.get(disk.series_key))
     writer.write_title_media()
