@@ -505,6 +505,13 @@ HELP_TOPICS = (
                     "Files lists them. Choose one to see its location, archive member, volume "
                     "label, any virus, its checksums and the files on it in the details pane, or "
                     "use Add to Queue beside it.",
+                    "A disc you downloaded by hand, from a forum for example, or dumped from a "
+                    "floppy of your own, matches no dump the catalogue knows. When you know "
+                    "which disc it is, open it and choose Link to Disc in the menu beside the "
+                    "buttons. The search starts from the file's volume label or name; choose "
+                    "the disc and press Link. The file then counts as that disc in your library, "
+                    "also after a catalogue update, for as long as it is unchanged. It works for "
+                    "an image inside a zip or 7z file too. The file itself is not changed.",
                 ),
                 screenshot="find-unmatched.png",
                 screenshot_alt="The bar above the results that offers library files matching "
@@ -581,6 +588,11 @@ HELP_TOPICS = (
                         "In the same menu, once you have corrected the disc. Forgets your "
                         "corrections, after asking, so the catalogue's values show again.",
                     ),
+                    (
+                        "Link to Disc",
+                        "In the same menu, for a library file that matches no disc. Counts it "
+                        "as the disc you choose; see Files that match no disc above.",
+                    ),
                 ),
                 columns=("Button", "What it does"),
             ),
@@ -647,6 +659,11 @@ HELP_TOPICS = (
                     "written. Best Available, the default, lets PirateFinder choose: a good dump "
                     "in your library first, then a download from a provider you have switched "
                     "on, preferring formats Greaseweazle can write and dumps without a virus.",
+                    "Your Copies lists the files in your library that count as this disc "
+                    "although they match none of its dumps: a file you linked with Link to "
+                    "Disc, a download no checksum could check, or a copy cleaned of a virus. "
+                    "Unlink, after asking, stops counting a file as the disc; the file itself "
+                    "is not changed.",
                 ),
             ),
             HelpSection(
@@ -1204,7 +1221,8 @@ HELP_TOPICS = (
                     "says how many there are when there are more. They can still be found on the "
                     "Find page by file name, volume label and the names of the files on the "
                     "disk, which are read from Atari TOS and AmigaDOS directories. Each one can "
-                    "be added to the queue and written like any other disc.",
+                    "be added to the queue and written like any other disc. Choose one to open "
+                    "it on the Find page, where Link to Disc files it under the disc it is.",
                 ),
             ),
             HelpSection(

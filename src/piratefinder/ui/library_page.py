@@ -50,7 +50,7 @@ def _value_row(title: str) -> tuple[Adw.ActionRow, Gtk.Label]:
 
 class LibraryPage(Adw.PreferencesPage):
     """``host`` is the main window: ``backend``, ``add_to_queue``, ``toast``,
-    ``library_changed`` and ``settings_changed``.
+    ``library_changed``, ``settings_changed`` and ``show_file(local)``.
     """
 
     def __init__(self, host) -> None:
@@ -134,7 +134,8 @@ class LibraryPage(Adw.PreferencesPage):
             title="Unmatched Files",
             description=(
                 "Images that match no disk in the catalogue. They are still searched by file "
-                "name, volume label and the files on the disk."
+                "name, volume label and the files on the disk. Open one and choose Link to "
+                "Disc when you know which disc it is."
             ),
         )
         self.unmatched_rows = GroupRows(self.unmatched_group)
@@ -208,6 +209,9 @@ class LibraryPage(Adw.PreferencesPage):
         for local in unmatched:
             row = _row(local_name(local), fmt.local_file_location(local))
             row.set_subtitle_lines(2)
+            row.set_activatable(True)
+            row.set_tooltip_text("Show the details of this file, where Link to Disc files it")
+            row.connect("activated", lambda _row, file=local: self._host.show_file(file))
             if local.virus:
                 row.add_prefix(
                     status_icon("dialog-warning-symbolic", "error", f"Virus: {local.virus}")

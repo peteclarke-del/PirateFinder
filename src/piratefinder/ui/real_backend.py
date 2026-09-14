@@ -376,6 +376,12 @@ class RealBackend(Backend):
         # The finder files a cleaned copy of an archive member in the download folder.
         return self.finder.clean_file(local)
 
+    def link_file(self, local: LocalFile, disk_id: int) -> LocalFile:
+        return self.finder.link_file(local, disk_id)
+
+    def unlink_file(self, local: LocalFile) -> LocalFile:
+        return self.finder.unlink_file(local)
+
     def brainfile_status(self) -> BrainfileStatus:
         return brainfile_status()
 

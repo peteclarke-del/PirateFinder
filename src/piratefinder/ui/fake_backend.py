@@ -877,6 +877,8 @@ class FakeBackend(Backend):
         self.local_disks: dict[int, str] = {
             disk_id: f"{LIBRARY}/{name}" for disk_id, name in LOCAL_DISKS.items()
         }
+        # Unmatched files the user linked to a disc: (path, member) -> disk id.
+        self.linked: dict[tuple[str, str], int] = {}
         self.update_offer: UpdateOffer | None = None
         self.update_error = ""  # when set, the update check fails with this reason
         self.download_notes: list[str] = []  # what Download Only reports with its file
@@ -954,7 +956,7 @@ class FakeBackend(Backend):
         )
 
     def _availability(self, disk_id: int) -> Availability:
-        if disk_id in self.local_disks:
+        if disk_id in self.local_disks or disk_id in self.linked.values():
             return Availability.LOCAL
         provider = ONLINE_DISKS.get(disk_id)
         if provider and provider in self.settings.enabled_providers([provider]):
@@ -1139,6 +1141,11 @@ class FakeBackend(Backend):
                     virus=virus.name if virus is not None and virus.kind == "boot" else "",
                 ),
             )
+        local_files += tuple(
+            replace(self._current(local), disk_id=disk_id)
+            for local in UNMATCHED
+            if self.linked.get((local.path, local.member)) == disk_id
+        )
         links: tuple[Link, ...] = ()
         if disk.platform == ST and disk.kind == DiskKind.MENU:
             links = (Link(disk_id, "Atari Legend", f"https://example.invalid/menus/{disk_id}"),)
@@ -1327,8 +1334,8 @@ class FakeBackend(Backend):
         local = len(self.local_disks)
         return LibraryStats(
             images=local + len(UNMATCHED) + 1,
-            matched=local,
-            unmatched=len(UNMATCHED),
+            matched=local + len(self.linked),
+            unmatched=len(UNMATCHED) - len(self.linked),
             duplicates=1,
             last_scan=self.last_scan,
             infected=len(self._infected),
@@ -1338,6 +1345,8 @@ class FakeBackend(Backend):
         words = _words(text)
         found = []
         for local in UNMATCHED:
+            if (local.path, local.member) in self.linked:
+                continue
             local = self._current(local)
             tokens = _words(local.display_name, local.volume_label, *local.listing)
             if _matches(words, tokens):
@@ -1373,6 +1382,16 @@ class FakeBackend(Backend):
         key = (local.path, local.member)
         report = self._infected.get(key) or self.boot_blocks.get(key)
         return report or VirusReport(VirusStatus.CLEAN)
+
+    def link_file(self, local: LocalFile, disk_id: int) -> LocalFile:
+        if disk_id not in DISKS_BY_ID:
+            raise RuntimeError("That disc is not in the catalogue in use.")
+        self.linked[(local.path, local.member)] = disk_id
+        return replace(local, disk_id=disk_id)
+
+    def unlink_file(self, local: LocalFile) -> LocalFile:
+        self.linked.pop((local.path, local.member), None)
+        return replace(local, disk_id=None)
 
     def clean_file(self, local: LocalFile) -> LocalFile:
         report = self._infected.get((local.path, local.member))

@@ -159,6 +159,10 @@ builds made after it.
 - A copy cleaned of a boot block virus, and a download of a disc whose dumps
   have no checksum, kept with their disc for as long as the file is
   unchanged, and found again after a catalogue update like corrections
+- Link to Disc for a library file that matches no disc, such as a menu disk
+  downloaded by hand, including an image inside an archive, with the disc
+  chosen from a search; the disc's Your Copies list shows such files, each
+  with Unlink
 - Counts of images, matched and unmatched files, duplicates and files with a
   virus
 

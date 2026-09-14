@@ -303,6 +303,26 @@ class RealBackendWithCatalogueTests(unittest.TestCase):
         (again,) = self.backend.search_page(Query(text="rick", mode=ResultMode.DISCS)).rows
         self.assertEqual(again.availability.value, "missing")
 
+    def test_an_unmatched_file_is_linked_to_a_disc_and_unlinked(self) -> None:
+        from tests.test_library_helpers import make_st_image
+
+        files = self.folder / "files"
+        files.mkdir()
+        (files / "a251.st").write_bytes(make_st_image("downloaded by hand"))
+        self.settings.library_folders = [str(files)]
+        self.settings.download_folder = str(self.folder / "downloads")
+        self.backend.scan_library(lambda _progress: None, None)
+        [local] = self.backend.unmatched_files()
+        (disc,) = self.backend.search_page(Query(text="rick", mode=ResultMode.DISCS)).rows
+        linked = self.backend.link_file(local, disc.disk.id)
+        self.assertEqual(linked.disk_id, disc.disk.id)
+        detail = self.backend.detail(disc.disk.id)
+        self.assertEqual(detail.availability.value, "local")
+        self.assertEqual([f.path for f in detail.local_files], [local.path])
+        self.assertEqual(self.backend.unmatched_files(), [])
+        self.assertIsNone(self.backend.unlink_file(linked).disk_id)
+        self.assertEqual(self.backend.detail(disc.disk.id).availability.value, "online")
+
     def test_edit_details_are_kept_shown_and_reverted(self) -> None:
         from piratefinder.library.corrections import CorrectionError
 

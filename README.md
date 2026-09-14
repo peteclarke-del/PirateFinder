@@ -282,7 +282,8 @@ one level of nesting, and rescans only files that changed. Each image is decoded
 to raw sectors and matched to the catalogue by checksum, so an `.msa` matches
 the TOSEC entry for the same `.st` disk whatever the file is called. Files
 that match nothing stay searchable by file name, volume label and the names of
-the files on the disk. Library folders are only read; the one exception is
+the files on the disk, and Link to Disc files one you downloaded by hand under
+the disc it is. Library folders are only read; the one exception is
 Clean the Stored Image, after you confirm it.
 
 ![The Library page with folders, the download folder and the scan counts](docs/images/library.png)
