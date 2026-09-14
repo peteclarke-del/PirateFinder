@@ -1,8 +1,14 @@
 # Current implementation status
 
-Version 0.2.2, released on 14 September 2026, is the current release. It
-asks again for pictures a busy site said it did not have, instead of leaving
-them out for a week. Version 0.2.1, released the day before, added Download
+Version 0.2.3, released on 14 September 2026, is the current release. It
+finds a title under either spelling of its sequel number and with or without
+the space between two words, lists scene.org and Fujiology as download
+providers, reads the LZH files of the Vectronix CD, keeps a download no
+checksum could check with its disc, and bundles a catalogue that locates
+thousands more discs.
+Version 0.2.2, released the same day, asks again for pictures a busy site
+said it did not have, instead of leaving them out for a week. Version 0.2.1,
+released on 13 September, added Download
 All Pictures and lets an application update wait for the password prompt
 however long it takes. Version 0.2.0, released on 13 September too,
 brought the paged Find screen with filters and sorting, the details pane's
@@ -54,11 +60,14 @@ together.
   date
 - A catalogue of another layout refused with a message naming both layouts
 
-The build of 13 September 2026 holds 66,664 discs in 1,394 series (12,323 menu
-disks and compacts, 30,770 packs, 23,232 single disks and 339 compilations),
-117,699 titles, 82,601 known dumps, 88,362 download locations, 205,463
-picture addresses, 20,772 facts, notes and article titles, and 2,313 crew
-histories. It takes 249 MB installed and 73 MB compressed.
+The build of 14 September 2026 holds 61,792 discs in 1,395 series (12,396 menu
+disks and compacts, 25,825 packs, 23,232 single disks and 339 compilations),
+117,611 titles, 82,623 known dumps, 225,888 download locations, 207,232
+picture addresses, 20,811 facts, notes and article titles, and 2,196 crew
+histories. It takes 329 MB installed and 88 MB compressed. It has fewer discs
+than the build of 13 September because packs that two sources listed under
+different names are now one disc. The Vectronix CD locations are in the
+builds made after it.
 
 ### Finding discs
 
