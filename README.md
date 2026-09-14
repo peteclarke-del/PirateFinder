@@ -158,6 +158,8 @@ names a disc. Some searches that work on the current catalogue:
 | `lemmings skid row` | Lemmings titles on Skid Row discs |
 | `speedball quartex` | Speedball cracked by Quartex, listed in TOSEC as `[cr QTX]` |
 | `xenon2` | Xenon 2 as well as Xenon2 |
+| `turrican 2`, `turrican ii` | Turrican II and Turrican 2 alike |
+| `battlehawks` | Battle Hawks 1942 as well as Battlehawks |
 | `1800 msa` | Pompey Pirates 51, by the file name of its Atari Legend dump |
 
 The short names come from `data/series/series.toml`; a correction or a new

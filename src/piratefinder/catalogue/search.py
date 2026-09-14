@@ -28,7 +28,7 @@ from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass, field
 
 from ..models import ContentKind, Disk, Facets, Query, ResultMode, SortOrder
-from .naming import display_title, normalise, search_text, sort_title
+from .naming import display_title, normalise, search_text, sort_title, title_search_text
 
 MATCHED_LIMIT = 8  # titles of a disc reported as matching the query
 
@@ -224,6 +224,12 @@ def text_words(text: str) -> set[str]:
     return set(search_text(text).split())
 
 
+def title_words(title: str) -> set[str]:
+    """The words of a title as the search index holds them, other spellings
+    included (``naming.title_search_text``)."""
+    return set(title_search_text(title).split())
+
+
 def term_matches(term: str, words: Collection[str]) -> bool:
     """Whether a query word matches one of ``words`` as the search index matches it.
 
@@ -410,7 +416,7 @@ class _Corrected:
                 parts = [*shown, *(changed[name] for name in fields if name in changed)]
                 if parts:
                     inside = normalise(" ".join([*shown, changed.get("label", "")]))
-                    rows[row_id] = (text_words(" ".join(parts)), inside)
+                    rows[row_id] = (title_words(" ".join(parts)), inside)
             self._words[key] = rows
         return self._words[key]
 
@@ -1051,7 +1057,7 @@ def _discs_titled(plan: _Plan, prefix: str) -> tuple[str, str]:
 def _title_matches(title: str, plan: _Plan) -> bool:
     """True when a query word matches a word of ``title`` (``term_matches``),
     or a substring word is inside it."""
-    words = text_words(title)
+    words = title_words(title)
     return any(term_matches(word, words) for word in plan.prefixes) or any(
         word in normalise(title) for word in plan.substrings
     )
