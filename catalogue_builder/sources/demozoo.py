@@ -32,6 +32,18 @@ series group or a crew in ``data/groups.toml`` has the same name. Demozoo has
 many groups of one name ("Awesome" on the Amiga is not "Awesome" on the ST),
 so the records are never merged by name here.
 
+Demozoo also names the file of many packs and menus on the scene archives
+(its download links). A pack or menu carries these as download locations:
+the amigascne archive through its scene.org mirror, the main scene.org
+archive, and Fujiology for the Atari ST, never ftp.untergrund.net, whose
+robots.txt forbids robots. Only disk images and zips are taken. A Fujiology
+zip smaller than a disk image holds only the intro program, not the disk, so
+the builder reads Fujiology's listing of each folder for the file sizes and
+leaves such zips out. A pack that lists no members but has a download is
+kept as well, as a disk named by its title. The merge joins a record to the
+disk that already has its download (``merge.Merger.disk_for_url``), so a
+pack the amigascne importer found under another name is one disk.
+
 The download is large, so the importer is off by default. A local copy can be
 given with ``--input demozoo=<file>``.
 """
@@ -41,6 +53,7 @@ from __future__ import annotations
 import gzip
 import html
 import io
+import json
 import re
 import urllib.parse
 from array import array
@@ -48,17 +61,21 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..context import BuildContext
+from ..context import BuildContext, OfflineError
 from ..records import (
+    FUJIOLOGY,
+    SCENE_ORG,
     ContentRecord,
     CrewRecord,
     DiskRecord,
+    LocationRecord,
     MediaRecordIn,
     SourceInfo,
     TriviaRecordIn,
     normalise_version,
 )
 from ..series import GroupRegistry, SeriesMatch, SeriesRegistry, crew_key
+from . import amigascne
 
 INFO = SourceInfo(
     id="demozoo",
@@ -134,7 +151,22 @@ TABLES = {
     "demoscene_releaser": ("id", "name", "is_group", "notes"),
     "demoscene_membership": ("member_id", "group_id", "is_current"),
     "demoscene_releaserexternallink": ("link_class", "parameter", "releaser_id"),
+    "productions_productionlink": ("link_class", "parameter", "production_id", "is_download_link"),
 }
+
+# The hosts of the download links a pack or menu may carry: Demozoo's link
+# class -> (provider id, address the link's path is added to).
+DOWNLOAD_HOSTS = {
+    "AmigascneFile": ("amigascne", amigascne.BASE),
+    "SceneOrgFile": (SCENE_ORG.id, "https://ftp.scene.org/pub/"),
+    "FujiologyFile": (FUJIOLOGY.id, "https://fujiology.org/"),
+}
+# File types a download may be: a disk image the application writes, or a zip of one.
+DOWNLOAD_CONTAINERS = {".adf": "", ".adz": "", ".dms": "", ".st": "", ".msa": "", ".zip": "zip"}
+# A Fujiology zip smaller than this holds an intro program, not a disk image.
+DISK_SIZE_MINIMUM = 300_000
+DOWNLOAD_PRIORITY = 60  # after the archives the other importers read
+LISTING_MAX_AGE = 30.0
 
 _COPY = re.compile(r"^COPY (?:\w+\.)?\"?(?P<table>\w+)\"? \((?P<columns>[^)]*)\) FROM stdin;")
 _ESCAPE = re.compile(r"\\(?:(?P<octal>[0-7]{1,3})|x(?P<hex>[0-9A-Fa-f]{1,2})|(?P<char>.))")
@@ -248,6 +280,7 @@ class Dump:
     group_notes: dict[int, str] = field(default_factory=dict)
     memberships: array = field(default_factory=lambda: array("l"))  # member, group, current
     wikipedia: dict[int, str] = field(default_factory=dict)  # releaser -> article title
+    downloads: dict[int, list[tuple[str, str]]] = field(default_factory=dict)  # link class, path
 
 
 def _date(date: str | None, precision: str | None) -> str:
@@ -323,6 +356,9 @@ def read_dump(lines: Iterable[str]) -> Dump:
             if found and row[2]:
                 title = urllib.parse.unquote(found.group("title")).replace("_", " ").strip()
                 dump.wikipedia.setdefault(int(row[2]), title)
+        elif table == "productions_productionlink":
+            if row[3] == "t" and row[0] in DOWNLOAD_HOSTS and row[1] and row[2]:
+                dump.downloads.setdefault(int(row[2]), []).append((row[0], row[1]))
         elif table == "platforms_platform":
             dump.platforms[int(row[0])] = row[1] or ""
         elif table == "productions_productiontype":
@@ -399,6 +435,10 @@ def packs(dump: Dump, index: _Index | None = None) -> Iterator[Pack]:
     for pack, member, position in _pairs(dump.pack_members, 3):
         if pack in index.is_pack and pack in index.platform_of:
             members.setdefault(pack, []).append((position, member))
+    # A pack that lists no members is a disk all the same when it can be downloaded.
+    for pack in dump.downloads:
+        if pack in index.is_pack and pack in index.platform_of:
+            members.setdefault(pack, [])
     for pack_id, listed in sorted(members.items()):
         title, date = dump.titles.get(pack_id, ("", ""))
         contents = []
@@ -410,7 +450,7 @@ def packs(dump: Dump, index: _Index | None = None) -> Iterator[Pack]:
                     ContentRecord(title=member_title, kind=index.kind_of.get(member, "other"))
                 )
                 member_ids.append(member)
-        if title and contents:
+        if title and (contents or pack_id in dump.downloads):
             group = " & ".join(index.authors.get(pack_id, []))
             yield Pack(
                 pack_id, title, date, index.platform_of[pack_id], group, contents, member_ids
@@ -491,9 +531,74 @@ def _extras(dump: Dump, record: DiskRecord, production: int, kind: str) -> None:
         )
 
 
+class _Sizes:
+    """File sizes from Fujiology's folder listings, fetched once per folder."""
+
+    def __init__(self, ctx: BuildContext) -> None:
+        self.ctx = ctx
+        self.folders: dict[str, dict[str, int] | None] = {}
+
+    def size(self, path: str) -> int | None:
+        folder, _slash, name = path.lstrip("/").rpartition("/")
+        if folder not in self.folders:
+            url = FUJIOLOGY.url + urllib.parse.quote(f"{folder}/")
+            try:
+                text = self.ctx.fetch_text(
+                    url,
+                    name="listing.json",
+                    max_age_days=LISTING_MAX_AGE,
+                    headers={"Accept": "application/json"},
+                )
+                entries = json.loads(text)
+                self.folders[folder] = {
+                    str(entry.get("name", "")).casefold(): int(entry.get("size") or 0)
+                    for entry in entries
+                    if isinstance(entry, dict)
+                }
+            except (OSError, OfflineError, ValueError) as error:
+                self.ctx.log(f"demozoo: no Fujiology listing of {folder}: {error}")
+                self.folders[folder] = None
+        found = self.folders[folder]
+        return None if found is None else found.get(name.casefold())
+
+
+def download_locations(
+    links: Iterable[tuple[str, str]], sizes: _Sizes | None = None
+) -> list[LocationRecord]:
+    """Download locations for Demozoo's download links of one production.
+
+    Only disk images and zips on the hosts in ``DOWNLOAD_HOSTS`` are taken,
+    and a Fujiology zip only when its listing shows it is the size of a disk.
+    """
+    found: dict[str, LocationRecord] = {}
+    for link_class, path in links:
+        provider, base = DOWNLOAD_HOSTS[link_class]
+        suffix = Path(path).suffix.lower()
+        if suffix not in DOWNLOAD_CONTAINERS:
+            continue
+        size = None
+        if provider == FUJIOLOGY.id:
+            size = sizes.size(path) if sizes is not None else None
+            if size is None or size < DISK_SIZE_MINIMUM:
+                continue
+        url = base + urllib.parse.quote(path.lstrip("/"))
+        found.setdefault(
+            url,
+            LocationRecord(
+                provider=provider,
+                url=url,
+                container=DOWNLOAD_CONTAINERS[suffix],
+                size=size,
+                priority=DOWNLOAD_PRIORITY,
+            ),
+        )
+    return list(found.values())
+
+
 def records_from_dump(ctx: BuildContext, dump: Dump) -> Iterator[DiskRecord]:
     index = _Index(dump)
-    keyed = loose = pictured = 0
+    sizes = _Sizes(ctx)
+    keyed = loose = pictured = located = 0
     for pack in packs(dump, index):
         found = identify(ctx.series, pack)
         definition = ctx.series.get(found.series_id) if found else None
@@ -522,7 +627,9 @@ def records_from_dump(ctx: BuildContext, dump: Dump) -> Iterator[DiskRecord]:
             links=[("Demozoo", PRODUCTION_URL.format(id=pack.id))],
             release_date=pack.date,
             crew_ids=index.crew_ids(pack.id),
+            locations=download_locations(dump.downloads.get(pack.id, ()), sizes),
         )
+        located += bool(record.locations)
         _extras(dump, record, pack.id, "menu")
         seen: set[str] = set()
         for content, member, member_kind in zip(
@@ -555,13 +662,15 @@ def records_from_dump(ctx: BuildContext, dump: Dump) -> Iterator[DiskRecord]:
             links=[("Demozoo", PRODUCTION_URL.format(id=intro.id))],
             release_date=intro.date,
             crew_ids=index.crew_ids(intro.id),
+            locations=download_locations(dump.downloads.get(intro.id, ()), sizes),
         )
+        located += bool(record.locations)
         _extras(dump, record, intro.id, "menu")
         pictured += bool(record.media)
         yield record
     ctx.log(
         f"demozoo: {keyed} packs in a series, {loose} other packs, {menus} menu intros; "
-        f"{pictured} with screenshots"
+        f"{pictured} with screenshots, {located} with a download"
     )
 
 

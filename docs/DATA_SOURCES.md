@@ -247,6 +247,18 @@ than a local build.
   whose title names a numbered disk of a menu series gives that disk its
   screenshot, release date and link (about 4,000 menus, through the rules in
   `data/series/match-demozoo.toml`).
+- Downloads: Demozoo names the file of many packs and menus on the scene
+  archives. These become download locations: the amigascne archive through
+  its scene.org mirror, the main scene.org archive, and Fujiology for the
+  Atari ST. Only disk images (ADF, ADZ, DMS, ST, MSA) and zips are taken, and
+  never a link to ftp.untergrund.net, whose robots.txt forbids robots. A
+  Fujiology zip smaller than a disk image holds only the intro program, so
+  the builder reads the JSON listing of each Fujiology folder it needs, for
+  the file sizes, and leaves such zips out. A pack that lists no members but
+  has a download becomes a disk named by its title. A record whose download
+  is already another disc's joins that disc, unless the numbers in their
+  titles disagree, so a pack the amigascne importer found under its file
+  name and Demozoo under its title is one disc.
 - Details pane: release dates with Demozoo's precision (day, month or year);
   the addresses of screenshots on media.demozoo.org (up to three of a pack or
   menu as pictures of the disc, one of each pack member as a picture of that
@@ -265,6 +277,23 @@ than a local build.
   with `--input demozoo=FILE`. The builder fetches no screenshot and no page
   of the demozoo.org website; a source that did would be kept to the site's
   Crawl-delay of 10 seconds by `data/fetch-hosts.toml`.
+
+### scene.org and Fujiology (download hosts)
+
+- URLs: <https://www.scene.org/> (files from `ftp.scene.org/pub/`) and
+  <https://fujiology.org/>
+- Used for: download locations Demozoo names for packs and menus (see
+  Demozoo above). No other data is taken from either site. The application
+  lists them as providers, each with its own switch.
+- Terms: neither states a licence for the files. scene.org's FAQ welcomes
+  mirrors; Fujiology describes itself as an archive of Atari scene releases.
+  Recorded as "No licence stated; used under the site's terms, credit
+  given".
+- Requests: scene.org has no robots.txt. Fujiology has none either; the
+  builder asks for the JSON listing of each folder it needs, 1.5 seconds
+  apart (`data/fetch-hosts.toml`), cached for 30 days. The same Fujiology
+  tree on ftp.untergrund.net is never used, because that host's robots.txt
+  forbids robots.
 
 ### libretro-thumbnails
 

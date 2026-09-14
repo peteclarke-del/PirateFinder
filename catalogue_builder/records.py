@@ -255,3 +255,21 @@ class SourceInfo:
     name: str
     url: str
     licence: str = ""
+
+
+# Sites that host downloads other sources name but that are no source of
+# their own: the catalogue's sources table lists them, so the application can
+# name them as providers, whenever a location uses them.
+SCENE_ORG = SourceInfo(
+    id="scene-org",
+    name="scene.org",
+    url="https://www.scene.org/",
+    licence=NO_LICENCE_STATED,
+)
+FUJIOLOGY = SourceInfo(
+    id="fujiology",
+    name="Fujiology",
+    url="https://fujiology.org/",
+    licence=NO_LICENCE_STATED,
+)
+HOSTS = {host.id: host for host in (SCENE_ORG, FUJIOLOGY)}
