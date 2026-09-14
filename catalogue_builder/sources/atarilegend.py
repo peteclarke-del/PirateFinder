@@ -72,6 +72,8 @@ INFO = SourceInfo(
     licence="CC BY-NC-SA 4.0",
 )
 CONTENT_PRIORITY = 10
+# Registers a series for each menu set no series matches.
+REGISTERS_SERIES = True
 
 SITE = "https://www.atarilegend.com"
 DUMPS_URL = f"{SITE}/data/database-dumps/"
