@@ -1,8 +1,12 @@
 # Current implementation status
 
-Version 0.2.2, released on 14 September 2026, is the current release. It
-asks again for pictures a busy site said it did not have, instead of leaving
-them out for a week. Version 0.2.1, released the day before, added Download
+Version 0.2.3, released on 14 September 2026, is the current release. It
+finds a title under either spelling of its sequel number and with or without
+the space between two words, lists scene.org and Fujiology as download
+providers, and bundles a catalogue that locates thousands more discs.
+Version 0.2.2, released the same day, asks again for pictures a busy site
+said it did not have, instead of leaving them out for a week. Version 0.2.1,
+released on 13 September, added Download
 All Pictures and lets an application update wait for the password prompt
 however long it takes. Version 0.2.0, released on 13 September too,
 brought the paged Find screen with filters and sorting, the details pane's

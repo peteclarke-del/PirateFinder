@@ -528,11 +528,12 @@ new catalogue sources.
 
 ## Status and roadmap
 
-Version 0.2.2 is the current release. Version 0.2.0 brought the paged Find
+Version 0.2.3 is the current release. Version 0.2.0 brought the paged Find
 screen with its filters, the pictures, crew histories and trivia in the
 details pane, virus detection and Check for Application Updates; 0.2.1 added
-Download All Pictures, and 0.2.2 asks again for pictures a busy site turned
-away. No write to a real floppy has been tested yet: writing has been checked against the real
+Download All Pictures, 0.2.2 asks again for pictures a busy site turned
+away, and 0.2.3 finds titles under more spellings and locates thousands more
+discs. No write to a real floppy has been tested yet: writing has been checked against the real
 `gw` tool without a Greaseweazle attached. [Current status](docs/CURRENT_STATUS.md)
 lists what works and what is unfinished, and the [Roadmap](ROADMAP.md) the
 planned catalogue, library, writing and distribution work.
