@@ -259,9 +259,17 @@ CD's locations.
 
 ## Not yet done
 
-- No write to a real floppy has been made yet; the test with real hardware
-  is planned with the owner. Writing has been checked against the real `gw`
-  1.23 tool without a Greaseweazle attached: generated disk definitions
+- One layout has been written to a real floppy so far. On 14 September 2026
+  PirateFinder 0.2.4's write session wrote Vectronix 834, an Atari ST disk of
+  81 cylinders, 2 sides and 9 sectors, to a floppy in drive A (300 rpm) of a
+  Greaseweazle F1 (firmware 1.6, host tools 1.23): it downloaded
+  the disc, checked it against its TOSEC dump, generated the disk definition
+  and wrote it, and gw verified every track with no retries. Read back with
+  the packaged gw, all 1,458 sectors matched the TOSEC dump byte for byte.
+  The recorded output is in `tests/fixtures/greaseweazle`. The other layouts
+  and formats (80 cylinders with 9, 10 or 11 sectors, 82 and 83 cylinders,
+  Amiga DD and HD, IPF, SCP and HFE) have been checked only against the real
+  `gw` 1.23 tool without a Greaseweazle attached: generated disk definitions
   produce the same flux as gw's own formats, and every track of 82 and 83
   cylinder disks survives.
 - Version 0.1.0 reads layout 1 and looks for any catalogue file in the
