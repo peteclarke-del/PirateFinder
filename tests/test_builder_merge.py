@@ -27,7 +27,7 @@ from catalogue_builder.records import (
 )
 from catalogue_builder.series import CrewChoice, GroupRegistry, SeriesDef, SeriesRegistry
 from piratefinder.catalogue import schema
-from piratefinder.catalogue.naming import search_text
+from piratefinder.catalogue.naming import search_text, title_search_text
 
 TOSEC = SourceInfo("tosec", "TOSEC", "https://tosec.example")
 LEGEND = SourceInfo("atari-legend", "Atari Legend", "https://al.example", "CC BY-NC-SA 4.0")
@@ -454,6 +454,30 @@ class TitledLocationTest(unittest.TestCase):
 class SearchTextTest(unittest.TestCase):
     def test_joined_words_are_indexed_both_ways(self) -> None:
         self.assertEqual(search_text("R-Type & S.T.U.N."), "r type and s t u n rtype stun")
+
+    def test_titles_are_found_by_their_other_spellings(self) -> None:
+        self.assertEqual(title_search_text("Turrican II"), "turrican ii 2 turricanii")
+        self.assertEqual(title_search_text("R-Type"), "r type rtype")
+        records = [
+            single("tosec", "Turrican II", contents=[ContentRecord("Turrican II")]),
+            single("tosec", "Speedball 2", contents=[ContentRecord("Speedball 2")]),
+            single("tosec", "Battle Hawks 1942", contents=[ContentRecord("Battle Hawks 1942")]),
+        ]
+        connection, _stats, _ = build(SourceBatch(TOSEC, records))
+        for word, found in (
+            ("2", ["Speedball 2", "Turrican II"]),
+            ("ii", ["Speedball 2", "Turrican II"]),
+            ("battlehawks", ["Battle Hawks 1942"]),
+        ):
+            with self.subTest(word=word):
+                self.assertEqual(sorted(matches(connection, "entry_fts", "title", word)), found)
+                ids = matches(connection, "disk_fts", "label", word)
+                labels = [
+                    row(connection, "SELECT label FROM disks WHERE id = ?", i)[0] for i in ids
+                ]
+                self.assertEqual(sorted(labels), found)
+        # Notes are not given other spellings.
+        self.assertNotIn("2", search_text("Turrican II").split())
 
     def test_notes_and_scroll_texts_are_indexed_a_word_once(self) -> None:
         self.assertEqual(distinct_words("hi hi skid row hi row greetings"), "hi skid row greetings")

@@ -394,6 +394,44 @@ def search_text(text: str) -> str:
     return " ".join(word for word in words if word)
 
 
+# A sequel's number in Roman numerals and in figures: "Turrican II" is found by
+# "turrican 2" and "Speedball 2" by "speedball ii". Single letters (I, V, X) are
+# left out: they are too often letters.
+_ROMAN = {
+    "ii": "2",
+    "iii": "3",
+    "iv": "4",
+    "vi": "6",
+    "vii": "7",
+    "viii": "8",
+    "ix": "9",
+    "xi": "11",
+    "xii": "12",
+    "xiii": "13",
+    "xiv": "14",
+    "xv": "15",
+    "xvi": "16",
+}
+_FIGURES = {figures: roman for roman, figures in _ROMAN.items()}
+
+
+def title_search_text(text: str) -> str:
+    """``search_text``, and the other spellings a title is searched by.
+
+    A sequel's number is indexed in the other numerals as well, and each
+    two neighbouring words joined, so "Battle Hawks 1942" is found by
+    "battlehawks". Only names get these: notes and scroll texts would grow
+    the index for nothing.
+    """
+    base = search_text(text)
+    words = normalise(text).split()
+    extra = [_ROMAN.get(word) or _FIGURES.get(word, "") for word in words]
+    extra += [a + b for a, b in zip(words, words[1:], strict=False) if not (a + b).isdigit()]
+    known = set(base.split())
+    extra = [word for word in dict.fromkeys(extra) if word and word not in known]
+    return " ".join([base, *extra]) if extra else base
+
+
 def title_key(name: str) -> str:
     """The normalised title a name stands for, for joining titles across sources.
 

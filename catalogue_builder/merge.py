@@ -55,6 +55,7 @@ from piratefinder.catalogue.naming import (
     sort_title,
     tidy_label,
     title_key,
+    title_search_text,
 )
 from piratefinder.models import Content, ContentKind, Disk, DiskKind, Platform
 
@@ -1054,7 +1055,7 @@ class _Writer:
                 facets.append(f"{year} {month:02d}")
         notes = [text for record in records for text in (record.notes, record.menu_text) if text]
         return _DiskText(
-            disk=search_text(" ".join([label, *series_words, title])),
+            disk=title_search_text(" ".join([label, *series_words, title])),
             crew=list(crews),
             people=search_text(_joined(records, "credits")),
             facets=[word for word in facets if word],
@@ -1122,7 +1123,7 @@ class _Writer:
             index.append(
                 (
                     self.entry_id,
-                    search_text(" ".join(dict.fromkeys(names))),
+                    title_search_text(" ".join(dict.fromkeys(names))),
                     text.disk,
                     search_text(" ".join(crews)),
                     text.people,
@@ -1173,9 +1174,9 @@ class _Writer:
             "files) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 disk.id,
-                search_text(f"{label} {title}"),
+                title_search_text(f"{label} {title}"),
                 search_text(series_text),
-                search_text(" ".join([*titles, *extras])),
+                title_search_text(" ".join([*titles, *extras])),
                 text.people,
                 text.notes,
                 search_text(" ".join(crews)),
