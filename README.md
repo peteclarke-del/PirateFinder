@@ -342,8 +342,8 @@ build of 14 September 2026 holds:
 | Compilations | 241 | 98 |
 
 That is 61,792 discs in 1,395 series, with 117,611 titles listed on 42,818 of
-them, 82,623 known dumps with their checksums, 225,888 download locations for
-57,600 discs, 1,288 dumps that TOSEC flags with a virus, the addresses of
+them, 82,623 known dumps with their checksums, 226,887 download locations for
+57,989 discs, 1,288 dumps that TOSEC flags with a virus, the addresses of
 207,232 pictures, 20,811 facts, notes and Wikipedia article titles, and the
 histories of 2,196 crews. It takes 329 MB installed and 88 MB compressed.
 
@@ -529,12 +529,12 @@ new catalogue sources.
 
 ## Status and roadmap
 
-Version 0.2.3 is the current release. Version 0.2.0 brought the paged Find
+Version 0.2.4 is the current release. Version 0.2.0 brought the paged Find
 screen with its filters, the pictures, crew histories and trivia in the
 details pane, virus detection and Check for Application Updates; 0.2.1 added
 Download All Pictures, 0.2.2 asks again for pictures a busy site turned
-away, and 0.2.3 finds titles under more spellings and locates thousands more
-discs. No write to a real floppy has been tested yet: writing has been checked against the real
+away, 0.2.3 finds titles under more spellings and locates thousands more
+discs, and 0.2.4 adds Link to Disc for files downloaded by hand. No write to a real floppy has been tested yet: writing has been checked against the real
 `gw` tool without a Greaseweazle attached. [Current status](docs/CURRENT_STATUS.md)
 lists what works and what is unfinished, and the [Roadmap](ROADMAP.md) the
 planned catalogue, library, writing and distribution work.
