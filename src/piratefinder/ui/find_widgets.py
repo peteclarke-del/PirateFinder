@@ -125,7 +125,14 @@ class ChoiceDropDown(Gtk.DropDown):
     The first choice is always "any" (value None or ""). ``set_choices``
     keeps the selected value when it is still offered, without reporting a
     change.
+
+    The list is as wide as its longest name, up to ``NAME_CHARS`` characters:
+    the popover gives each row only its minimum width, so a name that may be
+    shortened needs a minimum of its own ("Applications" showed as "Ap...").
+    A longer name is shortened and shown whole in its tooltip.
     """
+
+    NAME_CHARS = 32
 
     def __init__(self, label: str, tooltip: str, *, search: bool = False) -> None:
         self.store = Gio.ListStore(item_type=ChoiceItem)
@@ -147,6 +154,7 @@ class ChoiceDropDown(Gtk.DropDown):
         list_factory.connect("setup", self._setup_row)
         list_factory.connect("bind", self._bind_row)
         self.set_list_factory(list_factory)
+        self.name_chars = 0  # the width of the list's names, in characters
         self._callbacks: list[Callable[[], None]] = []
         self._quiet = False
         self.connect("notify::selected", self._on_selected)
@@ -159,11 +167,10 @@ class ChoiceDropDown(Gtk.DropDown):
     def _bind_button(_factory, item: Gtk.ListItem) -> None:
         item.get_child().set_text(item.get_item().name)
 
-    @staticmethod
-    def _setup_row(_factory, item: Gtk.ListItem) -> None:
+    def _setup_row(self, _factory, item: Gtk.ListItem) -> None:
         box = Gtk.Box(spacing=12)
         name = Gtk.Label(xalign=0, hexpand=True, ellipsize=Pango.EllipsizeMode.END)
-        name.set_max_width_chars(32)
+        name.set_max_width_chars(self.NAME_CHARS)
         box.append(name)
         count = Gtk.Label(xalign=1)
         count.add_css_class("dim-label")
@@ -171,17 +178,21 @@ class ChoiceDropDown(Gtk.DropDown):
         box.append(count)
         item.set_child(box)
 
-    @staticmethod
-    def _bind_row(_factory, item: Gtk.ListItem) -> None:
+    def _bind_row(self, _factory, item: Gtk.ListItem) -> None:
         choice = item.get_item()
         name = item.get_child().get_first_child()
         count = name.get_next_sibling()
+        name.set_width_chars(self.name_chars)
         name.set_text(choice.name)
+        name.set_tooltip_text(choice.name if len(choice.name) > self.NAME_CHARS else None)
         count.set_text(f"{choice.count:,}" if choice.count is not None else "")
         count.set_visible(choice.count is not None)
 
     def set_choices(self, choices: Sequence[tuple[Any, str, int | None]]) -> None:
         current = self.value
+        self.name_chars = min(
+            max((len(name) for _v, name, _c in choices), default=0), self.NAME_CHARS
+        )
         self._quiet = True
         try:
             self.store.splice(

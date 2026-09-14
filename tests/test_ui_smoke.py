@@ -353,6 +353,30 @@ class WindowTests(unittest.TestCase):
         self.assertTrue(all(row.disk.kind == DiskKind.PACK for row in page.results))
         self.assertTrue(page.results)
 
+    def test_filter_lists_show_whole_names(self) -> None:
+        # The popover gives each row its minimum width, which an ellipsized
+        # name alone would shrink to "Ap..." for Applications.
+        page = self.window.find_page
+        wait_until(lambda: len(page.type_dropdown.choices) > 1, "the facets")
+        for dropdown in (page.type_dropdown, page.kind_dropdown, page.crew_dropdown):
+            dropdown.activate()
+            popover = next(w for w in widgets_in(dropdown) if isinstance(w, Gtk.Popover))
+            wait_until(popover.get_mapped, "the list to open")
+            pump(0.2)
+            names = [
+                label
+                for label in widgets_in(popover)
+                if isinstance(label, Gtk.Label)
+                and label.get_mapped()
+                and label.get_text()
+                and "numeric" not in label.get_css_classes()
+            ]
+            self.assertGreater(len(names), 1)
+            for label in names:
+                self.assertFalse(label.get_layout().is_ellipsized(), label.get_text())
+            popover.popdown()
+            pump(0.1)
+
     def test_a_crew_is_browsed_by_disc_number_without_text(self) -> None:
         page = self.window.find_page
         page.set_mode(ResultMode.DISCS)
