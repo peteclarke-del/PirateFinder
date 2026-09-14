@@ -130,6 +130,26 @@ class SeriesDataTest(unittest.TestCase):
         self.assertTrue((DATA_DIR / "match-tosec.toml").is_file())
 
 
+class RegistryLookupTest(unittest.TestCase):
+    def test_a_series_added_after_a_lookup_is_found_by_name_and_pattern(self) -> None:
+        registry = SeriesRegistry.load()
+        self.assertIsNone(registry.by_name("Glenz Pack (Mad Elks)", "amiga"))
+        self.assertIsNone(registry.match("demozoo", "Glenz Pack 10", "amiga"))
+        glenz = SeriesDef("glenz-pack", "Glenz Pack (Mad Elks)", "amiga", "pack", aliases=["glenz"])
+        glenz.patterns["demozoo"] = [re.compile(r"^Glenz Pack (?P<number>\d+)$")]
+        registry.add(glenz)
+        self.assertIs(registry.by_name("glenz pack (mad elks)", "amiga"), glenz)
+        self.assertIs(registry.by_name("Glenz"), glenz)
+        self.assertIsNone(registry.by_name("Glenz", "atari-st"))
+        self.assertEqual(registry.match("demozoo", "Glenz Pack 10", "amiga").number, 10)
+
+    def test_the_first_series_registered_wins_a_shared_name(self) -> None:
+        first = SeriesDef("a", "Compact", "amiga", "menu")
+        second = SeriesDef("b", "Other", "amiga", "menu", aliases=["compact"])
+        registry = SeriesRegistry({"a": first, "b": second})
+        self.assertIs(registry.by_name("Compact", "amiga"), first)
+
+
 class GroupsTest(unittest.TestCase):
     def test_abbreviations_expand(self) -> None:
         groups = GroupRegistry.load()
