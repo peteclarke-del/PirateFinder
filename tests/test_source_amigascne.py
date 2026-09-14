@@ -155,6 +155,8 @@ class AmigaScneTest(unittest.TestCase):
         self.assertEqual(pack.platform, "amiga")
         self.assertEqual([image.crc32 for image in pack.images], ["50dec2f1"])
         self.assertEqual(len(pack.locations), 2)
+        # The group in the file name is the disk's crew, not "Unknown crew".
+        self.assertEqual(pack.publisher, "Reflex")
 
     def test_name_fallback_needs_the_same_group(self) -> None:
         # "Group Selection" is declared for Citron, so Reflex's disk is not claimed.
