@@ -49,6 +49,18 @@
     <keyword>compact</keyword>
   </keywords>
   <releases>
+    <release version="0.2.3" date="2026-09-14">
+      <description>
+        <p>More discs found, and more ways to spell a title.</p>
+        <ul>
+          <li>A sequel number finds its title in Roman or Arabic numerals, so "Turrican 2" and "Turrican II" find the same discs</li>
+          <li>A word with letters and digits in it, such as "turrican2", finds its title, and names are found with or without the space between two words</li>
+          <li>A name that begins with a crew's short alias finds titles under the alias and under the full name</li>
+          <li>scene.org and Fujiology are download providers, each with its own switch in Preferences</li>
+          <li>The bundled catalogue locates thousands more discs, from newer TOSEC sets on the Internet Archive and from Demozoo's download links, and names the crew of most Amiga discs that had none</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.2" date="2026-09-14">
       <description>
         <p>Pictures a busy site turned away are asked for again.</p>
