@@ -19,6 +19,7 @@ COPY public.demoscene_nick (id, releaser_id, name, abbreviation, differentiator)
 7	70	The Medway Boys		
 8	90	Windows Crew		
 9	65	Automation		
+10	100	The Next Generation		
 \.
 
 COPY public.demoscene_releaser (id, name, is_group, notes, location, country_code) FROM stdin;
@@ -34,6 +35,7 @@ COPY public.demoscene_releaser (id, name, is_group, notes, location, country_cod
 81	Gino	f			
 82	Zodiac	f			
 90	Windows Crew	t	Only Windows.		
+100	The Next Generation	t			
 \.
 
 COPY public.demoscene_releaserexternallink (id, link_class, parameter, releaser_id, source) FROM stdin;
@@ -83,6 +85,9 @@ COPY public.productions_production (id, title, notes, release_date_date, release
 703	Compact Menu 001 Intro		1988	y	production
 704	Windows Menu 1 Intro		\N		production
 705	Automation Megademo		\N		production
+800	Lost Pack 7		\N		production
+706	Menu #46 Intro		1991	y	production
+707	Disk 3 Intro		\N		production
 \.
 
 COPY public.productions_production_author_nicks (id, production_id, nick_id) FROM stdin;
@@ -98,6 +103,8 @@ COPY public.productions_production_author_nicks (id, production_id, nick_id) FRO
 10	704	8
 11	400	8
 12	705	9
+13	706	10
+14	707	4
 \.
 
 COPY public.productions_production_platforms (id, production_id, platform_id) FROM stdin;
@@ -119,6 +126,9 @@ COPY public.productions_production_platforms (id, production_id, platform_id) FR
 16	302	6
 17	705	5
 18	705	6
+19	800	5
+20	706	9
+21	707	9
 \.
 
 COPY public.productions_production_types (id, production_id, productiontype_id) FROM stdin;
@@ -143,6 +153,9 @@ COPY public.productions_production_types (id, production_id, productiontype_id) 
 19	704	4
 20	302	13
 21	705	1
+90	800	9
+91	706	4
+92	707	4
 \.
 
 COPY public.productions_productiontype (id, name, path, depth, numchild, "position", internal_name) FROM stdin;
@@ -169,3 +182,15 @@ COPY public.productions_screenshot (id, production_id, original_url, original_wi
 8	201	https://media.example/o/201b.png	320	256	https://media.example/t/201b.png	200	160	https://media.example/s/201b.png	320	256	\N	\N	\N	\N
 \.
 
+
+COPY public.productions_productionlink (id, link_class, parameter, production_id, is_download_link, description) FROM stdin;
+1	AmigascneFile	/Packdisks/Prevail/PrevailPack147.dms	200	t	
+2	UntergrundFile	/users/someone/prevail147.zip	200	t	
+3	AmigascneFile	/Groups/P/Prevail/Prevail-Intro	200	t	
+4	SceneOrgFile	/demos/groups/prevail/prevail147.lha	200	t	
+5	AmigascneFile	/Packdisks/Prevail/NotADownload.adf	200	f	
+6	AmigascneFile	/Packdisks/Lost/LostPack07.adf	800	t	
+7	FujiologyFile	/ST/D/DBUG/DBUG193A.ZIP	500	t	
+8	FujiologyFile	/ST/A/AUTOMATN/AUTO155.ZIP	700	t	
+9	SceneOrgFile	/demos/groups/dbug/dbug193a.zip	500	t	
+\.

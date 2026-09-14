@@ -8,10 +8,10 @@
 #   name            the spelling shown to the user
 #   abbreviations   short tags, matched case-sensitively
 #   aliases         other spellings, matched after normalisation
-#   platforms       where the abbreviations mean this group ("amiga",
-#                   "atari-st"); without it they mean it everywhere. The
-#                   same tag may name one group on the Amiga and another on
-#                   the Atari ST.
+#   platforms       where the abbreviations and aliases mean this group
+#                   ("amiga", "atari-st"); without it they mean it
+#                   everywhere. The same tag may name one group on the Amiga
+#                   and another on the Atari ST.
 #
 # Only expansions that are well established belong here. A tag that is not
 # listed is shown as the source gives it.
@@ -925,3 +925,132 @@ abbreviations = ["V8"]
 name = "The Menacing Cracking Alliance"
 platforms = ["atari-st"]
 abbreviations = ["MCA"]
+
+# Added after the catalogue coverage audit of 2026-09-14. Each tag was
+# checked against the crew's Demozoo cracktros (titles the tag's cracks share
+# with the crew's) and the file prefixes in the crew's own amigascne folder.
+
+# demozoo.org/groups/2866/, Amiga cracking 1989 to 1990; 67 of its 107
+# cracktro titles are PNA cracks, and its amigascne folder uses PNA.
+[[group]]
+name = "Paranoimia"
+platforms = ["amiga"]
+abbreviations = ["PNA"]
+
+# demozoo.org/groups/46950/; 130 of 141 amigascne "WT" files are in Wanted_Team/.
+[[group]]
+name = "Wanted Team"
+platforms = ["amiga"]
+abbreviations = ["WT"]
+
+# demozoo.org/groups/1572/, Amiga cracking 1988 to 1992; 39 of 85 titles shared.
+[[group]]
+name = "Oracle"
+platforms = ["amiga"]
+abbreviations = ["OCL"]
+
+# demozoo.org/groups/44900/; 308 of 314 amigascne "GOD" files are in
+# GlobalOverdose/. "Gods" is another name and stays apart (tags are matched
+# case-sensitively).
+[[group]]
+name = "Global Overdose"
+platforms = ["amiga"]
+abbreviations = ["GOD"]
+
+# demozoo.org/groups/2925/, M.A.D., Amiga cracking; 19 of 26 titles shared.
+[[group]]
+name = "Mutual Assured Destruction"
+platforms = ["amiga"]
+abbreviations = ["MAD"]
+
+# demozoo.org/groups/2975/; 16 of 26 titles shared, and Accumulators/ uses ACC.
+[[group]]
+name = "The Accumulators"
+platforms = ["amiga"]
+abbreviations = ["ACC"]
+aliases = ["Accumulators"]
+
+# demozoo.org/groups/38713/, Amiga cracking 1989 to 1990; all 40 amigascne
+# "QS" files are in Quicksilver/.
+[[group]]
+name = "Quicksilver"
+platforms = ["amiga"]
+abbreviations = ["QS"]
+
+# demozoo.org/groups/2928/; 6 of 11 titles shared.
+[[group]]
+name = "Unit A"
+platforms = ["amiga"]
+abbreviations = ["UA"]
+
+# demozoo.org/groups/407/, DCS.
+[[group]]
+name = "Dual Crew Shining"
+platforms = ["amiga"]
+abbreviations = ["DCS"]
+
+# demozoo.org/groups/3436/.
+[[group]]
+name = "Shining 8"
+platforms = ["amiga"]
+abbreviations = ["S8"]
+
+# demozoo.org/groups/31680/, an Atari ST, Amiga, C64 and PC cracking group;
+# 37 of the 98 ICS cracks on the Atari ST are its Demozoo cracktros. On the
+# Amiga, ICS is Italian Cracking Service (above).
+[[group]]
+name = "International Cracking Service"
+platforms = ["atari-st"]
+abbreviations = ["ICS"]
+
+# demozoo.org/groups/36386/, STCS, Atari ST cracking.
+[[group]]
+name = "ST Computer Service"
+platforms = ["atari-st"]
+abbreviations = ["STCS", "S.T.C.S."]
+
+# demozoo.org/groups/31726/, Atari ST cracking, France.
+[[group]]
+name = "Mekannik Destructiv Kommando"
+platforms = ["atari-st"]
+abbreviations = ["MDK"]
+
+# Other spellings that split one crew in the Crew filter. Spellings that
+# differ only in case, "The", spaces or punctuation ("Flashlight Design" and
+# "Flash Light Design") are joined by the builder without an entry here.
+
+# demozoo.org/groups/41608/ spells it Devious Dezigns; 258 discs say Designs.
+[[group]]
+name = "Devious Dezigns"
+platforms = ["amiga"]
+aliases = ["Devious Designs"]
+
+# demozoo.org/groups/55133/.
+[[group]]
+name = "Pendle Europa"
+platforms = ["amiga"]
+aliases = ["Pendle Europe"]
+
+# demozoo.org/groups/31960/.
+[[group]]
+name = "Superior"
+platforms = ["atari-st"]
+aliases = ["Superiors"]
+
+# demozoo.org/groups/31558/.
+[[group]]
+name = "Lowlife Inc."
+platforms = ["atari-st"]
+aliases = ["Lowlife"]
+
+# demozoo.org/groups/31504/.
+[[group]]
+name = "Sewer Software"
+platforms = ["atari-st"]
+aliases = ["Sewer Soft", "Sewer"]
+
+# demozoo.org/sceners/42637/, a cracker who signed Klapauzius.
+[[group]]
+name = "Klapauzius"
+platforms = ["atari-st"]
+aliases = ["Klapausius", "Klapauzuis"]

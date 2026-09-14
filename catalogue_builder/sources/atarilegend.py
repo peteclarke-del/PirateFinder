@@ -72,6 +72,8 @@ INFO = SourceInfo(
     licence="CC BY-NC-SA 4.0",
 )
 CONTENT_PRIORITY = 10
+# Registers a series for each menu set no series matches.
+REGISTERS_SERIES = True
 
 SITE = "https://www.atarilegend.com"
 DUMPS_URL = f"{SITE}/data/database-dumps/"
@@ -117,6 +119,21 @@ TABLES = frozenset(
         "game_release_trainer_option",
     }
 )
+
+# Atari Legend renamed some tables and columns in its export of 2026-09-13,
+# and the dump now names its menu disk instead of the disk naming its dump.
+# Both forms are read: the newer names are mapped to the ones this importer
+# uses (``normalise``), so an export of either form gives the same records.
+RENAMED_TABLES = {
+    "companies": "pub_devs",
+    "individual_nickname": "individual_nicks",
+    "game_screenshot": "screenshot_game",
+}
+RENAMED_COLUMNS = {
+    "game_releases": {"company_id": "pub_dev_id"},
+    "menu_disk_contents": {"position": "order"},
+    "menu_sets": {"sort_direction": "menus_sort"},
+}
 
 # --- reading the dump ------------------------------------------------------
 
@@ -335,12 +352,41 @@ class _ValuesParser:
 
 
 def load_tables(path: Path, tables: Iterable[str] = TABLES) -> dict[str, list[dict]]:
-    """Every row of ``tables`` in the dump at ``path``, grouped by table."""
-    result: dict[str, list[dict]] = {table: [] for table in tables}
+    """Every row of ``tables`` in the dump at ``path``, grouped by table.
+
+    Tables and columns are given their older names (``normalise``).
+    """
+    wanted = set(tables)
+    wanted |= {new for new, old in RENAMED_TABLES.items() if old in wanted}
+    result: dict[str, list[dict]] = {table: [] for table in wanted}
     with open_dump(path) as handle:
         for table, row in iter_rows(handle, result):
             result[table].append(row)
-    return result
+    return normalise(result)
+
+
+def normalise(tables: dict[str, list[dict]]) -> dict[str, list[dict]]:
+    """Give the tables and columns of an export of 2026-09-13 or later their older names."""
+    for new, old in RENAMED_TABLES.items():
+        rows = tables.pop(new, [])
+        if rows and not tables.get(old):
+            tables[old] = rows
+    for table, renames in RENAMED_COLUMNS.items():
+        for row in tables.get(table, ()):
+            for new, old in renames.items():
+                if new in row and old not in row:
+                    row[old] = row.pop(new)
+    # A dump that names its menu disk: give the disk the dump's id, as before.
+    dump_of_disk = {
+        dump["menu_disk_id"]: dump["id"]
+        for dump in tables.get("menu_disk_dumps", ())
+        if dump.get("menu_disk_id") is not None
+    }
+    if dump_of_disk:
+        for disk in tables.get("menu_disks", ()):
+            if disk.get("menu_disk_dump_id") is None and disk["id"] in dump_of_disk:
+                disk["menu_disk_dump_id"] = dump_of_disk[disk["id"]]
+    return tables
 
 
 # --- fetching --------------------------------------------------------------

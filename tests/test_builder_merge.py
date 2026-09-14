@@ -27,7 +27,7 @@ from catalogue_builder.records import (
 )
 from catalogue_builder.series import CrewChoice, GroupRegistry, SeriesDef, SeriesRegistry
 from piratefinder.catalogue import schema
-from piratefinder.catalogue.naming import search_text
+from piratefinder.catalogue.naming import search_text, title_search_text
 
 TOSEC = SourceInfo("tosec", "TOSEC", "https://tosec.example")
 LEGEND = SourceInfo("atari-legend", "Atari Legend", "https://al.example", "CC BY-NC-SA 4.0")
@@ -379,6 +379,92 @@ class LocationTest(unittest.TestCase):
         )
 
 
+SCENE = SourceInfo("amigascne", "amigascne", "https://scene.example")
+GLENZ = "https://scene.example/Packdisks/MadElks/MadElks-2FuckTheGlenz10.dms"
+
+
+def scene_pack(title: str, url: str, **fields: object) -> DiskRecord:
+    """An amigascne pack: a title from the file name and the file as its location."""
+    return DiskRecord(
+        "amigascne",
+        "amiga",
+        "pack",
+        title=title,
+        locations=[LocationRecord("amigascne", url, priority=40)],
+        **fields,
+    )
+
+
+def zoo_pack(title: str, url: str, **fields: object) -> DiskRecord:
+    """A Demozoo pack: its members, and the file Demozoo names as its download."""
+    return DiskRecord(
+        "demozoo",
+        "amiga",
+        "pack",
+        title=title,
+        contents=[ContentRecord("Glenz Intro", "intro"), ContentRecord("Vector Balls", "demo")],
+        locations=[LocationRecord("amigascne", url, priority=60)],
+        **fields,
+    )
+
+
+class SharedDownloadTest(unittest.TestCase):
+    """Records that name the same download are one disk, unless their numbers disagree."""
+
+    def test_a_pack_and_the_file_it_names_are_one_disk(self) -> None:
+        connection, stats, _ = build(
+            SourceBatch(SCENE, [scene_pack("2 Fuck The Glenz 10 (Mad Elks)", GLENZ)], 90),
+            SourceBatch(ZOO, [zoo_pack("2 Fuck da Glenz 10 (Mad Elks)", GLENZ.lower())], 35),
+        )
+        self.assertEqual(row(connection, "SELECT count(*) FROM disks"), (1,))
+        titles = rows(connection, "SELECT title FROM contents ORDER BY position")
+        self.assertEqual(titles, [("Glenz Intro",), ("Vector Balls",)])
+        # One download, spelt as the archive's own index spells it.
+        self.assertEqual(
+            rows(
+                connection,
+                "SELECT coalesce(p.text, '') || l.url FROM locations l "
+                "LEFT JOIN address_prefix p ON p.id = l.url_prefix",
+            ),
+            [(GLENZ,)],
+        )
+        self.assertEqual(stats["download merges"], 1)
+
+    def test_a_download_of_another_issue_is_not_joined(self) -> None:
+        url = "https://scene.example/Packdisks/BadTaste/BadTaste2.dms"
+        connection, stats, _ = build(
+            SourceBatch(SCENE, [scene_pack("Bad Taste 2", url)], 90),
+            SourceBatch(ZOO, [zoo_pack("Bad Taste 4", url)], 35),
+        )
+        self.assertEqual(row(connection, "SELECT count(*) FROM disks"), (2,))
+        self.assertEqual((stats["download merges"], stats["download merges refused"]), (0, 1))
+
+    def test_a_file_with_a_dump_joins_the_keyed_disk_that_names_it(self) -> None:
+        url = "https://scene.example/Packdisks/Automation/Auto250.adf"
+        keyed = DiskRecord(
+            "demozoo",
+            "atari-st",
+            "menu",
+            "automation",
+            250,
+            contents=[ContentRecord("Necron")],
+            locations=[LocationRecord("amigascne", url)],
+        )
+        dumped = DiskRecord(
+            "amigascne",
+            "atari-st",
+            "menu",
+            title="Auto 250",
+            images=[image("Auto250.st", "ab12")],
+            locations=[LocationRecord("amigascne", url)],
+        )
+        connection, _, _ = build(SourceBatch(ZOO, [keyed], 35), SourceBatch(SCENE, [dumped], 90))
+        self.assertEqual(
+            row(connection, "SELECT count(*), max(label) FROM disks"), (1, "Automation 250")
+        )
+        self.assertEqual(row(connection, "SELECT count(*) FROM images"), (1,))
+
+
 class AttachOnlyTest(unittest.TestCase):
     """Keyed records that may join a disc but never make one (short menu zip names)."""
 
@@ -455,6 +541,30 @@ class SearchTextTest(unittest.TestCase):
     def test_joined_words_are_indexed_both_ways(self) -> None:
         self.assertEqual(search_text("R-Type & S.T.U.N."), "r type and s t u n rtype stun")
 
+    def test_titles_are_found_by_their_other_spellings(self) -> None:
+        self.assertEqual(title_search_text("Turrican II"), "turrican ii 2 turricanii")
+        self.assertEqual(title_search_text("R-Type"), "r type rtype")
+        records = [
+            single("tosec", "Turrican II", contents=[ContentRecord("Turrican II")]),
+            single("tosec", "Speedball 2", contents=[ContentRecord("Speedball 2")]),
+            single("tosec", "Battle Hawks 1942", contents=[ContentRecord("Battle Hawks 1942")]),
+        ]
+        connection, _stats, _ = build(SourceBatch(TOSEC, records))
+        for word, found in (
+            ("2", ["Speedball 2", "Turrican II"]),
+            ("ii", ["Speedball 2", "Turrican II"]),
+            ("battlehawks", ["Battle Hawks 1942"]),
+        ):
+            with self.subTest(word=word):
+                self.assertEqual(sorted(matches(connection, "entry_fts", "title", word)), found)
+                ids = matches(connection, "disk_fts", "label", word)
+                labels = [
+                    row(connection, "SELECT label FROM disks WHERE id = ?", i)[0] for i in ids
+                ]
+                self.assertEqual(sorted(labels), found)
+        # Notes are not given other spellings.
+        self.assertNotIn("2", search_text("Turrican II").split())
+
     def test_notes_and_scroll_texts_are_indexed_a_word_once(self) -> None:
         self.assertEqual(distinct_words("hi hi skid row hi row greetings"), "hi skid row greetings")
         scroll = "SKID ROW PRESENTS COMPACT 31 ... SKID ROW SKID ROW ... greetings to FAIRLIGHT"
@@ -504,6 +614,38 @@ class DiskColumnsTest(unittest.TestCase):
                 "Tune": ("Music", "Unknown crew"),
             },
         )
+
+    def test_one_spelling_of_a_crew_on_each_platform(self) -> None:
+        records = [
+            single("tosec", "A [cr FLD]", "amiga", cracker="Flashlight Design"),
+            single("tosec", "B [cr FLD]", "amiga", cracker="Flashlight Design"),
+            single("tosec", "C", "amiga", cracker="Flash Light Design"),
+            single("tosec", "D", "amiga", cracker="the flash-light design"),
+            single("tosec", "E", "atari-st", cracker="Flash Light Design"),
+            # A compilation's publisher is a tag like a crack's.
+            DiskRecord("tosec", "atari-st", "pack", title="Some Pack", publisher="QTX"),
+        ]
+        connection, stats, _ = build(SourceBatch(TOSEC, records))
+        crews = dict(rows(connection, "SELECT label, crew FROM disks"))
+        self.assertEqual(
+            crews,
+            {
+                "A [cr FLD]": "Flashlight Design",
+                "B [cr FLD]": "Flashlight Design",
+                "C": "Flashlight Design",
+                "D": "Flashlight Design",
+                "E": "Flash Light Design",  # another platform keeps its own
+                "Some Pack": "Quartex",
+            },
+        )
+        self.assertEqual(stats["crew spellings joined"], 2)
+        # The written spelling is searchable on every disk it was joined for.
+        found = rows(
+            connection,
+            "SELECT d.label FROM disk_fts f JOIN disks d ON d.id = f.rowid "
+            "WHERE disk_fts MATCH 'crew : flashlight' ORDER BY d.label",
+        )
+        self.assertEqual([label for (label,) in found], ["A [cr FLD]", "B [cr FLD]", "C", "D"])
 
     def test_the_most_precise_release_date_wins(self) -> None:
         batches = [

@@ -28,7 +28,7 @@ from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass, field
 
 from ..models import ContentKind, Disk, Facets, Query, ResultMode, SortOrder
-from .naming import display_title, normalise, search_text, sort_title
+from .naming import display_title, normalise, search_text, sort_title, title_search_text
 
 MATCHED_LIMIT = 8  # titles of a disc reported as matching the query
 
@@ -213,15 +213,23 @@ def _fts_query(terms: Iterable[str]) -> str:
         expression = f'"{term}"' if _exact(term) else f'"{term}"*'
         split = tokens(term)
         if len(split) > 1:
-            # "xenon2" also finds "Xenon 2": ("xenon2"* OR ("xenon"* "2"))
+            # "xenon2" also finds "Xenon 2": ("xenon2"* OR ("xenon"* AND "2"))
             expression = f"({expression} OR ({_fts_query(split)}))"
         parts.append(expression)
-    return " ".join(parts)
+    # AND written out: FTS5 refuses a bracketed group followed by a phrase
+    # with nothing between them, so "b17 flying" raised a syntax error.
+    return " AND ".join(parts)
 
 
 def text_words(text: str) -> set[str]:
     """The words of ``text`` as the search index holds them (``naming.search_text``)."""
     return set(search_text(text).split())
+
+
+def title_words(title: str) -> set[str]:
+    """The words of a title as the search index holds them, other spellings
+    included (``naming.title_search_text``)."""
+    return set(title_search_text(title).split())
 
 
 def term_matches(term: str, words: Collection[str]) -> bool:
@@ -410,7 +418,7 @@ class _Corrected:
                 parts = [*shown, *(changed[name] for name in fields if name in changed)]
                 if parts:
                     inside = normalise(" ".join([*shown, changed.get("label", "")]))
-                    rows[row_id] = (text_words(" ".join(parts)), inside)
+                    rows[row_id] = (title_words(" ".join(parts)), inside)
             self._words[key] = rows
         return self._words[key]
 
@@ -720,11 +728,19 @@ def _plan(
     series = ""
     words: tuple[str, ...] = ()
     alternative: tuple[str, ...] = ()  # words that find rows besides the disk reference
+    reference_words: tuple[str, ...] = ()  # words the disk reference's rows must match
     if parsed.series_ids and parsed.number is not None:
         series = _series_filter(catalogue, parsed, parameters)
-        if parsed.terms:
+        short = len(parsed.alias.replace(" ", "")) < 3
+        if parsed.terms and not short:
             words = parsed.terms
-        elif len(parsed.alias.replace(" ", "")) >= 3:
+        elif parsed.terms:
+            # A one or two letter alias with more words may begin a name:
+            # "A320 Airbus" is not Automation 320. Show the reference's rows
+            # that match the other words, and the rows the whole text finds.
+            reference_words = _significant(parsed.terms)
+            alternative = tuple(normalise(query.text).split())
+        elif not short:
             # "Lemmings 2" is a menu disk and a game: show both.
             alternative = tuple(tokens(query.text))
     else:
@@ -751,6 +767,17 @@ def _plan(
             if titles
             else f"SELECT d.id AS id, 1 AS hit, 0.0 AS rank FROM disks d WHERE {series}"
         )
+        if reference_words:
+            # The words may be in the catalogue text or in the user's corrections.
+            parameters["reference_fts"] = _fts_query(reference_words)
+            key = "x.id" if titles else "d.id"
+            matching = f"{key} IN (SELECT rowid FROM {table} WHERE {table} MATCH :reference_fts)"
+            corrected_rows = (
+                corrected.extras(catalogue, titles, reference_words) if corrected else set()
+            )
+            if corrected_rows:
+                matching = f"({matching} OR {key} IN ({_ids(corrected_rows)}))"
+            reference += f" AND {matching}"
         found = f"SELECT rowid, 0, bm25({table}, {weights}) FROM {table} WHERE {table} MATCH :fts"
         extras = corrected.extras(catalogue, titles, alternative, (), names) if corrected else set()
         if extras:
@@ -1051,7 +1078,7 @@ def _discs_titled(plan: _Plan, prefix: str) -> tuple[str, str]:
 def _title_matches(title: str, plan: _Plan) -> bool:
     """True when a query word matches a word of ``title`` (``term_matches``),
     or a substring word is inside it."""
-    words = text_words(title)
+    words = title_words(title)
     return any(term_matches(word, words) for word in plan.prefixes) or any(
         word in normalise(title) for word in plan.substrings
     )

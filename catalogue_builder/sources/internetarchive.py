@@ -31,6 +31,19 @@ one download location, placed in one of three ways, tried in this order:
 
 The Archive publishes hashes of the zips, not of the images inside them, so
 only the old DATs give a location a hash.
+
+Some archives hold the raw images of a whole TOSEC set rather than a zip per
+image, as ``Name/Name.st`` or ``Set/Name.st``. A raw member is its own image:
+its file name is its TOSEC name, and its location has no container. Sets
+published with the names of the DATs the catalogue is built from are marked
+``current`` and are not looked up in the old DATs, so a name TOSEC has since
+given to another dump cannot place a location on the wrong image.
+
+The Archive's listing of a 7z archive whose paths contain spaces drops the
+first words of every path but the first, in the text and in the link, and
+such a link answers with an empty file. ``ArchiveSet.repair`` says how the
+paths of a set are rebuilt: ``"flat"`` (every image in one folder, the one the
+first row names) or ``"folders"`` (each image in a folder named after it).
 """
 
 from __future__ import annotations
@@ -77,6 +90,8 @@ class ArchiveSet:
     kind: str
     priority: int
     include: tuple[str, ...] = ()  # folders to read, all of them when empty
+    current: bool = False  # named as in the catalogue's own DATs: no old-DAT lookup
+    repair: str = ""  # "flat" or "folders": rebuild a damaged 7z listing's paths
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,8 +123,114 @@ class Discovery:
 # The same item's "[Games].7z" and "[Compilations - Games].7z" are left out:
 # their zips hold several disks each under names that are not TOSEC names, so
 # none of them could be tied to a catalogue image.
+# The TOSEC update pack of 2025-03-13 (its FixDat sets), the 2020 Roundup, the
+# 2023 update and the full sets of 2022, and the 2023-11-07 work in progress.
+# The Software Capsules items found by DISCOVERIES hold 10 to 30 percent fewer
+# files than the TOSEC sets they mirror; these fill most of the rest. Audit of
+# 2026-09-14: they locate 3,530 of 3,531 Atari ST single disks and 2,213 of
+# 2,300 Amiga disks that had a known dump and no location.
+FIX_2025 = "fix-dat-fix-dats-2025-03-13-tosec-2025-03-13-fix-dat-tosec-robotron-a-7100-a-715"
+FIX_2025_DIR = "TOSEC Main Update Pack 2024-05-17 to 2025-05-17 (TOSEC-v2025-03-13_CM)"
+ROUNDUP = "TOSEC_2020_Roundup"
+FULL_2022 = "tosec-full-2022-07-10"
+NEWPAIN = "tosec-databases-newpain-in-work-2023-11-07_202311"
+
+
+def _fix_2025(folder: str, dat: str) -> str:
+    return f"{FIX_2025_DIR}/{folder}/FixDat_{dat}/FixDat_{dat}.zip"
+
+
+def _full_2022(path: str) -> str:
+    return f"Commodore/Amiga/{path}"
+
+
 ARCHIVE_SETS = (
     ArchiveSet("atari-st-collection", "[Menus].7z", "atari-st", "menu", 20),
+    ArchiveSet(
+        FIX_2025, _fix_2025("Atari", "Atari ST - Games - [ST]"), "atari-st", "", 20, current=True
+    ),
+    ArchiveSet(
+        FIX_2025,
+        _fix_2025("CBM", "Commodore Amiga - Games - [ADF]"),
+        "amiga",
+        "",
+        20,
+        current=True,
+    ),
+    ArchiveSet(
+        FIX_2025, _fix_2025("CBM", "Commodore Amiga - Demos - Packs"), "amiga", "", 20, current=True
+    ),
+    ArchiveSet(
+        "tosec-update-07-10-2023",
+        "FixDat_Commodore Amiga - Games - [ADF] (TOSEC-v2023-06-14)/"
+        "FixDat_Commodore Amiga - Games - [ADF] (TOSEC-v2023-06-14).zip",
+        "amiga",
+        "",
+        21,
+    ),
+    ArchiveSet(
+        ROUNDUP,
+        "Atari/ST/Games/[STX]/Atari ST - Games - [STX] (TOSEC-v2018-03-18).zip",
+        "atari-st",
+        "",
+        22,
+    ),
+    ArchiveSet(
+        ROUNDUP,
+        "Atari/ST/Games/[ST]/Atari ST - Games - [ST] (TOSEC-v2020-07-12).zip",
+        "atari-st",
+        "",
+        22,
+    ),
+    *(
+        ArchiveSet(ROUNDUP, f"Commodore/Amiga/{path} (TOSEC-v{version}).zip", "amiga", "", 22)
+        for path, version in (
+            ("Demos/Music/Commodore Amiga - Demos - Music", "2020-03-02"),
+            (
+                "Compilations/Applications/Commodore Amiga - Compilations - Applications",
+                "2020-03-02",
+            ),
+            ("Demos/Packs/Commodore Amiga - Demos - Packs", "2020-03-02"),
+            ("Compilations/Games/Commodore Amiga - Compilations - Games", "2020-03-02"),
+            ("Compilations/Various/Commodore Amiga - Compilations - Various", "2020-03-02"),
+            ("Games/[ADF]/Commodore Amiga - Games - [ADF]", "2020-07-18"),
+        )
+    ),
+    *(
+        ArchiveSet(
+            NEWPAIN,
+            f"{name} (TOSEC-v2023-11-07)[Full Replace {count}].7z",
+            "atari-st",
+            kind,
+            24,
+            repair="flat",
+        )
+        for name, count, kind in (
+            ("Atari ST - Games - [ST]", 11840, ""),
+            ("Atari ST - Games - [STX]", 5294, ""),
+            ("Atari ST - Compilations - Games - [ST]", 10172, "compilation"),
+            ("Atari ST - Compilations - Demos - [ST]", 3076, "pack"),
+        )
+    ),
+    ArchiveSet(
+        "tosec-update-2023-01-23",
+        "Update/Commodore Amiga - Games - [ADF].7z",
+        "amiga",
+        "",
+        24,
+        repair="folders",
+    ),
+    *(
+        ArchiveSet(FULL_2022, _full_2022(f"{path}.7z"), "amiga", "", 26, repair="folders")
+        for path in (
+            "Compilations/Applications/Commodore Amiga - Compilations - Applications",
+            "Games/[ADF]/Commodore Amiga - Games - [ADF]",
+            "Demos/Music/Commodore Amiga - Demos - Music",
+            "Demos/Packs/Commodore Amiga - Demos - Packs",
+            "Compilations/Games/Commodore Amiga - Compilations - Games",
+            "Compilations/Various/Commodore Amiga - Compilations - Various",
+        )
+    ),
     # The 2012 TOSEC snapshot is older than the DATs the catalogue is built
     # from, so its names match fewer disks and it is tried after the others.
     # Only the compilations and games are read: the collections, coverdisks,
@@ -238,6 +359,37 @@ def parse_listing(text: str, base_url: str) -> list[Member]:
 
 
 # --- naming ------------------------------------------------------------------
+
+
+def raw_image(path: str) -> bool:
+    """Whether an archive member is a disk image itself rather than a zip of one."""
+    return PurePosixPath(path).suffix.lower().lstrip(".") in IMAGE_FORMATS
+
+
+def repair_paths(members: list[Member], how: str, listing_url: str) -> list[Member]:
+    """Rebuild the paths the Archive's 7z listing damaged, and their links.
+
+    ``how`` is ``"flat"``, every image in the folder the first row names, or
+    ``"folders"``, each image in a folder named after it. A member whose file
+    name is itself damaged, with no folder left in its path, is dropped.
+    """
+    if how not in ("flat", "folders"):
+        return members
+    files = [member for member in members if "/" in member.path]
+    if not files:
+        return []
+    first_folder = files[0].path.rsplit("/", 1)[0]
+    repaired = []
+    for member in files:
+        name = member.path.rsplit("/", 1)[1]
+        if not name:
+            continue
+        folder = first_folder if how == "flat" else PurePosixPath(name).stem
+        path = f"{folder}/{name}"
+        repaired.append(
+            Member(path=path, url=listing_url + urllib.parse.quote(path, safe=""), size=member.size)
+        )
+    return repaired
 
 
 def image_name(path: str, platform: str) -> str | None:
@@ -403,13 +555,14 @@ def location_record(
     size: int | None,
     priority: int,
     found: ImageHash | None = None,
+    container: str = "zip",
 ) -> DiskRecord:
-    """A location-only record for one zipped image, placed by ``found`` when
-    an old DAT gives its hash, otherwise by its name."""
+    """A location-only record for one image, zipped or raw, placed by ``found``
+    when an old DAT gives its hash, otherwise by its name."""
     location = LocationRecord(
         provider=INFO.id,
         url=url,
-        container="zip",
+        container=container,
         member="",
         size=size,
         page_url=details_url(item),
@@ -484,11 +637,25 @@ def zip_record(
     old: OldNames | None,
     uploaded: datetime.date | None,
 ) -> DiskRecord | None:
-    """The record for one zip of an item: by hash, by series or by name."""
-    name = image_name(path, platform)
+    """The record for one zip or raw image of an item: by hash, by series or by name."""
+    raw = raw_image(path)
+    name = PurePosixPath(path).name if raw else image_name(path, platform)
     if name is None:
         return None
     found = old.lookup(name, uploaded) if old is not None else None
+    if raw:
+        # A raw member of a TOSEC set is named by TOSEC, never by a series rule.
+        return location_record(
+            url=url,
+            name=name,
+            platform=platform,
+            kind=kind,
+            item=item,
+            size=size,
+            priority=priority,
+            found=found,
+            container="",
+        )
     if found is None:
         keyed = series_record(
             ctx, path=path, url=url, platform=platform, item=item, size=size, priority=priority
@@ -523,8 +690,11 @@ def archive_records(
         name=f"{spec.item}-listing.html",
         max_age_days=LISTING_MAX_AGE,
     )
+    if spec.current:
+        old = None  # the set's names are those of the catalogue's own DATs
     uploaded = item_uploaded(ctx, spec.item) if old is not None else None
-    for member in parse_listing(text, listing_url):
+    members = repair_paths(parse_listing(text, listing_url), spec.repair, listing_url)
+    for member in members:
         if spec.include and not member.path.startswith(spec.include):
             continue
         record = zip_record(

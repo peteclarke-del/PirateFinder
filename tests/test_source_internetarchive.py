@@ -359,6 +359,98 @@ class OldNamesTest(unittest.TestCase):
         self.assertEqual(records[1].locations[0].hash_value, "")
 
 
+def listing(spec: ia.ArchiveSet, paths: list[str], *, damage: int = 0) -> str:
+    """An Archive listing of ``paths`` in ``spec``; ``damage`` drops that many
+    leading words from every path but the first, as the Archive's 7z listings do."""
+    base = (
+        f"//archive.org/download/{urllib.parse.quote(spec.item)}/{urllib.parse.quote(spec.file)}/"
+    )
+    rows = []
+    for index, path in enumerate(paths):
+        shown = path if index == 0 or not damage else path.split(" ", damage)[-1]
+        href = base + urllib.parse.quote(shown, safe="")
+        rows.append(
+            f'<tr><td><a href="{href}">{shown}</a><td><td>2023-11-07<td id="size">819200</tr>'
+        )
+    return (
+        '<html><body><table class="archext"><caption>listing</caption>'
+        "<tr><th>file<th>as jpg<th>timestamp<th>size</tr>"
+        + "".join(rows)
+        + "</table></body></html>"
+    )
+
+
+def seed_listing(offline: Offline, spec: ia.ArchiveSet, text: str) -> None:
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "listing.html"
+        path.write_text(text, encoding="utf-8")
+        url = ia.download_url(spec.item, spec.file) + "/"
+        target = offline.ctx.cache_path(url, f"{spec.item}-listing.html")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(path, target)
+
+
+class RawSetTest(unittest.TestCase):
+    """Whole TOSEC sets of raw images: Name/Name.st, and damaged 7z listings."""
+
+    FIX = ia.ArchiveSet(
+        "fix-item", "FixDat_Atari ST - Games - [ST].zip", "atari-st", "", 20, current=True
+    )
+    FLAT = ia.ArchiveSet("np-item", "Atari ST - Games - [ST].7z", "atari-st", "", 24, repair="flat")
+    FOLDERS = ia.ArchiveSet("full-item", "Amiga Games.7z", "amiga", "", 26, repair="folders")
+
+    def test_a_raw_member_is_its_own_image_with_no_container(self) -> None:
+        offline = Offline(self)
+        name = "Toki (1991)(Ocean)[cr D-Bug][t][2MB].st"
+        seed_listing(offline, self.FIX, listing(self.FIX, [f"{name[:-3]}/{name}"]))
+        [record] = ia.archive_records(offline.ctx, self.FIX)
+        [location] = record.locations
+        self.assertEqual((location.image_name, location.container), (name, ""))
+        self.assertEqual(record.key, None)
+        self.assertTrue(location.url.endswith(urllib.parse.quote(f"{name[:-3]}/{name}", safe="")))
+
+    def test_a_set_with_current_names_is_not_placed_by_an_old_dat(self) -> None:
+        offline = Offline(self)
+        name = "A-HA Menu - Eliminator - Nebulus (A-Ha).st"
+        seed_listing(offline, self.FIX, listing(self.FIX, [f"{name[:-3]}/{name}"]))
+        old = mock.Mock()
+        old.lookup.return_value = ia.ImageHash("sha1", "1" * 40)
+        [record] = ia.archive_records(offline.ctx, self.FIX, old)
+        self.assertEqual(record.locations[0].hash_value, "")
+        old.lookup.assert_not_called()
+
+    def test_a_flat_7z_listing_gets_its_folder_back(self) -> None:
+        offline = Offline(self)
+        names = ["'Nam (1991)(Domark).st", "Klax (1990)(Tengen).st", "Zool (1992)(Gremlin).st"]
+        paths = [f"Atari ST - Games - [ST]/{name}" for name in names]
+        seed_listing(offline, self.FLAT, listing(self.FLAT, paths, damage=1))
+        records = list(ia.archive_records(offline.ctx, self.FLAT))
+        self.assertEqual([record.locations[0].image_name for record in records], names)
+        base = ia.download_url(self.FLAT.item, self.FLAT.file) + "/"
+        self.assertEqual(
+            [record.locations[0].url for record in records],
+            [base + urllib.parse.quote(path, safe="") for path in paths],
+        )
+
+    def test_a_7z_listing_of_folders_named_after_their_images_is_rebuilt(self) -> None:
+        offline = Offline(self)
+        names = [
+            "Hard Drivin' (1989)(Domark)[b] & Paperboy (1989)(Elite)[cr MCA].adf",
+            "Zool - Ninja of the Nth Dimension (1992)(Gremlin).adf",
+        ]
+        paths = [f"{name[:-4]}/{name}" for name in names]
+        seed_listing(offline, self.FOLDERS, listing(self.FOLDERS, paths, damage=3))
+        records = list(ia.archive_records(offline.ctx, self.FOLDERS))
+        self.assertEqual([record.locations[0].image_name for record in records], names)
+        base = ia.download_url(self.FOLDERS.item, self.FOLDERS.file) + "/"
+        self.assertEqual(records[1].locations[0].url, base + urllib.parse.quote(paths[1], safe=""))
+
+    def test_a_member_whose_file_name_is_damaged_is_dropped(self) -> None:
+        members = [ia.Member("Set/Good.st", "u1", 1), ia.Member("Bad.st", "u2", 1)]
+        repaired = ia.repair_paths(members, "flat", "https://ia/x.7z/")
+        self.assertEqual([member.path for member in repaired], ["Set/Good.st"])
+
+
 class SeriesRuleTest(unittest.TestCase):
     def test_a_short_menu_name_becomes_an_attach_only_keyed_record(self) -> None:
         offline = Offline(self)
