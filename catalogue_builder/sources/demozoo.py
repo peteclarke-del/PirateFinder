@@ -48,6 +48,8 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from piratefinder.catalogue.naming import normalise
+
 from ..context import BuildContext
 from ..records import (
     ContentRecord,
@@ -58,7 +60,7 @@ from ..records import (
     TriviaRecordIn,
     normalise_version,
 )
-from ..series import GroupRegistry, SeriesMatch, SeriesRegistry, crew_key
+from ..series import GroupRegistry, SeriesDef, SeriesMatch, SeriesRegistry, crew_key
 
 INFO = SourceInfo(
     id="demozoo",
@@ -430,6 +432,23 @@ def menu_intros(dump: Dump, index: _Index) -> Iterator[Pack]:
         yield Pack(production, found.group("title"), date, platform, group, [])
 
 
+# Words that call a numbered release a menu disk of the crew that made it:
+# "CD 001 intro" by The World's Picture Collection is that crew's menu 1.
+MENU_WORDS = frozenset(
+    {"cd", "menu", "menu disk", "menu disc", "compact", "compact disk", "compact disc", "disk"}
+)
+
+
+def _crew_menus(series: SeriesRegistry, pack: Pack) -> SeriesDef | None:
+    """The menu series named after a crew credited with ``pack``, or None."""
+    for group in pack.group.split(" & "):
+        for name in dict.fromkeys((group.strip(), re.sub(r"(?i)^the\s+", "", group.strip()))):
+            candidate = series.by_name(name, pack.platform)
+            if candidate is not None and candidate.kind == "menu":
+                return candidate
+    return None
+
+
 def identify(series: SeriesRegistry, pack: Pack) -> SeriesMatch | None:
     text = f"{pack.group} {pack.title}".strip()
     found = series.match(INFO.id, text, pack.platform)
@@ -440,6 +459,8 @@ def identify(series: SeriesRegistry, pack: Pack) -> SeriesMatch | None:
         return None
     base = numbered.group("base").strip()
     candidate = series.by_name(f"{pack.group} {base}", pack.platform)
+    if candidate is None and normalise(base) in MENU_WORDS:
+        candidate = _crew_menus(series, pack)
     if candidate is None:
         candidate = series.by_name(base, pack.platform)
         groups = {crew_key(name) for name in pack.group.split(" & ")}
