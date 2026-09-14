@@ -19,6 +19,7 @@ COPY public.demoscene_nick (id, releaser_id, name, abbreviation, differentiator)
 7	70	The Medway Boys		
 8	90	Windows Crew		
 9	65	Automation		
+10	100	The Next Generation		
 \.
 
 COPY public.demoscene_releaser (id, name, is_group, notes, location, country_code) FROM stdin;
@@ -34,6 +35,7 @@ COPY public.demoscene_releaser (id, name, is_group, notes, location, country_cod
 81	Gino	f			
 82	Zodiac	f			
 90	Windows Crew	t	Only Windows.		
+100	The Next Generation	t			
 \.
 
 COPY public.demoscene_releaserexternallink (id, link_class, parameter, releaser_id, source) FROM stdin;
@@ -84,6 +86,8 @@ COPY public.productions_production (id, title, notes, release_date_date, release
 704	Windows Menu 1 Intro		\N		production
 705	Automation Megademo		\N		production
 800	Lost Pack 7		\N		production
+706	Menu #46 Intro		1991	y	production
+707	Disk 3 Intro		\N		production
 \.
 
 COPY public.productions_production_author_nicks (id, production_id, nick_id) FROM stdin;
@@ -99,6 +103,8 @@ COPY public.productions_production_author_nicks (id, production_id, nick_id) FRO
 10	704	8
 11	400	8
 12	705	9
+13	706	10
+14	707	4
 \.
 
 COPY public.productions_production_platforms (id, production_id, platform_id) FROM stdin;
@@ -121,6 +127,8 @@ COPY public.productions_production_platforms (id, production_id, platform_id) FR
 17	705	5
 18	705	6
 19	800	5
+20	706	9
+21	707	9
 \.
 
 COPY public.productions_production_types (id, production_id, productiontype_id) FROM stdin;
@@ -146,6 +154,8 @@ COPY public.productions_production_types (id, production_id, productiontype_id) 
 20	302	13
 21	705	1
 90	800	9
+91	706	4
+92	707	4
 \.
 
 COPY public.productions_productiontype (id, name, path, depth, numchild, "position", internal_name) FROM stdin;
