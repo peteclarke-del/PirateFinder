@@ -473,6 +473,87 @@ class CrewTest(unittest.TestCase):
         self.assertEqual(by_set[al.set_url(13)], [])
 
 
+def to_sql(tables: dict[str, list[dict]]) -> str:
+    """A MariaDB-style dump of ``tables``, as Atari Legend's export writes them."""
+
+    def value(item: object) -> str:
+        if item is None:
+            return "NULL"
+        if isinstance(item, (int, float)):
+            return repr(item)
+        text = str(item).replace("\\", "\\\\").replace("'", "\\'")
+        return "'" + text.replace("\n", "\\n").replace("\r", "\\r") + "'"
+
+    lines = []
+    for table, rows in tables.items():
+        columns = list(dict.fromkeys(column for row in rows for column in row))
+        if not columns:
+            continue
+        lines.append(f"CREATE TABLE `{table}` (")
+        lines += [f"  `{column}` text," for column in columns[:-1]]
+        lines += [f"  `{columns[-1]}` text", ") ENGINE=InnoDB;"]
+        values = ",".join(
+            "(" + ",".join(value(row.get(column)) for column in columns) + ")" for row in rows
+        )
+        lines.append(f"INSERT INTO `{table}` VALUES {values};")
+    return "\n".join(lines) + "\n"
+
+
+def export_of_2026_09_13(tables: dict[str, list[dict]]) -> dict[str, list[dict]]:
+    """The fixture's tables as the export of 2026-09-13 and later names them."""
+    changed = {
+        al.RENAMED_TABLES.get(new_name, new_name): [dict(row) for row in rows]
+        for new_name, rows in tables.items()
+    }
+    changed = {
+        {old: new for new, old in al.RENAMED_TABLES.items()}.get(name, name): rows
+        for name, rows in changed.items()
+    }
+    for table, renames in al.RENAMED_COLUMNS.items():
+        for row in changed.get(table, ()):
+            for new_name, old_name in renames.items():
+                row[new_name] = row.pop(old_name)
+    dump_of_disk = {}
+    for disk in changed["menu_disks"]:
+        dump_id = disk.pop("menu_disk_dump_id")
+        if dump_id is not None:
+            dump_of_disk[dump_id] = disk["id"]
+    for dump in changed["menu_disk_dumps"]:
+        dump["menu_disk_id"] = dump_of_disk.get(dump["id"])
+        dump["format"] = str(dump["format"]).lower()
+    return changed
+
+
+class ExportOf20260913Test(unittest.TestCase):
+    """Atari Legend renamed tables and columns, and moved the dump link, on 2026-09-13."""
+
+    def setUp(self) -> None:
+        self.registry = SeriesRegistry.load()
+        self.old = al.load_tables(DUMP)
+        folder = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, folder)
+        self.path = folder / "2026-09-13.sql"
+        new_tables = export_of_2026_09_13(al.load_tables(DUMP))
+        self.assertIn("companies", new_tables)
+        self.assertNotIn("menu_disk_dump_id", new_tables["menu_disks"][0])
+        self.path.write_text(to_sql(new_tables), encoding="utf-8")
+
+    def test_the_newer_export_gives_the_same_disks(self) -> None:
+        new = al.load_tables(self.path)
+        before = list(al.build_records(self.old, self.registry))
+        after = list(al.build_records(new, self.registry))
+        self.assertEqual(after, before)
+        self.assertTrue(any(record.locations for record in after))
+        self.assertTrue(any(record.publisher for record in after))
+
+    def test_the_newer_export_gives_the_same_crews(self) -> None:
+        new = al.load_tables(self.path)
+        self.assertEqual(
+            list(al.crew_records(new, self.registry)),
+            list(al.crew_records(self.old, self.registry)),
+        )
+
+
 class CollectTest(unittest.TestCase):
     def test_newest_dump_is_taken_from_the_listing(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
