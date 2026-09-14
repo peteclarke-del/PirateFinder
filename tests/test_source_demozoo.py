@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import gzip
+import json
 import shutil
 import tempfile
 import unittest
@@ -15,6 +16,13 @@ from catalogue_builder.sources import demozoo
 FIXTURE = Path(__file__).parent / "fixtures" / "demozoo" / "demozoo-export-excerpt.sql"
 
 SERIES = """
+[[series]]
+id = "next-generation"
+name = "Next Generation"
+platform = "atari-st"
+kind = "menu"
+group = "The Next Generation"
+
 [[series]]
 id = "skid-row-compact"
 name = "Skid Row Compact"
@@ -106,7 +114,9 @@ class DemozooTest(unittest.TestCase):
         packs = [record for record in self.records if record.contents]
         self.keyed = {record.key: record for record in packs if record.key}
         self.loose = [record for record in packs if record.key is None]
-        self.menus = {record.key: record for record in self.records if not record.contents}
+        self.menus = {
+            record.key: record for record in self.records if not record.contents and record.key
+        }
 
     def test_series_packs(self) -> None:
         self.assertEqual(
@@ -212,7 +222,12 @@ class DemozooTest(unittest.TestCase):
 
     def test_menu_intros_give_their_menu_disk_a_picture(self) -> None:
         self.assertEqual(
-            sorted(self.menus), [("automation", 155, "", "v2"), ("medway-boys", 1, "", "")]
+            sorted(self.menus),
+            [
+                ("automation", 155, "", "v2"),
+                ("medway-boys", 1, "", ""),
+                ("next-generation", 46, "", ""),
+            ],
         )
         menu = self.menus[("automation", 155, "", "v2")]
         self.assertEqual((menu.kind, menu.platform, menu.title), ("menu", "atari-st", ""))
@@ -226,6 +241,13 @@ class DemozooTest(unittest.TestCase):
         # intro" is by another group: neither is a menu of a series.
         self.assertNotIn(("prevail-pack", 148, "", ""), self.menus)
         self.assertNotIn(("automation", 156, "", ""), self.menus)
+
+    def test_a_menu_intro_named_only_by_a_generic_word_is_its_crews_menu(self) -> None:
+        # "Menu #46 Intro" by The Next Generation is its menu 46.
+        menu = self.menus[("next-generation", 46, "", "")]
+        self.assertEqual(menu.release_date, "1991")
+        # "Disk 3 Intro" by a crew with no menu series names no disk.
+        self.assertFalse(any(key[1] == 3 and key[0] != "automation" for key in self.menus))
 
     def test_numbered_titles_with_parts_and_versions(self) -> None:
         pack = demozoo.Pack(1, "D-BUG CD 157 A V2", "", "atari-st", "D-Bug", [])
@@ -282,6 +304,56 @@ class DemozooTest(unittest.TestCase):
     def test_crews_are_kept_from_collect(self) -> None:
         self.ctx.inputs["demozoo"].unlink()  # collect_crews must not read the dump again
         self.assertEqual(len(list(demozoo.collect_crews(self.ctx))), 5)
+
+    def test_download_links_become_locations(self) -> None:
+        prevail = self.keyed[("prevail-pack", 147, "", "")]
+        # Untergrund forbids robots, an intro file and an LhA archive are no
+        # disk images, and a link that is not a download is left out.
+        self.assertEqual(
+            [(loc.provider, loc.url, loc.container) for loc in prevail.locations],
+            [
+                (
+                    "amigascne",
+                    "https://ftp.scene.org/mirrors/amigascne/Packdisks/Prevail/PrevailPack147.dms",
+                    "",
+                )
+            ],
+        )
+        self.assertEqual(prevail.locations[0].priority, demozoo.DOWNLOAD_PRIORITY)
+
+    def test_a_pack_without_members_is_kept_when_it_can_be_downloaded(self) -> None:
+        [lost] = [record for record in self.records if record.title == "Lost Pack 7"]
+        self.assertEqual((lost.contents, lost.key, lost.kind), ([], None, "pack"))
+        self.assertEqual(
+            [loc.url for loc in lost.locations],
+            ["https://ftp.scene.org/mirrors/amigascne/Packdisks/Lost/LostPack07.adf"],
+        )
+        # A memberless pack with no download is still left out.
+        self.assertFalse(any(record.title.startswith("Empty Pack") for record in self.records))
+
+    def test_fujiology_zips_need_their_listing_and_the_size_of_a_disk(self) -> None:
+        dbug = self.keyed[("d-bug", 193, "A", "")]
+        # Offline, with no listing cached: no Fujiology location, scene.org still.
+        self.assertEqual([loc.provider for loc in dbug.locations], ["scene-org"])
+        listings = {
+            "ST/D/DBUG/": [{"name": "DBUG193A.ZIP", "size": 790114}],
+            "ST/A/AUTOMATN/": [{"name": "AUTO155.ZIP", "size": 10973}],
+        }
+        for folder, entries in listings.items():
+            url = "https://fujiology.org/" + folder
+            target = self.ctx.cache_path(url, "listing.json")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(json.dumps(entries))
+        records = list(demozoo.collect(self.ctx))
+        dbug = next(r for r in records if r.key == ("d-bug", 193, "A", ""))
+        fuji = [loc for loc in dbug.locations if loc.provider == "fujiology"]
+        self.assertEqual(
+            [(loc.url, loc.container, loc.size) for loc in fuji],
+            [("https://fujiology.org/ST/D/DBUG/DBUG193A.ZIP", "zip", 790114)],
+        )
+        # The Automation menu's zip holds only its intro program.
+        menu = next(r for r in records if r.key == ("automation", 155, "", "v2"))
+        self.assertEqual(menu.locations, [])
 
     def test_plain_text(self) -> None:
         self.assertEqual(demozoo.plain_text("**a** and __b__ and *c*"), "a and b and c")

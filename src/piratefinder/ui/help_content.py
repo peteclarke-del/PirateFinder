@@ -314,6 +314,12 @@ HELP_TOPICS = (
                     ),
                     ("`xenon2`", "Xenon 2 as well as Xenon2."),
                     (
+                        "`turrican 2`, `turrican ii`",
+                        "Turrican II and Turrican 2 alike: a sequel's number is found in "
+                        "either numerals.",
+                    ),
+                    ("`battlehawks`", "Battle Hawks 1942 as well as Battlehawks."),
+                    (
                         "`dungeon master 1988`",
                         "Dungeon Master rows that mention 1988, which is usually the year of "
                         "release.",
@@ -1242,6 +1248,15 @@ HELP_TOPICS = (
                         "amigascne archive",
                         "Amiga pack disks: game compacts and demo, music and tool packs, "
                         "downloaded from its mirror on ftp.scene.org.",
+                    ),
+                    (
+                        "scene.org",
+                        "Amiga packs Demozoo names on the main scene.org archive.",
+                    ),
+                    (
+                        "Fujiology",
+                        "Atari ST packs and a few menus Demozoo names on fujiology.org, only "
+                        "files the size of a disk image.",
                     ),
                 ),
                 columns=("Provider", "Hosts"),

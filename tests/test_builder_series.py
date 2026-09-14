@@ -130,6 +130,26 @@ class SeriesDataTest(unittest.TestCase):
         self.assertTrue((DATA_DIR / "match-tosec.toml").is_file())
 
 
+class RegistryLookupTest(unittest.TestCase):
+    def test_a_series_added_after_a_lookup_is_found_by_name_and_pattern(self) -> None:
+        registry = SeriesRegistry.load()
+        self.assertIsNone(registry.by_name("Glenz Pack (Mad Elks)", "amiga"))
+        self.assertIsNone(registry.match("demozoo", "Glenz Pack 10", "amiga"))
+        glenz = SeriesDef("glenz-pack", "Glenz Pack (Mad Elks)", "amiga", "pack", aliases=["glenz"])
+        glenz.patterns["demozoo"] = [re.compile(r"^Glenz Pack (?P<number>\d+)$")]
+        registry.add(glenz)
+        self.assertIs(registry.by_name("glenz pack (mad elks)", "amiga"), glenz)
+        self.assertIs(registry.by_name("Glenz"), glenz)
+        self.assertIsNone(registry.by_name("Glenz", "atari-st"))
+        self.assertEqual(registry.match("demozoo", "Glenz Pack 10", "amiga").number, 10)
+
+    def test_the_first_series_registered_wins_a_shared_name(self) -> None:
+        first = SeriesDef("a", "Compact", "amiga", "menu")
+        second = SeriesDef("b", "Other", "amiga", "menu", aliases=["compact"])
+        registry = SeriesRegistry({"a": first, "b": second})
+        self.assertIs(registry.by_name("Compact", "amiga"), first)
+
+
 class GroupsTest(unittest.TestCase):
     def test_abbreviations_expand(self) -> None:
         groups = GroupRegistry.load()
@@ -168,13 +188,40 @@ class GroupsTest(unittest.TestCase):
         self.assertEqual(groups.expand("MCA", "amiga"), "MCA")
         self.assertEqual(groups.expand("MCA"), "MCA")
         self.assertEqual(groups.expand("ICS", "amiga"), "Italian Cracking Service")
-        # On the ST, ICS is the name of a menu series and stays as it is.
-        self.assertEqual(groups.expand("ICS", "atari-st"), "ICS")
+        # On the ST, ICS is International Cracking Service (Demozoo group 31680).
+        self.assertEqual(groups.expand("ICS", "atari-st"), "International Cracking Service")
         self.assertEqual(groups.expand("PSG - QTX", "amiga"), "Prestige - Quartex")
         self.assertEqual(groups.spellings("PSG", "amiga"), ["PSG", "Prestige"])
         self.assertEqual(groups.spellings("PSG", "atari-st"), ["PSG"])
         self.assertIn("prestige", groups.crew_keys("PSG", "amiga"))
         self.assertEqual(groups.crew_keys("PSG", "atari-st"), {"psg"})
+
+    def test_an_alias_can_mean_a_group_on_one_platform_only(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "groups.toml"
+            path.write_text(
+                '[[group]]\nname = "Lowlife Inc."\nplatforms = ["atari-st"]\n'
+                'aliases = ["Lowlife"]\n'
+                '[[group]]\nname = "Skid Row"\naliases = ["Skidrow"]\n'
+            )
+            groups = GroupRegistry.load(path)
+        self.assertEqual(groups.expand("Lowlife", "atari-st"), "Lowlife Inc.")
+        self.assertEqual(groups.expand("Lowlife", "amiga"), "Lowlife")
+        self.assertEqual(groups.expand("Lowlife"), "Lowlife Inc.")  # no platform: any
+        self.assertEqual(groups.expand("Skidrow", "amiga"), "Skid Row")  # no platforms: all
+
+    def test_the_audits_tags_expand(self) -> None:
+        groups = GroupRegistry.load()
+        for tag, name in (
+            ("PNA", "Paranoimia"),
+            ("WT", "Wanted Team"),
+            ("OCL", "Oracle"),
+            ("GOD", "Global Overdose"),
+            ("Devious Designs", "Devious Dezigns"),
+        ):
+            self.assertEqual(groups.expand(tag, "amiga"), name)
+        self.assertEqual(groups.expand("Gods", "amiga"), "Gods")
+        self.assertEqual(groups.expand("STCS", "atari-st"), "ST Computer Service")
 
     def test_a_tag_naming_two_groups_on_one_platform_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as folder:

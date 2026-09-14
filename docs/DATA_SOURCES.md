@@ -65,6 +65,12 @@ than a local build.
   number, issue, version, disk part, condition, scroll text and what is on
   each disk), the SHA-512 of each menu disk's MSA dump, and the dump downloads
   as locations. Links to Demozoo productions are taken from the same data.
+- Format: the export of 2026-09-13 renamed some tables and columns
+  (`companies`, `individual_nickname`, `game_screenshot`, `position`,
+  `sort_direction`, `company_id`) and moved the link between a menu disk and
+  its dump onto the dump (`menu_disk_dumps.menu_disk_id`). The importer reads
+  exports from before and after that change and maps the newer names to the
+  older ones.
 - Details pane: the menu's release date where the site has one (about 500
   disks, to the day); the addresses of the site's menu screenshots (about
   3,950, `storage/images/menu_screenshots/<id>.<ext>`, credited "Screenshot:
@@ -208,6 +214,16 @@ than a local build.
   a file's name gives the hash of that image, the location carries it, and
   the download is checked against it. For each item the DAT released nearest
   to the item's upload date is asked first.
+- Newer TOSEC sets: the builder also reads the FixDat sets of the TOSEC
+  2025-03-13 update pack, the TOSEC 2020 Roundup, the 2023 update, the full
+  sets of 2022 and the 2023-11-07 work in progress. These hold the raw images
+  of whole sets (`Name/Name.st`), so a member is its own image and has no
+  container. The sets published with the names of the catalogue's own DATs
+  are placed by name only, never through an older DAT. The Archive's
+  listing of a 7z archive drops the first words of each path, and its links
+  then answer with an empty file, so the builder rebuilds those paths. With
+  these sets 3,528 more Atari ST single disks and about 2,500 more Amiga
+  disks have a download location.
 - Short menu names: the `[Menus].7z` archive of the atari-st-collection item
   names some 3,200 menu zips by crew and number ("PP_054.zip"). The rules in
   `data/series/match-internet-archive.toml` read the series, number, part
@@ -231,6 +247,18 @@ than a local build.
   whose title names a numbered disk of a menu series gives that disk its
   screenshot, release date and link (about 4,000 menus, through the rules in
   `data/series/match-demozoo.toml`).
+- Downloads: Demozoo names the file of many packs and menus on the scene
+  archives. These become download locations: the amigascne archive through
+  its scene.org mirror, the main scene.org archive, and Fujiology for the
+  Atari ST. Only disk images (ADF, ADZ, DMS, ST, MSA) and zips are taken, and
+  never a link to ftp.untergrund.net, whose robots.txt forbids robots. A
+  Fujiology zip smaller than a disk image holds only the intro program, so
+  the builder reads the JSON listing of each Fujiology folder it needs, for
+  the file sizes, and leaves such zips out. A pack that lists no members but
+  has a download becomes a disk named by its title. A record whose download
+  is already another disc's joins that disc, unless the numbers in their
+  titles disagree, so a pack the amigascne importer found under its file
+  name and Demozoo under its title is one disc.
 - Details pane: release dates with Demozoo's precision (day, month or year);
   the addresses of screenshots on media.demozoo.org (up to three of a pack or
   menu as pictures of the disc, one of each pack member as a picture of that
@@ -249,6 +277,23 @@ than a local build.
   with `--input demozoo=FILE`. The builder fetches no screenshot and no page
   of the demozoo.org website; a source that did would be kept to the site's
   Crawl-delay of 10 seconds by `data/fetch-hosts.toml`.
+
+### scene.org and Fujiology (download hosts)
+
+- URLs: <https://www.scene.org/> (files from `ftp.scene.org/pub/`) and
+  <https://fujiology.org/>
+- Used for: download locations Demozoo names for packs and menus (see
+  Demozoo above). No other data is taken from either site. The application
+  lists them as providers, each with its own switch.
+- Terms: neither states a licence for the files. scene.org's FAQ welcomes
+  mirrors; Fujiology describes itself as an archive of Atari scene releases.
+  Recorded as "No licence stated; used under the site's terms, credit
+  given".
+- Requests: scene.org has no robots.txt. Fujiology has none either; the
+  builder asks for the JSON listing of each folder it needs, 1.5 seconds
+  apart (`data/fetch-hosts.toml`), cached for 30 days. The same Fujiology
+  tree on ftp.untergrund.net is never used, because that host's robots.txt
+  forbids robots.
 
 ### libretro-thumbnails
 

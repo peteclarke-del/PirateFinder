@@ -55,10 +55,12 @@ from piratefinder.catalogue.naming import (
     sort_title,
     tidy_label,
     title_key,
+    title_search_text,
 )
 from piratefinder.models import Content, ContentKind, Disk, DiskKind, Platform
 
 from .records import (
+    HOSTS,
     ContentRecord,
     CrewRecord,
     DiskRecord,
@@ -72,7 +74,7 @@ from .records import (
     normalise_part,
     normalise_version,
 )
-from .series import CrewChoice, GroupRegistry, SeriesDef, SeriesRegistry
+from .series import CrewChoice, GroupRegistry, SeriesDef, SeriesRegistry, crew_key
 
 DEFAULT_PRIORITY = 90
 CATALOGUE_LICENCE = "CC BY-NC-SA 4.0"
@@ -155,6 +157,8 @@ class MergeResult:
     batches: list[SourceBatch]
     unmatched_locations: int = 0
     hash_merges: int = 0
+    url_merges: int = 0
+    url_refusals: int = 0
     # Pictures and notes of media-only records that attach to titles by name,
     # resolved when content ids exist: (platform, record, source id).
     title_media: list[tuple[str, MediaRecordIn, str]] = field(default_factory=list)
@@ -307,6 +311,10 @@ class _Merger:
         self.by_hash: dict[tuple, tuple[_Disk, _Image]] = {}
         self.shared_hashes: set[tuple] = set()
         self.hash_merges = 0
+        # Download address -> the disk it belongs to (see disk_for_url).
+        self.by_url: dict[str, _Disk] = {}
+        self.url_merges = 0
+        self.url_refusals = 0
         self.unmatched_locations = 0
         self.unmatched_media = 0
         self.unmatched_trivia = 0
@@ -376,6 +384,30 @@ class _Merger:
             self.add_image(disk, image, record.source, (priority, sequence, position))
         for location in record.locations:
             disk.locations.append((location, _image_for_location(disk, location)))
+            if not _names_an_image(location):
+                self.by_url.setdefault(_url_key(location.url), disk)
+
+    def disk_for_url(self, record: DiskRecord) -> _Disk | None:
+        """The disk that already has one of ``record``'s downloads, or None.
+
+        Demozoo names the file of many packs on the amigascne archive, and so
+        does the amigascne importer, but only one of them can key the disk.
+        A record whose download is another disk's is that disk, unless the
+        numbers in their titles disagree (Demozoo links a few packs to the
+        wrong issue).
+        """
+        for location in record.locations:
+            if _names_an_image(location):
+                continue
+            disk = self.by_url.get(_url_key(location.url))
+            if disk is None or disk.platform != record.platform:
+                continue
+            if _numbers_disagree(disk, record):
+                self.url_refusals += 1
+                continue
+            self.url_merges += 1
+            return disk
+        return None
 
     def new_disk(self, record: DiskRecord, key: tuple | None) -> _Disk:
         kind = record.kind
@@ -439,12 +471,13 @@ class _Merger:
         for priority, number, record in with_images:
             disk = self.disk_for_images(record)
             if disk is None:
-                disk = self.new_disk(record, None)
+                disk = self.disk_for_url(record) or self.new_disk(record, None)
             else:
                 self.hash_merges += 1
             self.add_record(disk, record, priority, number)
         for priority, number, record in plain:
-            self.add_record(self.new_disk(record, None), record, priority, number)
+            disk = self.disk_for_url(record) or self.new_disk(record, None)
+            self.add_record(disk, record, priority, number)
         self.attach_keyed(attach_only)
         self.attach_locations(location_only)
         self.attach_media(media_only)
@@ -481,7 +514,8 @@ class _Merger:
         by_name, by_value = self.image_index()
         for priority, sequence, record in records:
             if record.title.strip() and not any(_names_an_image(loc) for loc in record.locations):
-                self.add_record(self.new_disk(record, None), record, priority, sequence)
+                disk = self.disk_for_url(record) or self.new_disk(record, None)
+                self.add_record(disk, record, priority, sequence)
                 continue
             owners = [_locate(location, by_name, by_value) for location in record.locations]
             for location, owner in zip(record.locations, owners, strict=True):
@@ -527,6 +561,35 @@ class _Merger:
                     self.title_trivia.append((record.platform, note, note.source or record.source))
                 else:
                     self.unmatched_trivia += 1
+
+
+def _url_key(url: str) -> str:
+    """A download address for comparison: unquoted, without case."""
+    return urllib.parse.unquote(url).strip().casefold()
+
+
+_LAST_NUMBER = re.compile(r"(\d+)(?!.*\d)")
+
+
+def _record_number(record: DiskRecord) -> int | None:
+    if record.number is not None:
+        return record.number
+    found = _LAST_NUMBER.search(record.title)
+    return int(found.group(1)) if found else None
+
+
+def _numbers_disagree(disk: _Disk, record: DiskRecord) -> bool:
+    """Whether a disk and a record carry different disk numbers."""
+    theirs = _record_number(record)
+    if theirs is None:
+        return False
+    ours = disk.number
+    if ours is None:
+        ours = next(
+            (n for _p, _s, other in disk.records if (n := _record_number(other)) is not None),
+            None,
+        )
+    return ours is not None and ours != theirs
 
 
 def _names_an_image(location: LocationRecord) -> bool:
@@ -606,6 +669,8 @@ def merge_records(
         batches=batches,
         unmatched_locations=merger.unmatched_locations,
         hash_merges=merger.hash_merges,
+        url_merges=merger.url_merges,
+        url_refusals=merger.url_refusals,
         title_media=merger.title_media,
         title_trivia=merger.title_trivia,
         unmatched_media=merger.unmatched_media,
@@ -810,6 +875,50 @@ class _Writer:
         self.titles: dict[tuple[str, str], list[tuple[int, int, bool]]] = defaultdict(list)
         self.crews = _Crews(result.batches, groups, crew_choice)
         self.media_sources: Counter[str] = Counter()
+        # (platform, crew as the disk gives it) -> the spelling written; see settle_crews.
+        self.crew_names: dict[tuple[str, str], str] = {}
+
+    # -- crews -----------------------------------------------------------------
+
+    def disk_crew(
+        self, disk: _Disk, records: list[DiskRecord], definition: SeriesDef | None
+    ) -> str:
+        """The crew of a disk as its records give it, a tag expanded through groups.toml."""
+        model = Disk(
+            id=disk.id,
+            label="",
+            platform=_enum(Platform, disk.platform, Platform.ATARI_ST),
+            kind=_enum(DiskKind, disk.kind, DiskKind.MENU),
+            series_id=disk.series_key or None,
+            series_name=definition.name if definition else "",
+            publisher=_first(records, "publisher"),
+            cracker=_first(records, "cracker"),
+        )
+        crew = archive_crew(model, definition.group if definition else "")
+        return crew if crew == UNKNOWN_CREW else self.groups.expand(crew, disk.platform)
+
+    def settle_crews(self, crews: Iterable[tuple[str, str]]) -> None:
+        """One spelling for each crew on each platform.
+
+        Spellings that differ only in case, "The", spaces or punctuation
+        ("Flash Light Design" and "Flashlight Design", "The Replicants" and
+        "Replicants") are one crew: the most common spelling is written for
+        all of them, so the Crew filter and the download folders show one.
+        """
+        counts = Counter(crews)
+        spellings: dict[tuple[str, str], Counter[str]] = defaultdict(Counter)
+        for (platform, crew), count in counts.items():
+            spellings[(platform, spelling_key(crew))][crew] += count
+        joined = 0
+        for (platform, _key), found in spellings.items():
+            if len(found) < 2:
+                continue
+            chosen = min(found, key=lambda crew: (-found[crew], crew))
+            for crew in found:
+                if crew != chosen:
+                    self.crew_names[(platform, crew)] = chosen
+                    joined += 1
+        self.stats["crew spellings joined"] = joined
 
     # -- one disk --------------------------------------------------------------
 
@@ -840,7 +949,8 @@ class _Writer:
                 for content, _source in contents
             ],
         )
-        crew = archive_crew(model, definition.group if definition else "")
+        crew = self.disk_crew(disk, records, definition)
+        crew = self.crew_names.get((disk.platform, crew), crew)
         credited = {(record.source, crew_id) for record in records for crew_id in record.crew_ids}
         crew_id = self.crews.row_for(crew, disk.platform, credited)
         year, month, day = release_date(records)
@@ -981,9 +1091,14 @@ class _Writer:
         """Write the disk's locations. A location keeps its own hash only when
         the image it is attached to lacks it: a download is otherwise checked
         against the image's hashes, which include it."""
-        seen: set[tuple[str, str, str]] = set()
-        for location, image in disk.locations:
-            identity = (location.provider, location.url, location.member)
+        seen: set[tuple[str, str]] = set()
+        # One row per file: the same address in other letter case is the same
+        # download (Demozoo's links do not always keep the archive's case), and
+        # the source that reads the archive itself, with the lower priority
+        # number, has its spelling.
+        ordered = sorted(disk.locations, key=lambda item: item[0].priority)
+        for location, image in ordered:
+            identity = (_url_key(location.url), location.member)
             if identity in seen:
                 continue
             seen.add(identity)
@@ -1054,7 +1169,7 @@ class _Writer:
                 facets.append(f"{year} {month:02d}")
         notes = [text for record in records for text in (record.notes, record.menu_text) if text]
         return _DiskText(
-            disk=search_text(" ".join([label, *series_words, title])),
+            disk=title_search_text(" ".join([label, *series_words, title])),
             crew=list(crews),
             people=search_text(_joined(records, "credits")),
             facets=[word for word in facets if word],
@@ -1122,7 +1237,7 @@ class _Writer:
             index.append(
                 (
                     self.entry_id,
-                    search_text(" ".join(dict.fromkeys(names))),
+                    title_search_text(" ".join(dict.fromkeys(names))),
                     text.disk,
                     search_text(" ".join(crews)),
                     text.people,
@@ -1173,9 +1288,9 @@ class _Writer:
             "files) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 disk.id,
-                search_text(f"{label} {title}"),
+                title_search_text(f"{label} {title}"),
                 search_text(series_text),
-                search_text(" ".join([*titles, *extras])),
+                title_search_text(" ".join([*titles, *extras])),
                 text.people,
                 text.notes,
                 search_text(" ".join(crews)),
@@ -1521,6 +1636,11 @@ class _Crews:
         }
 
 
+def spelling_key(crew: str) -> str:
+    """A crew name with case, "The", spaces and punctuation left out."""
+    return re.sub(r"[^0-9a-z]", "", crew_key(crew).casefold()) or crew.casefold()
+
+
 def write_catalogue(
     connection: sqlite3.Connection,
     result: MergeResult,
@@ -1566,6 +1686,10 @@ def write_catalogue(
         )
 
     writer = _Writer(connection, result, groups, log, crew_choice)
+    writer.settle_crews(
+        (disk.platform, writer.disk_crew(disk, records, series.get(disk.series_key)))
+        for disk, records, _title, _label in prepared
+    )
     for disk, records, title, label in prepared:
         writer.write_disk(disk, records, title, label, series.get(disk.series_key))
     writer.write_title_media()
@@ -1595,6 +1719,16 @@ def write_catalogue(
         "VALUES (?, ?, ?, ?, ?, ?)",
         [(i.id, i.name, i.url, i.licence, retrieved, count) for i, count in credited],
     )
+    used = dict(connection.execute("SELECT provider, count(*) FROM locations GROUP BY provider"))
+    connection.executemany(
+        "INSERT OR REPLACE INTO sources(id, name, url, licence, retrieved, records) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        [
+            (host.id, host.name, host.url, host.licence, retrieved, used[host.id])
+            for host in HOSTS.values()
+            if host.id in used and host.id not in known
+        ],
+    )
     for batch in result.batches:
         connection.execute(
             "INSERT OR REPLACE INTO sources(id, name, url, licence, retrieved, records) "
@@ -1619,5 +1753,7 @@ def write_catalogue(
         connection.execute(f"INSERT INTO {table}({table}) VALUES ('optimize')")
     stats["unmatched locations"] = result.unmatched_locations
     stats["hash merges"] = result.hash_merges
+    stats["download merges"] = result.url_merges
+    stats["download merges refused"] = result.url_refusals
     stats["series"] = len(series)
     return dict(stats)
