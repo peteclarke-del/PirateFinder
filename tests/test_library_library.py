@@ -186,6 +186,46 @@ class LibraryTests(unittest.TestCase):
         summary = self.library.scan([self.files])
         self.assertEqual(summary.new, 0, "a later scan sees the file as unchanged")
 
+    def test_a_download_no_checksum_could_check_stays_with_its_disc(self) -> None:
+        # Crew 4 has a download and no dump, as the Vectronix disks on the CD.
+        path = self.files / "crew4.msa"
+        path.write_bytes(make_msa(make_st_image("disk d")))
+        [added] = self.library.add_download(path, 4, "https://example.invalid/d.st")
+        self.assertEqual((added.disk_id, added.image_id), (4, None))
+        self.assertEqual(self.library.availability([4], [])[4], Availability.LOCAL)
+        self.assertEqual(self.library.stats()["unmatched"], 0)
+        [kept] = self.db.file_discs()
+        self.assertEqual(
+            (kept.reason, kept.disc.series_id, kept.disc.number), ("downloaded", "crew", 4)
+        )
+        # A later scan and a rematch keep it there.
+        self.library.scan([self.files])
+        self.assertEqual(self.library.rematch(), 1)
+        self.assertEqual(self.library.files_for_disk(4), [added])
+        # A catalogue update that numbers the disc 9 finds it again.
+        builder = CatalogueBuilder(self.folder / "newer.sqlite", built_at="2026-10-01")
+        builder.disk(9, "Crew 4", series=("crew", "Crew"), number=4)
+        newer = SqlCatalogue(builder.close())
+        self.addCleanup(newer.close)
+        self.library.set_catalogue(newer)
+        self.assertEqual(self.library.rematch(), 1)
+        self.assertEqual([local.disk_id for local in self.library.files_for_disk(9)], [9])
+
+    def test_a_download_that_changes_is_let_go(self) -> None:
+        path = self.files / "crew4.st"
+        path.write_bytes(make_st_image("disk d"))
+        self.library.add_download(path, 4)
+        path.write_bytes(make_st_image("something else"))
+        self.library.scan([self.files])
+        self.assertEqual(self.library.files_for_disk(4), [])
+
+    def test_a_download_that_matches_a_dump_is_matched_as_usual(self) -> None:
+        path = self.files / "crew3.st"
+        path.write_bytes(self.raw_c)
+        [added] = self.library.add_download(path, 3)
+        self.assertEqual((added.disk_id, added.image_id), (3, 30))
+        self.assertEqual(self.db.file_discs(), [])
+
     def test_rematch_after_a_catalogue_update(self) -> None:
         mystery = make_st_image("new in the update")
         (self.files / "later.st").write_bytes(mystery)

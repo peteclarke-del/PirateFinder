@@ -1,10 +1,12 @@
-"""List and read the members of zip, 7z and gzip files.
+"""List and read the members of zip, 7z, gzip and LZH files.
 
 Local collections are often an archive of archives, such as a 7z holding one
 zip per disk. One level of nesting is followed and written as
 ``outer/path/inner.zip::image.st``. Zip and gzip are read with the standard
-library; 7z needs the ``7z`` command, and without it a 7z file raises
-:class:`ArchiveError` with a sentence saying so.
+library; 7z and LZH need the ``7z`` command, and without it such a file
+raises :class:`ArchiveError` with a sentence saying so. LZH (LHarc) is how
+Atari ST disks were passed around on bulletin boards, usually one MSA image
+per archive, as on the Vectronix CD.
 
 Members are only ever read into memory, never extracted by name, and every
 read is capped so a small archive that expands without limit is refused.
@@ -23,7 +25,7 @@ import tempfile
 import zipfile
 import zlib
 from collections.abc import Callable, Iterable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import IO
 
@@ -47,11 +49,13 @@ NESTED = "::"
 LIST_TIMEOUT = 600
 
 # Archives that are opened, in a library folder or inside another archive.
-_NESTED_SUFFIXES = {".zip": "zip", ".7z": "7z", ".gz": "gz"}
+_NESTED_SUFFIXES = {".zip": "zip", ".7z": "7z", ".gz": "gz", ".lzh": "lzh", ".lha": "lzh"}
 ARCHIVE_SUFFIXES = frozenset(_NESTED_SUFFIXES)
 _SUFFIX_KINDS = {**_NESTED_SUFFIXES, ".adz": "gz"}
 _MAGIC = ((b"PK\x03\x04", "zip"), (b"PK\x05\x06", "zip"), (b"7z\xbc\xaf\x27\x1c", "7z"))
 _MAGIC += ((b"\x1f\x8b", "gz"),)
+# An LZH file starts with a header whose bytes 2 to 6 name its method, "-lh5-".
+_LZH_METHOD = re.compile(rb"-l(?:h[0-7d]|z[45s])-")
 _CHUNK = 1024 * 1024
 
 
@@ -87,7 +91,7 @@ def find_7z() -> str | None:
 def archive_kind(path: str | os.PathLike[str]) -> str:
     """The archive type by suffix, or by header when the suffix says nothing.
 
-    Returns "zip", "7z", "gz", or "" for a file that is not an archive.
+    Returns "zip", "7z", "gz", "lzh", or "" for a file that is not an archive.
     """
     path = Path(path)
     suffix = path.suffix.lower()
@@ -100,6 +104,13 @@ def archive_kind(path: str | os.PathLike[str]) -> str:
             head = stream.read(8)
     except OSError:
         return ""
+    return header_kind(head)
+
+
+def header_kind(head: bytes) -> str:
+    """The archive type the first eight bytes of a file show, or "" for none."""
+    if _LZH_METHOD.fullmatch(head[2:7]):
+        return "lzh"
     return next((kind for magic, kind in _MAGIC if head.startswith(magic)), "")
 
 
@@ -448,6 +459,7 @@ class _GzipArchive(_Archive):
 
 class _SevenZipArchive(_Archive):
     label = "7z file"
+    article = "a"
 
     def __init__(self, path: Path, name: str, *, spilled: bool = False) -> None:
         super().__init__()
@@ -456,7 +468,7 @@ class _SevenZipArchive(_Archive):
             if spilled:
                 path.unlink(missing_ok=True)
             raise ArchiveError(
-                f"{name} is a 7z file, and reading it needs 7-Zip. "
+                f"{name} is {self.article} {self.label}, and reading it needs 7-Zip. "
                 "Install the 7zip package (or p7zip-full) and try again."
             )
         self._command = command
@@ -574,6 +586,20 @@ class _SevenZipArchive(_Archive):
             _finish(process)
 
 
+class _LzhArchive(_SevenZipArchive):
+    """An LZH file, read with 7-Zip.
+
+    LZH stores a 16-bit CRC, which 7-Zip lists where a 7z file has its 32-bit
+    one, so it is not compared: 7-Zip checks it while decompressing.
+    """
+
+    label = "LZH file"
+    article = "an"
+
+    def _list(self) -> list[_Entry]:
+        return [replace(entry, crc=None) for entry in super()._list()]
+
+
 def _parse_listing(text: str, archive_path: str) -> list[_Entry]:
     found: list[_Entry] = []
     for block in re.split(r"\n\s*\n", text.replace("\r\n", "\n")):
@@ -668,7 +694,9 @@ def _open_path(path: str | os.PathLike[str]) -> _Archive:
         return _SevenZipArchive(path.resolve(), path.name)
     if kind == "gz":
         return _GzipArchive(path, path.name)
-    raise ArchiveError(f"{path.name} is not a zip, 7z or gzip file.")
+    if kind == "lzh":
+        return _LzhArchive(path.resolve(), path.name)
+    raise ArchiveError(f"{path.name} is not a zip, 7z, gzip or LZH file.")
 
 
 def _open_bytes(kind: str, data: bytes, name: str) -> _Archive:
@@ -678,4 +706,6 @@ def _open_bytes(kind: str, data: bytes, name: str) -> _Archive:
         return _SevenZipArchive(_spill(data, ".7z"), name, spilled=True)
     if kind == "gz":
         return _GzipArchive(data, name)
-    raise ArchiveError(f"{name} is not a zip, 7z or gzip file.")
+    if kind == "lzh":
+        return _LzhArchive(_spill(data, ".lzh"), name, spilled=True)
+    raise ArchiveError(f"{name} is not a zip, 7z, gzip or LZH file.")

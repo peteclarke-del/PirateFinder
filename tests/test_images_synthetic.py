@@ -385,6 +385,26 @@ def zip_bytes(members: dict[str, bytes]) -> bytes:
     return buffer.getvalue()
 
 
+def lzh_bytes(members: dict[str, bytes]) -> bytes:
+    """An LZH file storing each member uncompressed (method -lh0-, header level 0).
+
+    No LZH packer is at hand, and 7-Zip reads but does not write LZH; the
+    stored method exercises the same headers and 16-bit CRC as -lh5-.
+    """
+    out = bytearray()
+    for name, data in members.items():
+        encoded = name.encode("ascii")
+        header = (
+            b"-lh0-"
+            + struct.pack("<IIIBB", len(data), len(data), 0x21A40000, 0x20, 0)
+            + bytes((len(encoded),))
+            + encoded
+            + struct.pack("<H", crc16(data))
+        )
+        out += bytes((len(header), sum(header) & 0xFF)) + header + data
+    return bytes(out + b"\x00")
+
+
 class SyntheticImageTests(unittest.TestCase):
     """The builders produce images of the sizes the formats define."""
 

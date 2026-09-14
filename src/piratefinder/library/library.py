@@ -7,8 +7,11 @@ matched with their file hashes in the raw steps, since for those formats the
 catalogue hashes the file itself.
 
 A file PirateFinder wrote by removing a boot block virus (``clean_file``)
-usually matches no catalogue dump any more; it stays with the disk it was
-made from for as long as its sectors are unchanged.
+usually matches no catalogue dump any more, and a download of a disc whose
+dumps have no checksum (``add_download``) never matched one. Each stays with
+the disc it was made or downloaded for, for as long as its sectors are
+unchanged. The disc is kept as corrections keep theirs (``discs``), so it is
+found again in every catalogue update.
 
 Each image's boot block is checked when it is scanned, with the virus data
 of the day. The user database keeps the fingerprint of that data
@@ -47,6 +50,7 @@ from ..images.inspect import (
 from ..jobs.cancellation import is_cancelled
 from ..models import Availability, BootRecheck, ImageRecord, LocalFile, Platform, ScanSummary
 from ..online.fetch import sanitise_name
+from .discs import catalogue_stamp, find_disc, identify_id
 from .scanner import Progress, Scanner, read_image_bytes
 from .userdb import LibraryEntry, UserDatabase
 
@@ -215,6 +219,8 @@ class Library:
         self._online_cache: dict[frozenset[str], set[int]] = {}
         self._lock = threading.Lock()
         self._boot_lock = threading.Lock()  # one boot block check at a time
+        self._link_lock = threading.Lock()
+        self._linked = ""  # the catalogue stamp the files' discs were last found in
 
     def set_catalogue(self, catalogue: Any) -> None:
         """Use a newer catalogue. Call ``rematch`` afterwards to match files again."""
@@ -336,13 +342,75 @@ class Library:
         self.userdb.store_file(target, info.st_size, info.st_mtime, entries, "; ".join(errors))
         return [entry.to_local() for entry in entries]
 
+    def add_download(self, path: Path, disk_id: int | None, source: str = "") -> list[LocalFile]:
+        """Index a download; one that matches no dump stays with the disc it is for.
+
+        The download was checked against the disc's dumps when any of them has
+        a checksum (``online.fetch``), so a download that matches none is one
+        no checksum could check. ``source`` is the address it came from.
+        """
+        found = self.add_file(path)
+        if disk_id is None or len(found) != 1 or found[0].matched or found[0].member:
+            return found
+        target = os.path.normpath(os.path.abspath(str(path)))
+        entries = self.userdb.entries(path=target)
+        if len(entries) != 1:
+            return found
+        if not self._keep_with_disc(
+            target, _sector_sha1(entries[0]), "downloaded", disk_id, source=source
+        ):
+            return found
+        return self.add_file(path)
+
+    def _keep_with_disc(
+        self, path: str, sha1: str, reason: str, disk_id: int, **source: str
+    ) -> bool:
+        """Record that ``path`` stays with a disc of the catalogue in use; False without one."""
+        with self._lock:
+            catalogue = self.catalogue
+        disc = identify_id(catalogue, disk_id) if catalogue is not None else None
+        if disc is None:
+            return False
+        stamp = self.relink_files(catalogue)
+        self.userdb.record_file_disc(path, sha1, reason, replace(disc, catalogue=stamp), **source)
+        return True
+
+    def relink_files(self, catalogue: Any) -> str:
+        """Find the disc of every kept file in ``catalogue`` when not yet done; return its stamp.
+
+        A cleaned copy recorded before discs were kept this way has only a
+        disk id, of the catalogue in use then; the disc with that id in
+        ``catalogue`` is taken as its disc.
+        """
+        stamp = catalogue_stamp(catalogue)
+        with self._link_lock:
+            if self._linked == stamp:
+                return stamp
+            changes = []
+            for kept in self.userdb.file_discs():
+                disc = kept.disc
+                if disc.catalogue == stamp:
+                    continue
+                if disc.catalogue:
+                    disc = replace(disc, disk_id=find_disc(catalogue, disc))
+                elif disc.disk_id is not None:
+                    disc = identify_id(catalogue, disc.disk_id) or replace(disc, disk_id=None)
+                changes.append((kept.path, replace(disc, catalogue=stamp)))
+            self.userdb.relink_file_discs(changes)
+            self._linked = stamp
+        return stamp
+
     def rematch(self) -> int:
         """Match every indexed image again; return how many are matched afterwards."""
         with self._lock:
             catalogue = self.catalogue
         changes: list[tuple[int, int | None, int | None]] = []
         matched = 0
-        origins = self.userdb.cleaned_origins()
+        origins = (
+            self.userdb.file_disc_origins(self.relink_files(catalogue))
+            if catalogue is not None
+            else {}
+        )
         for entry in self.userdb.entries():
             record = match_entry(catalogue, entry)
             image_id, disk_id = (record.id, record.disk_id) if record else (None, None)
@@ -394,8 +462,8 @@ class Library:
         name, parsed = display_name(entry.path, entry.member)
         record = match_entry(catalogue, entry) if catalogue is not None else None
         disk_id = record.disk_id if record else None
-        if record is None and not entry.member:
-            origin = self.userdb.cleaned_origin(entry.path)
+        if record is None and not entry.member and catalogue is not None:
+            origin = self.userdb.file_disc_origin(entry.path, self.relink_files(catalogue))
             if origin is not None and origin[0] == _sector_sha1(entry):
                 disk_id = origin[1]
         return replace(
@@ -460,11 +528,12 @@ class Library:
         else:
             target = _write_new(Path(local.path).parent, names.cleaned, payload)
         if local.disk_id is not None:
-            self.userdb.record_cleaned(
+            self._keep_with_disc(
                 str(target),
                 hashlib.sha1(cleaned, usedforsecurity=False).hexdigest(),
+                "cleaned",
                 local.disk_id,
-                source_path=local.path,
+                source=local.path,
                 source_member=local.member,
                 virus=report.name,
             )

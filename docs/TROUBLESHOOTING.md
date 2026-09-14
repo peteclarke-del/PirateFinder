@@ -279,7 +279,7 @@ cached picture and summary.
   asked for meanwhile starts when it ends.
 - A file that differs by even one byte from every known dump matches nothing
   and is listed as unmatched. It can still be found by file name and written.
-- Reading 7z archives needs the `7z` command: `sudo apt install 7zip`.
+- Reading 7z and LZH archives needs the `7z` command: `sudo apt install 7zip`.
 - A folder on a NAS must be mounted before a scan. See
   [Installation](INSTALLATION.md#library-folders-on-a-nas).
 

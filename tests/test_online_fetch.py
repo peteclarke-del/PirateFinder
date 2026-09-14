@@ -11,11 +11,13 @@ import zipfile
 from dataclasses import replace
 from pathlib import Path
 
+from piratefinder.images.archives import find_7z
 from piratefinder.jobs.session import download_for_item
 from piratefinder.models import ImageRecord, ImageSource, Location, Platform, QueueItem
 from piratefinder.online.fetch import FetchError, fetch_location, sanitise_name
 from piratefinder.online.http import Downloader, HostThrottle
 from piratefinder.settings import Settings
+from tests.test_images_synthetic import lzh_bytes
 from tests.test_library_helpers import (
     QuietHandler,
     hashes,
@@ -251,9 +253,11 @@ class FetchTests(unittest.TestCase):
         class Library:
             def __init__(self) -> None:
                 self.added: list[Path] = []
+                self.discs: list[tuple[int | None, str]] = []
 
-            def add_file(self, path: Path) -> list:
+            def add_download(self, path: Path, disk_id: int | None, source: str) -> list:
                 self.added.append(path)
+                self.discs.append((disk_id, source))
                 return []
 
         library = Library()
@@ -270,6 +274,8 @@ class FetchTests(unittest.TestCase):
         )
         self.assertEqual(saved.name, "Crew 1 (1990)(Crew).msa")
         self.assertEqual(library.added, [saved])
+        # The library is told the disc the download is for, and where it came from.
+        self.assertEqual(library.discs, [(1, right)])
         self.assertEqual(len(notes), 1)
         self.assertIn("matched the catalogue dump Crew 1 (1990)(Crew).st", notes[0])
         self.assertEqual(
@@ -327,6 +333,25 @@ class FetchTests(unittest.TestCase):
         url = self.publish("download", zip_bytes({"Crew 1.st": self.raw}))
         saved = self.fetch(self.location(url))
         self.assertEqual(saved.name, "Crew 1.st")
+
+    @unittest.skipUnless(find_7z(), "7-Zip is not installed")
+    def test_the_msa_in_an_lzh_is_checked_against_the_dumps_of_its_disc(self) -> None:
+        # As on the Vectronix CD: one MSA per LZH, with one track record more
+        # than its header declares, and the TOSEC dump of the disc it holds.
+        extra = b"\x00\x04\xe5\x00\x14\x00"
+        url = self.publish("159.LZH", lzh_bytes({"159.MSA": make_msa(self.raw) + extra}))
+        dumps = (self.dump(5, "Vectronix Compilation 159.st", sha1=hashes(self.raw)["sha1"]),)
+        notes: list[str] = []
+        saved = self.fetch(self.location(url, container="lzh"), None, dumps=dumps, notes=notes)
+        self.assertEqual(saved.name, "Vectronix Compilation 159.msa")
+        self.assertIn("matched the catalogue dump Vectronix Compilation 159.st", notes[0])
+        self.assert_cache_empty()
+
+    @unittest.skipUnless(find_7z(), "7-Zip is not installed")
+    def test_lzh_detected_without_a_suffix(self) -> None:
+        url = self.publish("download", lzh_bytes({"Crew 1.msa": make_msa(self.raw)}))
+        saved = self.fetch(self.location(url))
+        self.assertEqual(saved.name, "Crew 1.msa")
 
     def test_missing_file(self) -> None:
         with self.assertRaises(FetchError) as caught:
