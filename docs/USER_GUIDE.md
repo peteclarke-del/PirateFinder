@@ -94,6 +94,8 @@ A search that starts with a series name, or one of the short names people used f
 | `lemmings skid row` | Lemmings titles on discs from Skid Row. |
 | `speedball quartex` | Speedball cracked by Quartex, whose TOSEC name says [cr QTX]. Crew tags are searched under the crew's full name too. |
 | `xenon2` | Xenon 2 as well as Xenon2. |
+| `turrican 2`, `turrican ii` | Turrican II and Turrican 2 alike: a sequel's number is found in either numerals. |
+| `battlehawks` | Battle Hawks 1942 as well as Battlehawks. |
 | `dungeon master 1988` | Dungeon Master rows that mention 1988, which is usually the year of release. |
 | `1800 msa` | Pompey Pirates 51, whose Atari Legend dump is called 1800.msa. Image file names are searched as well. |
 
