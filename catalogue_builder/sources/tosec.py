@@ -63,6 +63,8 @@ INFO = SourceInfo(
     licence="Freely distributed DAT files",
 )
 CONTENT_PRIORITY = 90
+# Registers a series for numbered names no pattern knows, which other sources need.
+REGISTERS_SERIES = True
 DEFAULT_ENABLED = True
 RETRIEVED = ""  # the pack version, set by collect()
 
