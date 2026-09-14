@@ -17,6 +17,13 @@ FIXTURE = Path(__file__).parent / "fixtures" / "demozoo" / "demozoo-export-excer
 
 SERIES = """
 [[series]]
+id = "next-generation"
+name = "Next Generation"
+platform = "atari-st"
+kind = "menu"
+group = "The Next Generation"
+
+[[series]]
 id = "skid-row-compact"
 name = "Skid Row Compact"
 platform = "amiga"
@@ -215,7 +222,12 @@ class DemozooTest(unittest.TestCase):
 
     def test_menu_intros_give_their_menu_disk_a_picture(self) -> None:
         self.assertEqual(
-            sorted(self.menus), [("automation", 155, "", "v2"), ("medway-boys", 1, "", "")]
+            sorted(self.menus),
+            [
+                ("automation", 155, "", "v2"),
+                ("medway-boys", 1, "", ""),
+                ("next-generation", 46, "", ""),
+            ],
         )
         menu = self.menus[("automation", 155, "", "v2")]
         self.assertEqual((menu.kind, menu.platform, menu.title), ("menu", "atari-st", ""))
@@ -229,6 +241,13 @@ class DemozooTest(unittest.TestCase):
         # intro" is by another group: neither is a menu of a series.
         self.assertNotIn(("prevail-pack", 148, "", ""), self.menus)
         self.assertNotIn(("automation", 156, "", ""), self.menus)
+
+    def test_a_menu_intro_named_only_by_a_generic_word_is_its_crews_menu(self) -> None:
+        # "Menu #46 Intro" by The Next Generation is its menu 46.
+        menu = self.menus[("next-generation", 46, "", "")]
+        self.assertEqual(menu.release_date, "1991")
+        # "Disk 3 Intro" by a crew with no menu series names no disk.
+        self.assertFalse(any(key[1] == 3 and key[0] != "automation" for key in self.menus))
 
     def test_numbered_titles_with_parts_and_versions(self) -> None:
         pack = demozoo.Pack(1, "D-BUG CD 157 A V2", "", "atari-st", "D-Bug", [])
