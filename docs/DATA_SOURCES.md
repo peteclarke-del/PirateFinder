@@ -208,6 +208,16 @@ than a local build.
   a file's name gives the hash of that image, the location carries it, and
   the download is checked against it. For each item the DAT released nearest
   to the item's upload date is asked first.
+- Newer TOSEC sets: the builder also reads the FixDat sets of the TOSEC
+  2025-03-13 update pack, the TOSEC 2020 Roundup, the 2023 update, the full
+  sets of 2022 and the 2023-11-07 work in progress. These hold the raw images
+  of whole sets (`Name/Name.st`), so a member is its own image and has no
+  container. The sets published with the names of the catalogue's own DATs
+  are placed by name only, never through an older DAT. The Archive's
+  listing of a 7z archive drops the first words of each path, and its links
+  then answer with an empty file, so the builder rebuilds those paths. With
+  these sets 3,528 more Atari ST single disks and about 2,500 more Amiga
+  disks have a download location.
 - Short menu names: the `[Menus].7z` archive of the atari-st-collection item
   names some 3,200 menu zips by crew and number ("PP_054.zip"). The rules in
   `data/series/match-internet-archive.toml` read the series, number, part
