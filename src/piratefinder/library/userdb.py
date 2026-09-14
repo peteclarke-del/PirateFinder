@@ -219,6 +219,40 @@ MIGRATIONS: tuple[str, ...] = (
 
     DROP TABLE cleaned_files;
     """,
+    # Version 7: the user links a file to a disc it matches no dump of, such
+    # as a menu disk downloaded by hand, and that file may be an image inside
+    # an archive, so a file is kept by its path and its member.
+    """
+    CREATE TABLE file_discs_7 (
+        path TEXT NOT NULL,
+        member TEXT NOT NULL DEFAULT '',
+        sha1 TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        series_id TEXT,
+        number INTEGER,
+        part TEXT NOT NULL DEFAULT '',
+        version TEXT NOT NULL DEFAULT '',
+        platform TEXT NOT NULL DEFAULT '',
+        title TEXT NOT NULL DEFAULT '',
+        hashes TEXT NOT NULL DEFAULT '[]',
+        disk_id INTEGER,
+        catalogue TEXT NOT NULL DEFAULT '',
+        source TEXT NOT NULL DEFAULT '',
+        source_member TEXT NOT NULL DEFAULT '',
+        virus TEXT NOT NULL DEFAULT '',
+        recorded REAL NOT NULL DEFAULT 0,
+        PRIMARY KEY (path, member)
+    );
+
+    INSERT INTO file_discs_7(path, sha1, reason, series_id, number, part, version, platform,
+            title, hashes, disk_id, catalogue, source, source_member, virus, recorded)
+        SELECT path, sha1, reason, series_id, number, part, version, platform,
+            title, hashes, disk_id, catalogue, source, source_member, virus, recorded
+        FROM file_discs;
+
+    DROP TABLE file_discs;
+    ALTER TABLE file_discs_7 RENAME TO file_discs;
+    """,
 )
 
 SCHEMA_VERSION = len(MIGRATIONS)
@@ -377,13 +411,16 @@ class FileDisc:
     """A file that stays with a disc whose dumps it does not match.
 
     ``sha1`` is of the file's sectors when it was recorded, so the file is let
-    go once it changes; ``reason`` is ``"cleaned"`` or ``"downloaded"``.
+    go once it changes; ``reason`` is ``"cleaned"``, ``"downloaded"`` or
+    ``"linked"`` (by the user). ``member`` is the image's path inside an
+    archive, "" for a plain file.
     """
 
     path: str
     sha1: str
     reason: str
     disc: DiscIdentity
+    member: str = ""
 
 
 def _entry_from_row(row: Sequence[Any]) -> LibraryEntry:
@@ -726,22 +763,24 @@ class UserDatabase:
         reason: str,
         disc: DiscIdentity,
         *,
+        member: str = "",
         source: str = "",
         source_member: str = "",
         virus: str = "",
     ) -> None:
-        """Keep ``path`` (sectors SHA-1 ``sha1``) with ``disc``, replacing any earlier record.
+        """Keep ``path`` (and ``member`` inside it) with ``disc``, replacing any earlier record.
 
-        ``source`` is the file a cleaned copy was made from, or the address a
-        download came from.
+        ``sha1`` is of the image's sectors. ``source`` is the file a cleaned
+        copy was made from, or the address a download came from.
         """
         with self.transaction() as db:
             db.execute(
-                f"""INSERT OR REPLACE INTO file_discs(path, sha1, reason, {_DISC_COLUMNS},
+                f"""INSERT OR REPLACE INTO file_discs(path, member, sha1, reason, {_DISC_COLUMNS},
                        source, source_member, virus, recorded)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     path,
+                    member,
                     sha1.lower(),
                     reason,
                     *_disc_values(disc),
@@ -755,36 +794,47 @@ class UserDatabase:
     def file_discs(self) -> list[FileDisc]:
         """Every file that stays with a disc."""
         rows = self.connection().execute(
-            f"SELECT path, sha1, reason, {_DISC_COLUMNS} FROM file_discs ORDER BY path"
+            f"SELECT path, member, sha1, reason, {_DISC_COLUMNS} FROM file_discs "
+            "ORDER BY path, member"
         )
-        return [FileDisc(row[0], row[1], row[2], _disc_from_row(row[3:])) for row in rows]
+        return [
+            FileDisc(row[0], row[2], row[3], _disc_from_row(row[4:]), member=row[1]) for row in rows
+        ]
 
-    def relink_file_discs(self, changes: Iterable[tuple[str, DiscIdentity]]) -> None:
-        """Store where the discs of these files are in another catalogue: (path, disc)."""
+    def relink_file_discs(self, changes: Iterable[tuple[str, str, DiscIdentity]]) -> None:
+        """Store where the discs of these files are in another catalogue: (path, member, disc)."""
         columns = ", ".join(f"{name.strip()} = ?" for name in _DISC_COLUMNS.split(","))
         with self.transaction() as db:
             db.executemany(
-                f"UPDATE file_discs SET {columns} WHERE path = ?",
-                [(*_disc_values(disc), path) for path, disc in changes],
+                f"UPDATE file_discs SET {columns} WHERE path = ? AND member = ?",
+                [(*_disc_values(disc), path, member) for path, member, disc in changes],
             )
 
-    def file_disc_origins(self, catalogue: str) -> dict[str, tuple[str, int]]:
-        """Files kept with a disc of ``catalogue``: path -> (sectors SHA-1, disk id)."""
+    def forget_file_disc(self, path: str, member: str = "") -> bool:
+        """Stop keeping a file with its disc; False when it was not kept with one."""
+        with self.transaction() as db:
+            cursor = db.execute(
+                "DELETE FROM file_discs WHERE path = ? AND member = ?", (path, member)
+            )
+        return cursor.rowcount > 0
+
+    def file_disc_origins(self, catalogue: str) -> dict[tuple[str, str], tuple[str, int]]:
+        """Files kept with a disc of ``catalogue``: (path, member) -> (sectors SHA-1, disk id)."""
         rows = self.connection().execute(
-            "SELECT path, sha1, disk_id FROM file_discs "
+            "SELECT path, member, sha1, disk_id FROM file_discs "
             "WHERE catalogue = ? AND disk_id IS NOT NULL",
             (catalogue,),
         )
-        return {path: (sha1, disk_id) for path, sha1, disk_id in rows}
+        return {(path, member): (sha1, disk_id) for path, member, sha1, disk_id in rows}
 
-    def file_disc_origin(self, path: str, catalogue: str) -> tuple[str, int] | None:
-        """(sectors SHA-1, disk id) when ``path`` is kept with a disc of ``catalogue``."""
+    def file_disc_origin(self, path: str, member: str, catalogue: str) -> tuple[str, int] | None:
+        """(sectors SHA-1, disk id) when the file is kept with a disc of ``catalogue``."""
         row = (
             self.connection()
             .execute(
                 "SELECT sha1, disk_id FROM file_discs "
-                "WHERE path = ? AND catalogue = ? AND disk_id IS NOT NULL",
-                (path, catalogue),
+                "WHERE path = ? AND member = ? AND catalogue = ? AND disk_id IS NOT NULL",
+                (path, member, catalogue),
             )
             .fetchone()
         )

@@ -55,6 +55,7 @@ from piratefinder.ui import formatting as fmt  # noqa: E402
 from piratefinder.ui.backend import UpdateOffer, fetch_media, set_fetch_media  # noqa: E402
 from piratefinder.ui.fake_backend import LIBRARY, FakeBackend  # noqa: E402
 from piratefinder.ui.help_content import HELP_TOPICS  # noqa: E402
+from piratefinder.ui.link_disc import LinkDiscDialog  # noqa: E402
 
 HAVE_DISPLAY = bool(Gtk.init_check()) and Gdk.Display.get_default() is not None
 TIMEOUT = 10.0
@@ -801,6 +802,44 @@ class WindowTests(unittest.TestCase):
         page.show_file(self.backend.unmatched_files()[0])
         self.assertFalse(page.detail._actions.lookup_action("edit-details").get_enabled())
         self.assertIsNone(page.detail.confirm_revert())
+
+    def test_an_unmatched_file_is_linked_to_its_disc_and_unlinked_again(self) -> None:
+        page = self.window.find_page
+        local = self.backend.unmatched_files()[0]
+        page.show_file(local)
+        actions = page.detail._actions
+        self.assertTrue(actions.lookup_action("link-disc").get_enabled())
+        actions.activate_action("link-disc", None)
+        dialog = page.detail.link_dialog
+        self.assertIsInstance(self.window.get_visible_dialog(), LinkDiscDialog)
+        # The search starts from the file's volume label.
+        self.assertEqual(dialog.search_entry.get_text(), "MENU17")
+        dialog.search_entry.set_text("automation")
+        wait_until(lambda: dialog.discs, "discs to choose from")
+        self.assertTrue(all(disk.platform == Platform.ATARI_ST for disk in dialog.discs))
+        self.assertFalse(dialog.link_button.get_sensitive(), "nothing is chosen yet")
+        disk = dialog.discs[0]
+        dialog.choose(disk.id)
+        self.assertTrue(dialog.link_button.get_sensitive())
+        dialog.link_button.emit("clicked")
+        wait_until(lambda: self.backend.linked, "the file to be linked")
+        self.assertEqual(self.backend.linked, {(local.path, local.member): disk.id})
+        wait_until(
+            lambda: page.detail.detail is not None and page.detail.detail.disk.id == disk.id,
+            "the disc to be shown",
+        )
+        wait_until(page.detail.copies_group.get_visible, "the file under Your Copies")
+        self.assertFalse(actions.lookup_action("link-disc").get_enabled())
+        self.assertNotIn(local, self.backend.unmatched_files())
+        # Unlink asks first, then the file is unmatched again.
+        [kept] = [f for f in page.detail.detail.local_files if f.image_id is None]
+        page.detail.confirm_unlink(kept)
+        wait_until(
+            lambda: isinstance(self.window.get_visible_dialog(), Adw.AlertDialog), "the question"
+        )
+        self.window.get_visible_dialog().emit("response", "unlink")
+        wait_until(lambda: not self.backend.linked, "the file to be unlinked")
+        wait_until(lambda: not page.detail.copies_group.get_visible(), "Your Copies to empty")
 
     def test_download_only_makes_an_online_disk_local(self) -> None:
         page = self.window.find_page
@@ -1640,6 +1679,18 @@ class WindowTests(unittest.TestCase):
         self.answer_alert("Clean the Stored Image?", "clean")
         wait_until(lambda: len(page.infected) == 1, "the list to lose the cleaned file")
         self.assertEqual(self.backend.cleaned[0].path, f"{LIBRARY}/Amiga/src13.zip")
+
+    def test_an_unmatched_file_on_the_library_page_opens_where_it_can_be_linked(self) -> None:
+        self.window.show_page("library")
+        page = self.window.library_page
+        page.refresh()
+        wait_until(lambda: page.unmatched_rows.rows, "the unmatched files")
+        row = next(row for row in page.unmatched_rows.rows if row.get_title() == "menu17.st")
+        row.emit("activated")
+        self.assertEqual(self.window.stack.get_visible_child_name(), "find")
+        detail = self.window.find_page.detail
+        self.assertEqual(detail.local.display_name, "menu17.st")
+        self.assertTrue(detail._actions.lookup_action("link-disc").get_enabled())
 
     def test_update_catalogue_installs_and_refreshes_the_welcome_page(self) -> None:
         self.backend.update_offer = UpdateOffer("2026-09-10", 5_000_000)

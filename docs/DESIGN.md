@@ -186,6 +186,19 @@ of its own against the dumps of its disc.
 Unmatched images stay in the library and are searchable by file name, volume
 label and the names of the files on the disk.
 
+A file can belong to a disc whose dumps it does not match: a copy cleaned of
+a virus, a download no checksum could check, and an image the user links
+with Link to Disc (`ui/link_disc.py`, from the details pane's menu for an
+unmatched file). The dialog searches the catalogue's discs on the file's
+platform, starting from its volume label or name, and `Library.link_file`
+keeps the choice in `file_discs` with the sectors SHA-1 of the image. The
+library then matches the image to that disc, without a dump, for as long as
+its sectors are unchanged. The disc's pane lists these files under Your
+Copies, each with Unlink. After a link the Find page shows the disc and keeps
+it open (`FindPage.pinned_disc`) through the refresh that follows, although
+no result row may show it, until the user searches, picks a row or closes the
+pane.
+
 ## Catalogue sources
 
 | Source | Gives | Used as |
@@ -288,6 +301,8 @@ class Library:
     def add_download(self, path: Path, disk_id, source="") -> list[LocalFile]
         # a download that matches no dump stays with the disc it was fetched for
     def relink_files(self, catalogue) -> str   # finds the discs of kept files again
+    def link_file(self, local: LocalFile, disk_id: int) -> LocalFile   # raises LinkError
+    def unlink_file(self, local: LocalFile) -> LocalFile
     def rematch(self) -> int
     def stats(self) -> dict[str, int]
 
@@ -764,7 +779,7 @@ MediaCache.wikipedia_summary(title, *, cancel=None) -> TriviaItem | None
 
 Files and settings added since version 0.1.0:
 
-- The user database is at version 6. Version 2: `library_files` gains
+- The user database is at version 7. Version 2: `library_files` gains
   `boot_status` and `boot_name`, and a `cleaned_files` table remembers which
   disc a cleaned file came from, because a cleaned image no longer matches
   any catalogue checksum. That upgrade makes the next scan read every file
@@ -783,7 +798,10 @@ Files and settings added since version 0.1.0:
   dumps (`library/discs.py`), with the sectors SHA-1 of the file, so the
   file is let go when it changes. `Library.relink_files` finds every disc
   again in a new catalogue. Rows carried over from `cleaned_files` knew only
-  a disc id, and take the disc of that id in the catalogue in use.
+  a disc id, and take the disc of that id in the catalogue in use. Version 7:
+  `file_discs` is keyed by path and archive member, for images the user
+  links to a disc with Link to Disc (`Library.link_file`, reason
+  `linked`), which may be inside a zip or 7z file.
 - The Amiga Bootblock Reader brainfile, when the user downloads it, lives in
   `~/.local/share/piratefinder/virus/abr/` with a `release.json` recording
   the release. Installing it changes the virus data fingerprint, so the

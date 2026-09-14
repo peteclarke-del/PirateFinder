@@ -7,9 +7,10 @@ import unittest
 from pathlib import Path
 
 from piratefinder.images import archives
-from piratefinder.library.library import Library, display_name, match_entry
+from piratefinder.library.library import Library, LinkError, display_name, match_entry
 from piratefinder.library.userdb import LibraryEntry, UserDatabase
-from piratefinder.models import Availability, ImageRecord
+from piratefinder.models import Availability, ImageRecord, LocalFile
+from tests.test_images_synthetic import zip_bytes
 from tests.test_library_helpers import (
     CatalogueBuilder,
     SqlCatalogue,
@@ -225,6 +226,73 @@ class LibraryTests(unittest.TestCase):
         [added] = self.library.add_download(path, 3)
         self.assertEqual((added.disk_id, added.image_id), (3, 30))
         self.assertEqual(self.db.file_discs(), [])
+
+    def test_an_unmatched_file_linked_to_a_disc_stays_with_it(self) -> None:
+        # A menu disk downloaded by hand: no dump of Crew 4 is known.
+        path = self.files / "crew4.msa"
+        path.write_bytes(make_msa(make_st_image("by hand")))
+        self.library.scan([self.files])
+        [local] = self.library.search_unmatched("")
+        linked = self.library.link_file(local, 4)
+        self.assertEqual((linked.disk_id, linked.image_id), (4, None))
+        self.assertEqual(self.library.search_unmatched(""), [])
+        self.assertEqual(self.library.availability([4], [])[4], Availability.LOCAL)
+        [kept] = self.db.file_discs()
+        self.assertEqual((kept.reason, kept.disc.number, kept.member), ("linked", 4, ""))
+        # A scan and a catalogue update that numbers the disc 9 keep it there.
+        self.library.scan([self.files])
+        builder = CatalogueBuilder(self.folder / "newer.sqlite", built_at="2026-10-01")
+        builder.disk(9, "Crew 4", series=("crew", "Crew"), number=4)
+        newer = SqlCatalogue(builder.close())
+        self.addCleanup(newer.close)
+        self.library.set_catalogue(newer)
+        self.assertEqual(self.library.rematch(), 1)
+        self.assertEqual([f.disk_id for f in self.library.files_for_disk(9)], [9])
+
+    def test_an_image_inside_an_archive_can_be_linked(self) -> None:
+        inner = make_msa(make_st_image("zipped by hand"))
+        path = self.files / "crew4.zip"
+        path.write_bytes(zip_bytes({"MENU4.MSA": inner, "readme.txt": b"from the forum"}))
+        self.library.scan([self.files])
+        [local] = self.library.search_unmatched("")
+        self.assertEqual(local.member, "MENU4.MSA")
+        self.assertEqual(self.library.link_file(local, 4).disk_id, 4)
+        self.library.scan([self.files])
+        self.assertEqual(self.library.rematch(), 1)
+        self.assertEqual(
+            [(f.path, f.member) for f in self.library.files_for_disk(4)],
+            [(str(path), "MENU4.MSA")],
+        )
+
+    def test_unlinking_makes_the_file_unmatched_again(self) -> None:
+        path = self.files / "crew4.st"
+        path.write_bytes(make_st_image("by hand"))
+        self.library.scan([self.files])
+        [local] = self.library.search_unmatched("")
+        linked = self.library.link_file(local, 4)
+        unlinked = self.library.unlink_file(linked)
+        self.assertEqual(unlinked.disk_id, None)
+        self.assertEqual(self.db.file_discs(), [])
+        self.assertEqual(self.library.rematch(), 0)
+        self.assertEqual(len(self.library.search_unmatched("")), 1)
+
+    def test_a_file_that_matches_a_dump_is_not_linked(self) -> None:
+        path = self.files / "c.st"
+        path.write_bytes(self.raw_c)
+        [local] = self.library.add_file(path)
+        with self.assertRaisesRegex(LinkError, "matches a dump in the catalogue"):
+            self.library.link_file(local, 4)
+        with self.assertRaisesRegex(LinkError, "not in the catalogue"):
+            self.library.link_file(
+                self.library.add_file(self._write("x.st", make_st_image("x")))[0], 99
+            )
+        with self.assertRaisesRegex(LinkError, "not in the library index"):
+            self.library.link_file(LocalFile(path=str(self.files / "gone.st")), 4)
+
+    def _write(self, name: str, data: bytes) -> Path:
+        path = self.files / name
+        path.write_bytes(data)
+        return path
 
     def test_rematch_after_a_catalogue_update(self) -> None:
         mystery = make_st_image("new in the update")
