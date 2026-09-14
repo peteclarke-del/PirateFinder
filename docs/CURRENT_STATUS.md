@@ -1,11 +1,14 @@
 # Current implementation status
 
-Version 0.2.3, released on 14 September 2026, is the current release. It
-finds a title under either spelling of its sequel number and with or without
-the space between two words, lists scene.org and Fujiology as download
-providers, reads the LZH files of the Vectronix CD, keeps a download no
-checksum could check with its disc, and bundles a catalogue that locates
-thousands more discs.
+Version 0.2.4, released on 14 September 2026, is the current release. It
+adds Link to Disc, which counts a library file that matches no dump, such as
+a menu disk downloaded by hand, as the disc the user chooses, and lists such
+files on the disc's pane under Your Copies. The filter lists on the Find page
+show whole names. Version 0.2.3, released the same day, finds a title under
+either spelling of its sequel number and with or without the space between
+two words, lists scene.org and Fujiology as download providers, reads the LZH
+files of the Vectronix CD, keeps a download no checksum could check with its
+disc, and bundles a catalogue that locates thousands more discs.
 Version 0.2.2, released the same day, asks again for pictures a busy site
 said it did not have, instead of leaving them out for a week. Version 0.2.1,
 released on 13 September, added Download
@@ -62,12 +65,12 @@ together.
 
 The build of 14 September 2026 holds 61,792 discs in 1,395 series (12,396 menu
 disks and compacts, 25,825 packs, 23,232 single disks and 339 compilations),
-117,611 titles, 82,623 known dumps, 225,888 download locations, 207,232
+117,611 titles, 82,623 known dumps, 226,887 download locations, 207,232
 picture addresses, 20,811 facts, notes and article titles, and 2,196 crew
 histories. It takes 329 MB installed and 88 MB compressed. It has fewer discs
 than the build of 13 September because packs that two sources listed under
-different names are now one disc. The Vectronix CD locations are in the
-builds made after it.
+different names are now one disc. It is the first build with the Vectronix
+CD's locations.
 
 ### Finding discs
 
