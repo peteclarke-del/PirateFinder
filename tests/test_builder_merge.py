@@ -379,6 +379,92 @@ class LocationTest(unittest.TestCase):
         )
 
 
+SCENE = SourceInfo("amigascne", "amigascne", "https://scene.example")
+GLENZ = "https://scene.example/Packdisks/MadElks/MadElks-2FuckTheGlenz10.dms"
+
+
+def scene_pack(title: str, url: str, **fields: object) -> DiskRecord:
+    """An amigascne pack: a title from the file name and the file as its location."""
+    return DiskRecord(
+        "amigascne",
+        "amiga",
+        "pack",
+        title=title,
+        locations=[LocationRecord("amigascne", url, priority=40)],
+        **fields,
+    )
+
+
+def zoo_pack(title: str, url: str, **fields: object) -> DiskRecord:
+    """A Demozoo pack: its members, and the file Demozoo names as its download."""
+    return DiskRecord(
+        "demozoo",
+        "amiga",
+        "pack",
+        title=title,
+        contents=[ContentRecord("Glenz Intro", "intro"), ContentRecord("Vector Balls", "demo")],
+        locations=[LocationRecord("amigascne", url, priority=60)],
+        **fields,
+    )
+
+
+class SharedDownloadTest(unittest.TestCase):
+    """Records that name the same download are one disk, unless their numbers disagree."""
+
+    def test_a_pack_and_the_file_it_names_are_one_disk(self) -> None:
+        connection, stats, _ = build(
+            SourceBatch(SCENE, [scene_pack("2 Fuck The Glenz 10 (Mad Elks)", GLENZ)], 90),
+            SourceBatch(ZOO, [zoo_pack("2 Fuck da Glenz 10 (Mad Elks)", GLENZ.lower())], 35),
+        )
+        self.assertEqual(row(connection, "SELECT count(*) FROM disks"), (1,))
+        titles = rows(connection, "SELECT title FROM contents ORDER BY position")
+        self.assertEqual(titles, [("Glenz Intro",), ("Vector Balls",)])
+        # One download, spelt as the archive's own index spells it.
+        self.assertEqual(
+            rows(
+                connection,
+                "SELECT coalesce(p.text, '') || l.url FROM locations l "
+                "LEFT JOIN address_prefix p ON p.id = l.url_prefix",
+            ),
+            [(GLENZ,)],
+        )
+        self.assertEqual(stats["download merges"], 1)
+
+    def test_a_download_of_another_issue_is_not_joined(self) -> None:
+        url = "https://scene.example/Packdisks/BadTaste/BadTaste2.dms"
+        connection, stats, _ = build(
+            SourceBatch(SCENE, [scene_pack("Bad Taste 2", url)], 90),
+            SourceBatch(ZOO, [zoo_pack("Bad Taste 4", url)], 35),
+        )
+        self.assertEqual(row(connection, "SELECT count(*) FROM disks"), (2,))
+        self.assertEqual((stats["download merges"], stats["download merges refused"]), (0, 1))
+
+    def test_a_file_with_a_dump_joins_the_keyed_disk_that_names_it(self) -> None:
+        url = "https://scene.example/Packdisks/Automation/Auto250.adf"
+        keyed = DiskRecord(
+            "demozoo",
+            "atari-st",
+            "menu",
+            "automation",
+            250,
+            contents=[ContentRecord("Necron")],
+            locations=[LocationRecord("amigascne", url)],
+        )
+        dumped = DiskRecord(
+            "amigascne",
+            "atari-st",
+            "menu",
+            title="Auto 250",
+            images=[image("Auto250.st", "ab12")],
+            locations=[LocationRecord("amigascne", url)],
+        )
+        connection, _, _ = build(SourceBatch(ZOO, [keyed], 35), SourceBatch(SCENE, [dumped], 90))
+        self.assertEqual(
+            row(connection, "SELECT count(*), max(label) FROM disks"), (1, "Automation 250")
+        )
+        self.assertEqual(row(connection, "SELECT count(*) FROM images"), (1,))
+
+
 class AttachOnlyTest(unittest.TestCase):
     """Keyed records that may join a disc but never make one (short menu zip names)."""
 

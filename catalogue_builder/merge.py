@@ -59,6 +59,7 @@ from piratefinder.catalogue.naming import (
 from piratefinder.models import Content, ContentKind, Disk, DiskKind, Platform
 
 from .records import (
+    HOSTS,
     ContentRecord,
     CrewRecord,
     DiskRecord,
@@ -155,6 +156,8 @@ class MergeResult:
     batches: list[SourceBatch]
     unmatched_locations: int = 0
     hash_merges: int = 0
+    url_merges: int = 0
+    url_refusals: int = 0
     # Pictures and notes of media-only records that attach to titles by name,
     # resolved when content ids exist: (platform, record, source id).
     title_media: list[tuple[str, MediaRecordIn, str]] = field(default_factory=list)
@@ -307,6 +310,10 @@ class _Merger:
         self.by_hash: dict[tuple, tuple[_Disk, _Image]] = {}
         self.shared_hashes: set[tuple] = set()
         self.hash_merges = 0
+        # Download address -> the disk it belongs to (see disk_for_url).
+        self.by_url: dict[str, _Disk] = {}
+        self.url_merges = 0
+        self.url_refusals = 0
         self.unmatched_locations = 0
         self.unmatched_media = 0
         self.unmatched_trivia = 0
@@ -376,6 +383,30 @@ class _Merger:
             self.add_image(disk, image, record.source, (priority, sequence, position))
         for location in record.locations:
             disk.locations.append((location, _image_for_location(disk, location)))
+            if not _names_an_image(location):
+                self.by_url.setdefault(_url_key(location.url), disk)
+
+    def disk_for_url(self, record: DiskRecord) -> _Disk | None:
+        """The disk that already has one of ``record``'s downloads, or None.
+
+        Demozoo names the file of many packs on the amigascne archive, and so
+        does the amigascne importer, but only one of them can key the disk.
+        A record whose download is another disk's is that disk, unless the
+        numbers in their titles disagree (Demozoo links a few packs to the
+        wrong issue).
+        """
+        for location in record.locations:
+            if _names_an_image(location):
+                continue
+            disk = self.by_url.get(_url_key(location.url))
+            if disk is None or disk.platform != record.platform:
+                continue
+            if _numbers_disagree(disk, record):
+                self.url_refusals += 1
+                continue
+            self.url_merges += 1
+            return disk
+        return None
 
     def new_disk(self, record: DiskRecord, key: tuple | None) -> _Disk:
         kind = record.kind
@@ -439,12 +470,13 @@ class _Merger:
         for priority, number, record in with_images:
             disk = self.disk_for_images(record)
             if disk is None:
-                disk = self.new_disk(record, None)
+                disk = self.disk_for_url(record) or self.new_disk(record, None)
             else:
                 self.hash_merges += 1
             self.add_record(disk, record, priority, number)
         for priority, number, record in plain:
-            self.add_record(self.new_disk(record, None), record, priority, number)
+            disk = self.disk_for_url(record) or self.new_disk(record, None)
+            self.add_record(disk, record, priority, number)
         self.attach_keyed(attach_only)
         self.attach_locations(location_only)
         self.attach_media(media_only)
@@ -481,7 +513,8 @@ class _Merger:
         by_name, by_value = self.image_index()
         for priority, sequence, record in records:
             if record.title.strip() and not any(_names_an_image(loc) for loc in record.locations):
-                self.add_record(self.new_disk(record, None), record, priority, sequence)
+                disk = self.disk_for_url(record) or self.new_disk(record, None)
+                self.add_record(disk, record, priority, sequence)
                 continue
             owners = [_locate(location, by_name, by_value) for location in record.locations]
             for location, owner in zip(record.locations, owners, strict=True):
@@ -527,6 +560,35 @@ class _Merger:
                     self.title_trivia.append((record.platform, note, note.source or record.source))
                 else:
                     self.unmatched_trivia += 1
+
+
+def _url_key(url: str) -> str:
+    """A download address for comparison: unquoted, without case."""
+    return urllib.parse.unquote(url).strip().casefold()
+
+
+_LAST_NUMBER = re.compile(r"(\d+)(?!.*\d)")
+
+
+def _record_number(record: DiskRecord) -> int | None:
+    if record.number is not None:
+        return record.number
+    found = _LAST_NUMBER.search(record.title)
+    return int(found.group(1)) if found else None
+
+
+def _numbers_disagree(disk: _Disk, record: DiskRecord) -> bool:
+    """Whether a disk and a record carry different disk numbers."""
+    theirs = _record_number(record)
+    if theirs is None:
+        return False
+    ours = disk.number
+    if ours is None:
+        ours = next(
+            (n for _p, _s, other in disk.records if (n := _record_number(other)) is not None),
+            None,
+        )
+    return ours is not None and ours != theirs
 
 
 def _names_an_image(location: LocationRecord) -> bool:
@@ -606,6 +668,8 @@ def merge_records(
         batches=batches,
         unmatched_locations=merger.unmatched_locations,
         hash_merges=merger.hash_merges,
+        url_merges=merger.url_merges,
+        url_refusals=merger.url_refusals,
         title_media=merger.title_media,
         title_trivia=merger.title_trivia,
         unmatched_media=merger.unmatched_media,
@@ -981,9 +1045,14 @@ class _Writer:
         """Write the disk's locations. A location keeps its own hash only when
         the image it is attached to lacks it: a download is otherwise checked
         against the image's hashes, which include it."""
-        seen: set[tuple[str, str, str]] = set()
-        for location, image in disk.locations:
-            identity = (location.provider, location.url, location.member)
+        seen: set[tuple[str, str]] = set()
+        # One row per file: the same address in other letter case is the same
+        # download (Demozoo's links do not always keep the archive's case), and
+        # the source that reads the archive itself, with the lower priority
+        # number, has its spelling.
+        ordered = sorted(disk.locations, key=lambda item: item[0].priority)
+        for location, image in ordered:
+            identity = (_url_key(location.url), location.member)
             if identity in seen:
                 continue
             seen.add(identity)
@@ -1595,6 +1664,16 @@ def write_catalogue(
         "VALUES (?, ?, ?, ?, ?, ?)",
         [(i.id, i.name, i.url, i.licence, retrieved, count) for i, count in credited],
     )
+    used = dict(connection.execute("SELECT provider, count(*) FROM locations GROUP BY provider"))
+    connection.executemany(
+        "INSERT OR REPLACE INTO sources(id, name, url, licence, retrieved, records) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        [
+            (host.id, host.name, host.url, host.licence, retrieved, used[host.id])
+            for host in HOSTS.values()
+            if host.id in used and host.id not in known
+        ],
+    )
     for batch in result.batches:
         connection.execute(
             "INSERT OR REPLACE INTO sources(id, name, url, licence, retrieved, records) "
@@ -1619,5 +1698,7 @@ def write_catalogue(
         connection.execute(f"INSERT INTO {table}({table}) VALUES ('optimize')")
     stats["unmatched locations"] = result.unmatched_locations
     stats["hash merges"] = result.hash_merges
+    stats["download merges"] = result.url_merges
+    stats["download merges refused"] = result.url_refusals
     stats["series"] = len(series)
     return dict(stats)

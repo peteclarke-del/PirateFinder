@@ -52,3 +52,11 @@ interval = 1.5
 [[host]]
 host = "ftp.scene.org"
 interval = 1.5
+
+# Fujiology, the Atari ST scene archive. The builder asks for the JSON
+# listing of each folder that holds a pack Demozoo links to, for the file
+# sizes. No robots.txt; its mirror on ftp.untergrund.net forbids robots and
+# is never used.
+[[host]]
+host = "fujiology.org"
+interval = 1.5
