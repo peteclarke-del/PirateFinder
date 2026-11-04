@@ -21,7 +21,7 @@ date with the code.
 | Catalogue scope | Atari ST menu disks, Amiga game compacts, demo, music and tool packs on both machines, and single-game cracks on both machines. |
 | Missing images | Downloaded on request from enabled online providers, checked against the catalogue hash (the location's own, or that of any dump of the disc), and kept in a download folder the user chooses (it may be on a NAS) so they are local next time. |
 | Licence | Code GPL-3.0-or-later, matching Greaseweazle-GUI and PiStorm Imager. The catalogue data is CC BY-NC-SA 4.0 because it includes Atari Legend data under that licence. |
-| Packaging | A Debian package that installs to `/usr/lib/piratefinder` with a private copy of the Greaseweazle host tools, like Greaseweazle-GUI. One package per distribution release and architecture (Ubuntu 24.04 and Debian 13; amd64, arm64 and armhf, listed in `packaging/targets.sh`), each built and install-tested in a container of its own release and architecture, because the bundled host tools include modules compiled for that release's Python. |
+| Packaging | A Debian package that installs to `/usr/lib/piratefinder` with a private copy of the Greaseweazle host tools, like Greaseweazle-GUI. One package per supported release and architecture (Ubuntu 24.04, Ubuntu 26.04 and Debian 13; architectures listed in `packaging/targets.sh`), each built and install-tested in a container of its own release and architecture, because the bundled host tools include modules compiled for that release's Python. |
 
 ## Layout
 

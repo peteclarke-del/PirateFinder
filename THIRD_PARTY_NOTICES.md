@@ -29,7 +29,7 @@ library at the versions pinned in `packaging/runtime-requirements.txt`:
 | Package | Version | Licence |
 | --- | --- | --- |
 | bitarray | 3.10.1 | PSF-2.0 |
-| certifi | 2026.7.22 | MPL-2.0 |
+| certifi | 2026.10.18 | MPL-2.0 |
 | charset-normalizer | 3.5.1 | MIT |
 | crcmod | 1.7 | MIT |
 | idna | 3.19 | BSD-3-Clause |

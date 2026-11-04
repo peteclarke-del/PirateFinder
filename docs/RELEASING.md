@@ -113,15 +113,17 @@ and the Python version it ships:
 
 | Token | Release | Docker image | Python | Architectures |
 | --- | --- | --- | --- | --- |
-| `ubuntu-24.04` | Ubuntu 24.04 | `ubuntu:24.04` | 3.12 | amd64, arm64, armhf |
-| `debian-13` | Debian 13 | `debian:trixie` | 3.13 | amd64, arm64, armhf |
+| `ubuntu-24.04` | Ubuntu 24.04 | `ubuntu:24.04` | detected in image | amd64, arm64, armhf |
+| `ubuntu-26.04` | Ubuntu 26.04 | `ubuntu:26.04` | detected in image | amd64, arm64 |
+| `debian-13` | Debian 13 | `debian:trixie` | detected in image | amd64, arm64, armhf |
 
 The token is the release's `ID` and `VERSION_ID` from `/etc/os-release`, and
 it is part of the package name, `PirateFinder_<version>_<token>_<arch>.deb`.
 The extension modules of Greaseweazle and of its dependencies bitarray and
-crcmod are compiled for one Python, so each package depends on
-`python3` from its release's minor version up to the next one, for example
-`python3 (>= 3.13), python3 (<< 3.14)` on Debian 13. Both releases take
+crcmod are compiled for one Python, so each package depends on `python3` from
+the target image's minor version up to the next one. The build discovers this
+range from the target interpreter rather than maintaining a second Python
+version table. All releases take
 `python3-gi`, `gir1.2-gtk-4.0` and `gir1.2-adw-1 (>= 1.5)`.
 
 To add a release, add its row to the table and its token to the `distro`
@@ -198,8 +200,8 @@ Merge the reviewed release pull request, then create and push a tag that
 exactly matches the version:
 
 ```sh
-git tag -s v0.2.4 -m "PirateFinder v0.2.4"
-git push origin v0.2.4
+git tag -s v0.2.5 -m "PirateFinder v0.2.5"
+git push origin v0.2.5
 ```
 
 The **Release** workflow (`.github/workflows/release.yml`) then:

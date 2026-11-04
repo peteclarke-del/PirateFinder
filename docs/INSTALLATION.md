@@ -7,6 +7,7 @@ Each release has a native package for each of these systems:
 | System | Architectures | Package |
 | --- | --- | --- |
 | Ubuntu 24.04, and Linux Mint 22 which is built on it | amd64, arm64, armhf | `PirateFinder_<version>_ubuntu-24.04_<arch>.deb` |
+| Ubuntu 26.04 | amd64, arm64 | `PirateFinder_<version>_ubuntu-26.04_<arch>.deb` |
 | Debian 13 (trixie) | amd64, arm64, armhf | `PirateFinder_<version>_debian-13_<arch>.deb` |
 
 Every package is installed and started on its own release and architecture by
@@ -31,16 +32,18 @@ packages by default.
 ### Choosing the package
 
 The package must match both the release and the architecture of your system.
-The Greaseweazle host tools it bundles include compiled code for one Python
-version, 3.12 on Ubuntu 24.04 and 3.13 on Debian 13, so a package for one
-release does not install on the other. To find your release, run:
+The Greaseweazle host tools it bundles include compiled code for that release's
+Python version, currently 3.12 on Ubuntu 24.04, 3.14 on Ubuntu 26.04 and 3.13
+on Debian 13. A package for one release does not install on another. To find
+your release, run:
 
 ```sh
 cat /etc/os-release
 ```
 
-`ID=ubuntu` with `VERSION_ID="24.04"`, or `ID=linuxmint` with
-`UBUNTU_CODENAME=noble`, takes the `ubuntu-24.04` package. `ID=debian` with
+`ID=ubuntu` with `VERSION_ID="24.04"` takes the `ubuntu-24.04` package;
+`VERSION_ID="26.04"` takes the `ubuntu-26.04` package. `ID=linuxmint` with
+`UBUNTU_CODENAME=noble` takes the `ubuntu-24.04` package. `ID=debian` with
 `VERSION_ID="13"` takes the `debian-13` package. Other distributions built on
 one of these releases may be able to use its package, but they are not
 tested. To find your architecture, run:
@@ -231,11 +234,12 @@ history and downloaded images are outside the package and are kept. A
 catalogue installed by an in-app update is kept too; PirateFinder uses
 whichever catalogue is newer.
 
-A package works only on the distribution release it was built for, because it
-depends on that release's Python version. After upgrading the system to a new
-release, such as Ubuntu 24.04 to a later Ubuntu, apt reports the installed
-PirateFinder as broken; install the package for the new release when one is
-published, or remove PirateFinder.
+A package works only on the distribution release it was built for, because its
+bundled native extensions use that release's Python ABI. After upgrading the
+system to a new release, install the matching package from the latest
+application release. Check for Application Updates selects the package for the
+currently running Ubuntu or Debian release when one is published; otherwise,
+download it from the release page when available.
 
 ## Removing
 

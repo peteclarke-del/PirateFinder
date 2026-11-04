@@ -1602,7 +1602,7 @@ HELP_TOPICS = (
                     "Press Update to, followed by the new version number. A question says "
                     "which package will be installed and shows the release notes.",
                     "Press Download and Install. The package made for your system, such as "
-                    "Ubuntu 24.04 on amd64, is downloaded from GitHub and checked against the "
+                    "Ubuntu 26.04 on amd64, is downloaded from GitHub and checked against the "
                     "SHA256SUMS file published with it. A package that does not match is "
                     "deleted and nothing is installed.",
                     "The system asks for your password, and apt installs the package over the "

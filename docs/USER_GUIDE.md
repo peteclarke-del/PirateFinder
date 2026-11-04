@@ -638,7 +638,7 @@ The answer shows under the button: that this is the newest version, or the newer
 ### Installing it
 
 1. Press Update to, followed by the new version number. A question says which package will be installed and shows the release notes.
-2. Press Download and Install. The package made for your system, such as Ubuntu 24.04 on amd64, is downloaded from GitHub and checked against the SHA256SUMS file published with it. A package that does not match is deleted and nothing is installed.
+2. Press Download and Install. The package made for your system, such as Ubuntu 26.04 on amd64, is downloaded from GitHub and checked against the SHA256SUMS file published with it. A package that does not match is deleted and nothing is installed.
 3. The system asks for your password, and apt installs the package over the old one. Your settings, library, queue, history and downloaded images are kept.
 4. Press Restart PirateFinder, or Restart in the notification, to start the new version.
 

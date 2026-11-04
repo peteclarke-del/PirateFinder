@@ -7,32 +7,30 @@
 # table. The release workflow's matrix lists the same distributions and
 # architectures, and tests/test_packaging.py checks that it does.
 #
-# Each row names a distribution token, the Docker image of that release, the
-# Python minor version the release ships and the Debian architectures built for
-# it. The token is the release's ID and VERSION_ID from /etc/os-release, and it
-# appears in the package file name. The bundled Greaseweazle and its native
-# dependencies are compiled for that one Python, so the package depends on
-# python3 from that minor version up to, but not including, the next.
+# Each row names a distribution token, the Docker image of that release and
+# the Debian architectures built for it. The token is the release's ID and
+# VERSION_ID from /etc/os-release, and it appears in the package file name. The
+# bundled Greaseweazle and its native dependencies are compiled for the
+# release's python3; build-deb.sh discovers that minor version in the target.
 
-# Distribution  Docker image   Python  Architectures
+# Distribution  Docker image   Architectures
 target_table='
-ubuntu-24.04    ubuntu:24.04   3.12    amd64 arm64 armhf
-debian-13       debian:trixie  3.13    amd64 arm64 armhf
+ubuntu-24.04    ubuntu:24.04   amd64 arm64 armhf
+ubuntu-26.04    ubuntu:26.04   amd64 arm64
+debian-13       debian:trixie  amd64 arm64 armhf
 '
 
 # resolve_target DISTRO ARCH
 #
-# Sets target_image, target_python, target_python_next and target_platform for
-# one row of the table, or prints the supported targets and returns 1.
+# Sets target_image and target_platform for one row of the table, or prints the
+# supported targets and returns 1.
 resolve_target() {
     local want_distro="$1" want_arch="$2"
-    local distro image python architectures
-    while read -r distro image python architectures; do
+    local distro image architectures
+    while read -r distro image architectures; do
         if [[ -n "${distro}" && "${distro}" == "${want_distro}" \
             && -n "${want_arch}" && " ${architectures} " == *" ${want_arch} "* ]]; then
             target_image="${image}"
-            target_python="${python}"
-            target_python_next="${python%%.*}.$((${python#*.} + 1))"
             case "${want_arch}" in
                 amd64) target_platform=linux/amd64 ;;
                 arm64) target_platform=linux/arm64 ;;
@@ -46,7 +44,7 @@ resolve_target() {
         fi
     done <<< "${target_table}"
     echo "Unsupported target ${want_distro:-<none>} ${want_arch:-<none>}. Supported targets:" >&2
-    while read -r distro image python architectures; do
+    while read -r distro image architectures; do
         if [[ -n "${distro}" ]]; then
             echo "  --distro ${distro} --arch ${architectures// /|}" >&2
         fi

@@ -82,7 +82,29 @@ class TargetTests(unittest.TestCase):
     def test_the_file_the_package_writes_names_its_system(self) -> None:
         path = self.folder / "package-target"
         path.write_text("distro=debian-13\narch=arm64\n", encoding="utf-8")
-        self.assertEqual(installed_target(path), PackageTarget("debian-13", "arm64"))
+        with mock.patch(
+            "piratefinder.app_update.platform.freedesktop_os_release",
+            return_value={"ID": "debian", "VERSION_ID": "13"},
+        ):
+            self.assertEqual(installed_target(path), PackageTarget("debian-13", "arm64"))
+
+    def test_the_current_ubuntu_release_replaces_a_stale_build_target(self) -> None:
+        path = self.folder / "package-target"
+        path.write_text("distro=ubuntu-24.04\narch=amd64\n", encoding="utf-8")
+        with mock.patch(
+            "piratefinder.app_update.platform.freedesktop_os_release",
+            return_value={"ID": "ubuntu", "VERSION_ID": "26.04"},
+        ):
+            self.assertEqual(installed_target(path), PackageTarget("ubuntu-26.04", "amd64"))
+
+    def test_derivatives_keep_their_recorded_build_target(self) -> None:
+        path = self.folder / "package-target"
+        path.write_text("distro=ubuntu-24.04\narch=amd64\n", encoding="utf-8")
+        with mock.patch(
+            "piratefinder.app_update.platform.freedesktop_os_release",
+            return_value={"ID": "linuxmint", "VERSION_ID": "22.3"},
+        ):
+            self.assertEqual(installed_target(path), PackageTarget("ubuntu-24.04", "amd64"))
 
     def test_the_source_tree_and_a_broken_file_have_no_system(self) -> None:
         self.assertIsNone(installed_target(self.folder / "package-target"))
