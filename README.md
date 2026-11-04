@@ -50,8 +50,9 @@ by `piratefinder.ui.screenshot` from the real window.
 
 ### What you need
 
-- Ubuntu 24.04, Linux Mint 22 or Debian 13, on amd64, arm64 or armhf, for the
-  release packages. Other distributions can run PirateFinder from source; see
+- Ubuntu 24.04, Ubuntu 26.04, Linux Mint 22 or Debian 13, for the release
+  packages. Ubuntu 26.04 supports amd64 and arm64; the others also support
+  armhf. Other distributions can run PirateFinder from source; see
   [Installation](docs/INSTALLATION.md).
 - A Greaseweazle and a floppy drive to write disks. Searching, browsing, the
   library and downloads work without them.
@@ -529,12 +530,14 @@ new catalogue sources.
 
 ## Status and roadmap
 
-Version 0.2.4 is the current release. Version 0.2.0 brought the paged Find
-screen with its filters, the pictures, crew histories and trivia in the
+Version 0.2.5 adds Ubuntu 26.04 packages and keeps application updates aligned
+with the current Ubuntu or Debian release after an OS upgrade. Version 0.2.4
+adds Link to Disc for files downloaded by hand. Version 0.2.0 brought the
+paged Find screen with its filters, the pictures, crew histories and trivia in the
 details pane, virus detection and Check for Application Updates; 0.2.1 added
 Download All Pictures, 0.2.2 asks again for pictures a busy site turned
 away, 0.2.3 finds titles under more spellings and locates thousands more
-discs, and 0.2.4 adds Link to Disc for files downloaded by hand. One real
+discs. One real
 floppy has been written so far: an 81-cylinder Atari ST disk, written and
 verified on a Greaseweazle F1 and read back identical to its TOSEC dump. The
 other formats have been checked against the real `gw` tool without a

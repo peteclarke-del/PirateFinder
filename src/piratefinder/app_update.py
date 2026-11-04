@@ -7,10 +7,11 @@ compares its tag, ``vX.Y.Z``, with ``__version__``.
 
 A release carries one package for each supported system,
 ``PirateFinder_<version>_<distro>_<arch>.deb``, and a ``SHA256SUMS`` file for
-all of them. An installed package records the distribution and architecture
-it was built for in ``package-target`` beside the application, so the update
-takes the package made for the same system. The package is downloaded to the
-cache folder, checked against ``SHA256SUMS`` and installed with
+all of them. An installed package records its distribution and architecture
+in ``package-target`` beside the application. For Ubuntu and Debian, updates
+use the currently running release, so the updater keeps working after a
+distribution upgrade; other systems use the recorded build target. The package
+is downloaded to the cache folder, checked against ``SHA256SUMS`` and installed with
 ``pkexec apt-get install``, which asks for the user's password. A copy run
 from the source tree has no ``package-target`` and cannot update itself; the
 release page is offered instead.
@@ -19,6 +20,7 @@ release page is offered instead.
 from __future__ import annotations
 
 import hashlib
+import platform
 import re
 import shlex
 import shutil
@@ -78,7 +80,7 @@ class AppRelease:
 
 
 def installed_target(path: Path = PACKAGE_TARGET) -> PackageTarget | None:
-    """The system this package was built for, or None when run from the source tree."""
+    """The package target, updated for a newer Ubuntu or Debian release."""
     try:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
@@ -88,7 +90,17 @@ def installed_target(path: Path = PACKAGE_TARGET) -> PackageTarget | None:
         key, _, value = line.partition("=")
         values[key.strip()] = value.strip()
     distro, arch = values.get("distro", ""), values.get("arch", "")
-    return PackageTarget(distro, arch) if distro and arch else None
+    if not distro or not arch:
+        return None
+    try:
+        current_release = platform.freedesktop_os_release()
+    except OSError:
+        current_release = {}
+    current_id = current_release.get("ID", "").lower()
+    current_version = current_release.get("VERSION_ID", "")
+    if current_id in {"ubuntu", "debian"} and current_version:
+        distro = f"{current_id}-{current_version}"
+    return PackageTarget(distro, arch)
 
 
 def parse_version(text: str) -> tuple[int, int, int] | None:

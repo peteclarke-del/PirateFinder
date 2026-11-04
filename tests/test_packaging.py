@@ -41,14 +41,14 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def target_table() -> dict[str, tuple[str, str, list[str]]]:
-    """The rows of packaging/targets.sh: distribution to image, Python and architectures."""
+def target_table() -> dict[str, tuple[str, list[str]]]:
+    """The rows of packaging/targets.sh: distribution to image and architectures."""
     table = re.search(r"^target_table='\n(.*?)^'$", read(TARGETS), re.MULTILINE | re.DOTALL)
     assert table is not None, "packaging/targets.sh has no target_table"
     rows = {}
     for line in table.group(1).splitlines():
-        distro, image, python, *architectures = line.split()
-        rows[distro] = (image, python, architectures)
+        distro, image, *architectures = line.split()
+        rows[distro] = (image, architectures)
     return rows
 
 
@@ -313,34 +313,33 @@ class PackageBuilderTests(unittest.TestCase):
 class TargetTests(unittest.TestCase):
     """packaging/targets.sh is the one list of distribution releases and architectures."""
 
-    def test_the_releases_python_versions_and_architectures(self) -> None:
+    def test_the_releases_and_architectures(self) -> None:
         self.assertEqual(
             target_table(),
             {
-                "ubuntu-24.04": ("ubuntu:24.04", "3.12", ["amd64", "arm64", "armhf"]),
-                "debian-13": ("debian:trixie", "3.13", ["amd64", "arm64", "armhf"]),
+                "ubuntu-24.04": ("ubuntu:24.04", ["amd64", "arm64", "armhf"]),
+                "ubuntu-26.04": ("ubuntu:26.04", ["amd64", "arm64"]),
+                "debian-13": ("debian:trixie", ["amd64", "arm64", "armhf"]),
             },
         )
 
     @staticmethod
     def resolve(distro: str, arch: str) -> subprocess.CompletedProcess[str]:
         script = (
-            'source "$1" && resolve_target "$2" "$3" && echo "${target_image}" '
-            '"${target_python}" "${target_python_next}" "${target_platform}"'
+            'source "$1" && resolve_target "$2" "$3" && echo "${target_image}" "${target_platform}"'
         )
         return run_script("-c", script, "bash", str(TARGETS), distro, arch)
 
-    def test_each_target_resolves_to_an_image_python_range_and_platform(self) -> None:
+    def test_each_target_resolves_to_an_image_and_platform(self) -> None:
         platforms = {"amd64": "linux/amd64", "arm64": "linux/arm64", "armhf": "linux/arm/v7"}
-        for distro, (image, python, architectures) in target_table().items():
-            major, minor = python.split(".")
+        for distro, (image, architectures) in target_table().items():
             for arch in architectures:
                 with self.subTest(distro=distro, arch=arch):
                     result = self.resolve(distro, arch)
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertEqual(
                         result.stdout.split(),
-                        [image, python, f"{major}.{int(minor) + 1}", platforms[arch]],
+                        [image, platforms[arch]],
                     )
 
     def test_an_unknown_target_is_refused(self) -> None:
@@ -367,7 +366,7 @@ class TargetTests(unittest.TestCase):
         here = running_target()
         distro, arch = next(
             (distro, arch)
-            for distro, (_image, _python, architectures) in target_table().items()
+            for distro, (_image, architectures) in target_table().items()
             for arch in architectures
             if (distro, arch) != here
         )
@@ -447,11 +446,21 @@ class WorkflowTests(unittest.TestCase):
         self.assertIsNotNone(arches)
         table = target_table()
         self.assertEqual([name.strip() for name in distros.group(1).split(",")], list(table))
-        for distro, (_image, _python, architectures) in table.items():
-            with self.subTest(distro=distro):
-                self.assertEqual(
-                    [name.strip() for name in arches.group(1).split(",")], architectures
-                )
+        excluded = set(
+            re.findall(r"- distro: (\S+)\n\s+arch: (\S+)", workflow.split("exclude:", 1)[1])
+        )
+        matrix = {
+            (distro, arch)
+            for distro in table
+            for arch in (name.strip() for name in arches.group(1).split(","))
+            if (distro, arch) not in excluded
+        }
+        expected = {
+            (distro, arch)
+            for distro, (_image, architectures) in table.items()
+            for arch in architectures
+        }
+        self.assertEqual(matrix, expected)
         for arch in ("amd64", "arm64", "armhf"):
             self.assertRegex(workflow, rf"- arch: {arch}\n\s+runner: ubuntu-24\.04")
 
@@ -462,7 +471,7 @@ class WorkflowTests(unittest.TestCase):
         table = target_table()
         for distro, arch in builds:
             with self.subTest(distro=distro, arch=arch):
-                self.assertIn(arch, table[distro][2])
+                self.assertIn(arch, table[distro][1])
         self.assertIn("./packaging/build-deb.sh --container", workflow)
         self.assertIn("./packaging/install-test.sh dist/*.deb", workflow)
 

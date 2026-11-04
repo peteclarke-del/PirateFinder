@@ -108,8 +108,11 @@ jobs:
         # that the two lists agree. Each package is built and install-tested
         # in a container of its own distribution release and architecture.
         # arm64 runs natively on GitHub's Arm runners, and armhf under qemu.
-        distro: [ubuntu-24.04, debian-13]
+        distro: [ubuntu-24.04, ubuntu-26.04, debian-13]
         arch: [amd64, arm64, armhf]
+        exclude:
+          - distro: ubuntu-26.04
+            arch: armhf
         include:
           - arch: amd64
             runner: ubuntu-24.04

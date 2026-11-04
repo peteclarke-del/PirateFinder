@@ -6,10 +6,10 @@
 # Usage: packaging/build-deb.sh --distro DISTRO [--arch ARCH] [--container]
 #                               [--catalogue FILE | --no-catalogue] [OUTPUT_DIR]
 #
-# DISTRO is ubuntu-24.04 or debian-13 and ARCH is amd64, arm64 or armhf; the
-# table in packaging/targets.sh lists the supported pairs. ARCH defaults to the
-# architecture of the machine running the script. The package is written to
-# OUTPUT_DIR (default dist) as PirateFinder_<version>_<distro>_<arch>.deb.
+# DISTRO and ARCH must be a supported pair from packaging/targets.sh. ARCH
+# defaults to the architecture of the machine running the script. The package
+# is written to OUTPUT_DIR (default dist) as
+# PirateFinder_<version>_<distro>_<arch>.deb.
 #
 # Greaseweazle and some of its dependencies are compiled extensions, so the
 # package is built on the release and architecture it is for. Without
@@ -25,6 +25,7 @@
 # its own update check.
 
 set -euo pipefail
+umask 022
 
 project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 python_command="${PYTHON:-python3}"
@@ -169,16 +170,13 @@ fi
 # shellcheck source=/dev/null
 running_distro="$(. /etc/os-release && echo "${ID}-${VERSION_ID}")"
 running_arch="$(dpkg --print-architecture)"
-python_version="$("${python_command}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 if [[ "${running_distro}" != "${distro}" || "${running_arch}" != "${arch}" ]]; then
     echo "This machine is ${running_distro} ${running_arch}, not ${distro} ${arch}." >&2
     echo "Build on ${distro} ${arch}, or add --container." >&2
     exit 1
 fi
-if [[ "${python_version}" != "${target_python}" ]]; then
-    echo "The ${distro} package must be built with Python ${target_python}, not ${python_version}." >&2
-    exit 1
-fi
+target_python="$("${python_command}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+target_python_next="${target_python%%.*}.$((${target_python#*.} + 1))"
 
 greaseweazle_version="$(tr -d '[:space:]' < "${project_dir}/packaging/greaseweazle-version.txt")"
 greaseweazle_sha256="$(tr -d '[:space:]' < "${project_dir}/packaging/greaseweazle-source.sha256")"

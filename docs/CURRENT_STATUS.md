@@ -1,7 +1,9 @@
 # Current implementation status
 
-Version 0.2.4, released on 14 September 2026, is the current release. It
-adds Link to Disc, which counts a library file that matches no dump, such as
+Version 0.2.5 adds Ubuntu 26.04 package support and makes application updates
+follow supported Ubuntu and Debian release upgrades. Version 0.2.4, released
+on 14 September 2026, added Link to Disc, which counts a library file that
+matches no dump, such as
 a menu disk downloaded by hand, as the disc the user chooses, and lists such
 files on the disc's pane under Your Copies. The filter lists on the Find page
 show whole names. Version 0.2.3, released the same day, finds a title under
@@ -234,16 +236,17 @@ CD's locations.
 
 ### Distribution
 
-- Ubuntu 24.04 (and Linux Mint 22) and Debian 13 `.deb` packages for amd64,
-  arm64 and armhf, named `PirateFinder_<version>_<distro>_<arch>.deb`, each
-  with the catalogue, a private copy of Greaseweazle Host Tools 1.23 whose
-  compiled modules are built for that release's Python (3.12 or 3.13) and
-  architecture, and the Greaseweazle udev rules; `packaging/build-deb.sh
+- Ubuntu 24.04 (and Linux Mint 22), Ubuntu 26.04, and Debian 13 `.deb` packages
+  named `PirateFinder_<version>_<distro>_<arch>.deb` (Ubuntu 26.04 on amd64 and
+  arm64; the other targets also on armhf), each with the catalogue, a private
+  copy of Greaseweazle Host Tools 1.23 whose compiled modules are built for
+  that release's Python and architecture, and the Greaseweazle udev rules;
+  `packaging/build-deb.sh
   --distro ... --arch ... --container` builds any of them in a container of
   the target release and architecture, and `packaging/install-test.sh`
   installs one in a fresh container and starts it
 - Release workflow that verifies the tag, bundles the newest published
-  catalogue of the layout the source reads in all six packages (arm64 built
+  catalogue of the layout the source reads in all eight packages (arm64 built
   on GitHub's Arm runners, armhf under qemu), install-tests each in a
   container of its own release and architecture, and publishes them with one
   `SHA256SUMS`; CI builds and install-tests Ubuntu 24.04 amd64 and Debian 13

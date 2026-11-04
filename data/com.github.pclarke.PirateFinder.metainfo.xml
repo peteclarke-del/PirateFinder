@@ -49,6 +49,11 @@
     <keyword>compact</keyword>
   </keywords>
   <releases>
+    <release version="0.2.5" date="2026-11-04">
+      <description>
+        <p>Ubuntu 26.04 support and application updates that follow Ubuntu and Debian release upgrades.</p>
+      </description>
+    </release>
     <release version="0.2.4" date="2026-09-14">
       <description>
         <p>Link to Disc, for menu disks downloaded by hand.</p>
